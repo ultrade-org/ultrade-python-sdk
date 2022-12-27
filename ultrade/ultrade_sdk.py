@@ -1,18 +1,11 @@
 from random import random
 from typing import Any, Dict, List, Optional, Tuple, Union
-import requests
-
-from algosdk import account, constants, mnemonic
-from algosdk.future import transaction
-from algosdk.logic import get_application_address
-from algosdk.v2client import algod
-from algosdk.v2client.algod import AlgodClient
-from test_credentials import TEST_ALGOD_ADDRESS, TEST_ALGOD_TOKEN, TEST_MNEMONIC_KEY
 
 from api import get_order_by_id, get_exchange_info, get_trade_orders
 from algod_service import AlgodService
 import utils
 
+from constants import OPEN_ORDER_STATUS
 
 class Client ():
 
@@ -81,7 +74,7 @@ class Client ():
                 asset_index, info["application_id"], sender_address, order["transfer_amount"]))
 
         unsigned_txns.append(self.client.make_app_call_txn(
-            asset_index, app_args, sender_address, info["application_id"]))
+            asset_index, app_args, info["application_id"]))
 
         signed_txns = self.client.sign_transaction_grp(unsigned_txns)
 
@@ -89,25 +82,39 @@ class Client ():
 
         print(f"Order created successfully, order_id: {tx_id}")
 
-    def cancel_orders(self, symbol=None, order_id=None, orders_to_cancel=[]):
+    def cancel_order(self, symbol, order_id):
         if not self.mnemonic:
             raise "You need to specify mnemonic or signer to execute this method"
         self.client.validate_transaction_order()
 
-        sender_address = self.client.get_account_address()
-        
-        if symbol and order_id != None:     
-            data = get_order_by_id(symbol, order_id)
-            orders_to_cancel.append(data[0])
+        data = get_order_by_id(symbol, order_id)
+        asset_index = get_exchange_info(symbol)["price_id"]
+        order = data[0]
 
-        unsigned_txns = [self.client.make_cancel_order_txn(
-            order, sender_address) for order in orders_to_cancel]
+        app_args = ["cancel_order", order["orders_id"], order["slot"]]
+        unsigned_txn = self.client.make_app_call_txn(asset_index, app_args, order["application_id"])
+
+        signed_txn = self.client.sign_transaction_grp(unsigned_txn)
+        tx_id = self.client.send_transaction_grp(signed_txn)
+
+    
+    def cancel_all_orders(self, symbol):   
+        address = self.client.get_account_address()
+        user_trade_orders = get_trade_orders(address, OPEN_ORDER_STATUS, symbol)
+        asset_index = get_exchange_info(symbol)["price_id"]
+
+        unsigned_txns = []
+        i = 0
+        for order in user_trade_orders:
+            i=i+1
+            print(i)
+            app_args = ["cancel_order", order["orders_id"], order["slot"]]
+            print("asset_index",asset_index)
+            unsigned_txn = self.client.make_app_call_txn(asset_index, app_args, order["pair_id"]) 
+            unsigned_txns.append(unsigned_txn)
 
         signed_txns = self.client.sign_transaction_grp(unsigned_txns)
         tx_id = self.client.send_transaction_grp(signed_txns)
-
-        # response = [wait_for_transaction(client, tx_id) for tx_id in ids]
-        # print(f" >> second txn log >> {response[1].logs}")
 
     def get_balance_and_state(self, address) -> Dict[str, int]:
         balances: Dict[str, int] = dict()
@@ -124,12 +131,7 @@ class Client ():
 
         return {"balances": balances, "local_state": account_info.get('apps-local-state', [])}
 
-    def cancel_all_orders(self, symbol):
-        address = self.client.get_account_address()
-        status = "1"
-        user_trade_orders = get_trade_orders(address, status, symbol)
-
-        self.cancel_orders(orders_to_cancel=user_trade_orders)
+    
 
     def subscribe(self):
         pass
