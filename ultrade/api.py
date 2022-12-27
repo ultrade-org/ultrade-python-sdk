@@ -57,19 +57,24 @@ def get_price(symbol):
     return data
 
 
-def get_depth(symbol, depth):  # server error, need to test later
+def get_depth(symbol, depth):
     data = requests.get(
         f"{get_domain()}/market/depth?symbol={symbol}&depth={depth}").json()
     return data
 
 
-def get_last_trades(symbol):  # server error, need to test later
+def get_last_trades(symbol):
     data = requests.get(
         f"{get_domain()}/market/last-trades?symbol={symbol}").json()
     return data
 
 
-def get_symbols(mask):  # endpoint is not working
+def get_symbols(mask) -> dict[str, str]:
+    """
+    Returns a list of dictionaries with matched pair keys
+
+    Return example: [{'pairKey': 'algo_usdt'}]
+    """
     data = requests.get(f"{get_domain()}/market/symbols?mask={mask}").json()
     return data
 
@@ -92,7 +97,3 @@ def get_wallet_transactions(address, symbol=None):  # is not documented
     data = requests.get(
         f"{get_domain()}/market/wallet-transactions?address={address}{symbol_query}").json()
     return data
-
-
-# result = get_exchange_info("algo_usdt")
-# print("result!", result)

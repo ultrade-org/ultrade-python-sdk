@@ -56,4 +56,8 @@ symbol = "YLDY_STBL"
 
 #ultrade_sdk.new_order(symbol, order_2)
 #ultrade_sdk.cancel_order("algo_usdc", 76678)
-ultrade_sdk.cancel_all_orders("algo_usdc")
+#ultrade_sdk.cancel_all_orders("algo_usdc")
+
+value = api.get_depth("algo_usdt", 100)
+
+print("value", value)
