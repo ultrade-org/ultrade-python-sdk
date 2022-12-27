@@ -13,8 +13,9 @@ class AlgodService:
         self.client: AlgodClient = client
         self.mnemonic: str = mnemonic
 
-    def make_app_call_txn(self, asset_index, app_args, sender_address, app_id):
+    def make_app_call_txn(self, asset_index, app_args, app_id):
         print("Preparing application call txn...")
+        sender_address = self.get_account_address()
 
         suggested_params = self.get_transaction_params()
         accounts = []
@@ -50,7 +51,7 @@ class AlgodService:
         return txn
     
     def make_payment_txn(self, app_id, sender, transfer_amount):
-        print("Sending a payment transaction...")
+        print("Preparing a payment transaction...")
 
         rcv = get_application_address(int(app_id))
         receiver = rcv[0] if isinstance(rcv, list) else rcv
@@ -62,22 +63,6 @@ class AlgodService:
             receiver=receiver,
             amt=transfer_amount)
 
-        return txn
-
-    def make_cancel_order_txn(self, order, sender_address):
-        params = self.get_transaction_params()
-        app_args = ["cancel_order", order["orders_id"], order["slot"]]
-        accounts = [sender_address]
-        foreign_apps = []
-        foreign_assets = [order["price_id"]]
-        print("order",str(order))
-        txn = transaction.ApplicationNoOpTxn(sender_address,
-                                             params,
-                                             order["application_id"],
-                                             app_args,
-                                             accounts,
-                                             foreign_apps,
-                                             foreign_assets)
         return txn
 
     def opt_in_asset(self, sender, asset_id):
