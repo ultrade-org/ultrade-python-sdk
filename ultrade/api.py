@@ -4,13 +4,19 @@ import time
 
 
 # should be replaced when dedicated endpoint is ready
-def get_exchange_info(symbol=None):
+def get_exchange_info(identifier):
     data = requests.get(f"{get_domain()}/market/markets").json()
-    if symbol is None:
+    if identifier == None:
         return data
 
+    try:
+        identifier = int(identifier)
+        key = "application_id"
+    except:
+        key = "pair_key"
+
     for dict in data:
-        if dict["pair_key"].lower() == symbol.lower():
+        if dict[key] == identifier:
             return dict
 
     raise "Can't find exchange info for the specified symbol"

@@ -1,4 +1,3 @@
-
 import setuptools
 import codecs
 import os
