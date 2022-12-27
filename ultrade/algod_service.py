@@ -65,22 +65,6 @@ class AlgodService:
 
         return txn
 
-    def make_cancel_order_txn(self, order, sender_address):
-        params = self.get_transaction_params()
-        app_args = ["cancel_order", order["orders_id"], order["slot"]]
-        accounts = [sender_address]
-        foreign_apps = []
-        foreign_assets = [order["price_id"]]
-        print("order",str(order))
-        txn = transaction.ApplicationNoOpTxn(sender_address,
-                                             params,
-                                             order["application_id"],
-                                             app_args,
-                                             accounts,
-                                             foreign_apps,
-                                             foreign_assets)
-        return txn
-
     def opt_in_asset(self, sender, asset_id):
         if asset_id:
             txn = transaction.AssetTransferTxn(
