@@ -1,0 +1,8 @@
+.env
+ultrade/__pycache__/
+ultrade/test_credentials.py
+ultrade_python_sdk.egg-info
+.vscode
+build
+dist
+ultrade2.egg-info
