@@ -1,5 +1,6 @@
 from test_credentials import TEST_MNEMONIC_KEY, TEST_ALGOD_TOKEN, TEST_ALGOD_ADDRESS
 from ultrade_sdk import Client
+import api
 
 from algosdk.v2client import algod
 from algosdk import account, mnemonic
@@ -53,5 +54,6 @@ example_order_id = "SDODRM6GMMPVVWJNYCAIXV7W3EGGOJ3V5PL7XJUKHLDDTQIYG6SA"
 symbol = "YLDY_STBL"
 
 
-ultrade_sdk.new_order(symbol, order_2)
-# ultrade_sdk.cancel_order(76660)
+#ultrade_sdk.new_order(symbol, order_2)
+ultrade_sdk.cancel_orders("algo_usdc", 76679)
+#ultrade_sdk.cancel_all_orders("algo_usdc")
