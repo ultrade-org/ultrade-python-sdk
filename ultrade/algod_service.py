@@ -48,7 +48,7 @@ class AlgodService:
         )
 
         return txn
-
+    
     def make_payment_txn(self, app_id, sender, transfer_amount):
         print("Sending a payment transaction...")
 
@@ -62,6 +62,22 @@ class AlgodService:
             receiver=receiver,
             amt=transfer_amount)
 
+        return txn
+
+    def make_cancel_order_txn(self, order, sender_address):
+        params = self.get_transaction_params()
+        app_args = ["cancel_order", order["orders_id"], order["slot"]]
+        accounts = [sender_address]
+        foreign_apps = []
+        foreign_assets = [order["price_id"]]
+        print("order",str(order))
+        txn = transaction.ApplicationNoOpTxn(sender_address,
+                                             params,
+                                             order["application_id"],
+                                             app_args,
+                                             accounts,
+                                             foreign_apps,
+                                             foreign_assets)
         return txn
 
     def opt_in_asset(self, sender, asset_id):
@@ -86,6 +102,9 @@ class AlgodService:
         )
 
         return txn
+
+    def get_account_info(self, address):
+        return self.client.account_info(address)
 
     def get_transaction_params(self):
         return self.client.suggested_params()

@@ -3,7 +3,8 @@ from constants import get_domain
 import time
 
 
-def get_exchange_info(symbol=None):  # should be replaced when dedicated endpoint is ready
+# should be replaced when dedicated endpoint is ready
+def get_exchange_info(symbol=None):
     data = requests.get(f"{get_domain()}/market/markets").json()
     if symbol is None:
         return data
@@ -26,7 +27,8 @@ def ping():
 
 
 def get_order_by_id(symbol, order_id):
-    url = f"{get_domain()}/market/getOrderById?orderId={order_id}"  # there should be symbol query support
+    # there should be symbol query support
+    url = f"{get_domain()}/market/getOrderById?orderId={order_id}"
     data = requests.get(url).json()
     if not len(data["order"]):
         raise "Order not found"
@@ -34,7 +36,8 @@ def get_order_by_id(symbol, order_id):
 
 
 def get_open_orders(symbol):
-    data = requests.get(f"{get_domain()}/market/open-orders?symbol={symbol}").json()
+    data = requests.get(
+        f"{get_domain()}/market/open-orders?symbol={symbol}").json()
     return data["openOrders"]
 
 
@@ -49,12 +52,14 @@ def get_price(symbol):
 
 
 def get_depth(symbol, depth):  # server error, need to test later
-    data = requests.get(f"{get_domain()}/market/depth?symbol={symbol}&depth={depth}").json()
+    data = requests.get(
+        f"{get_domain()}/market/depth?symbol={symbol}&depth={depth}").json()
     return data
 
 
 def get_last_trades(symbol):  # server error, need to test later
-    data = requests.get(f"{get_domain()}/market/last-trades?symbol={symbol}").json()
+    data = requests.get(
+        f"{get_domain()}/market/last-trades?symbol={symbol}").json()
     return data
 
 
@@ -64,19 +69,22 @@ def get_symbols(mask):  # endpoint is not working
 
 
 def get_history(symbol, interval, start_time, end_time, limit=500):
-    data = requests.get(f"{get_domain()}/market/history?symbol={symbol}&interval={interval}&startTime={start_time}&endTime={end_time}&limit={limit}").json()
+    data = requests.get(
+        f"{get_domain()}/market/history?symbol={symbol}&interval={interval}&startTime={start_time}&endTime={end_time}&limit={limit}").json()
     return data
 
 
-def get_order_with_trades(address, status, symbol=None):  # is not documented
+def get_trade_orders(address, status, symbol=None):  # is not documented
     symbol_query = f"&symbol={symbol}" if symbol else ""
-    data = requests.get(f"{get_domain()}/market/orders-with-trades?address={address}&status={status}{symbol_query}").json()
+    data = requests.get(
+        f"{get_domain()}/market/orders-with-trades?address={address}&status={status}{symbol_query}").json()
     return data
 
 
 def get_wallet_transactions(address, symbol=None):  # is not documented
     symbol_query = f"&symbol={symbol}" if symbol else ""
-    data = requests.get(f"{get_domain()}/market/wallet-transactions?address={address}{symbol_query}").json()
+    data = requests.get(
+        f"{get_domain()}/market/wallet-transactions?address={address}{symbol_query}").json()
     return data
 
 
