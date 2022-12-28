@@ -9,40 +9,6 @@ options = {
 }
 opts = {"sid":"oA8iJaSHOM7bo7nIAAAc","upgrades":[],"pingInterval":25000,"pingTimeout":20000,"maxPayload":1000000}
 socket_pool = {}
-class NameSpace(socketio.ClientNamespace):
-    def on_event_handler(event, args):
-        print("2")
-        callback(self, event, args)
-
-    def on_reconnect(self):
-        print("1")
-        socket.emit("subscribe", options)
-
-    def on_disconnect(self):
-        print('disconnected from server')
-
-    def on_connect(self):
-        print('connection established')
-        socket.emit("subscribe", options)
-
-# @socket.on('*')
-# def event_handler(event, args):
-#     print("2")
-#     callback(event, args)
-
-# @socket.event
-# def reconnect():
-#     print("1")
-#     socket.emit("subscribe", options)
-
-# @socket.event
-# def disconnect():
-#     print('disconnected from server')
-
-# @socket.event
-# def connect():
-#     print('connection established')
-#     socket.emit("subscribe", options)
 
 url = "wss://dev-ws.ultradedev.net/socket.io"
 
@@ -56,7 +22,7 @@ def subscribe(url, options, callback):
 
     if not socket:
         socket = socketio.Client(logger=True, engineio_logger=True)
-        socket.register_namespace(NameSpace("/"))
+        add_event_listeners(socket)
         socket.connect(url)
         socket.wait()
 
@@ -73,4 +39,25 @@ def unsubscribe(handler_id):
             socket.disconnect()
             socket = None
 
+def add_event_listeners(socket):
+    print("adding event listeners...")
+    def event_handler(event, args):
+        print("2")
+        callback(event, args)
+    socket.on('*',event_handler)
 
+    def reconnect_handler():
+        print("1")
+        socket.emit("subscribe", options)
+    socket.on("reconnect",reconnect_handler)
+
+    def disconnect_handler():
+        print('disconnected from server')
+    socket.on("disconnect", disconnect_handler)
+
+    def connect_handler():
+        print('connection established')
+        socket.emit("subscribe", options)
+    socket.on("connect", connect_handler)
+
+subscribe(url, options, callback)
