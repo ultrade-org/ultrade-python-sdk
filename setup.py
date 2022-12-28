@@ -15,6 +15,7 @@ setuptools.setup(
     url="https://github.com/ultrade-org/ultrade-python-sdk",
     packages=setuptools.find_packages(),
     install_requires=[
-        "py-algorand-sdk"
+        "py-algorand-sdk",
+        "python-socketio"
     ]
 )

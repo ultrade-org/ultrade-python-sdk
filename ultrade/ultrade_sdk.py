@@ -8,7 +8,8 @@ import utils
 from constants import OPEN_ORDER_STATUS
 
 class Client ():
-
+    def subscribe():
+        socket.subscribe()
     def __init__(self,
                  auth_credentials: Dict[str, Any],
                  options: Dict[str, Any]
@@ -28,6 +29,7 @@ class Client ():
 
         self.client = AlgodService(options.get(
             "algo_sdk_client"), auth_credentials.get("mnemonic"))
+        
         self.websocket_url: Optional[str] = options.get("websocket_url")
         self.mnemonic: Optional[str] = auth_credentials.get(
             "mnemonic")  # todo remove creds from here
@@ -36,9 +38,8 @@ class Client ():
             "client_secret")
         self.company: Optional[str] = auth_credentials.get("company")
         self.client_id: Optional[str] = auth_credentials.get("client_id")
-
+        
     def new_order(self, symbol, order):
-        # todo: implement use of on_complete callback, figure out where to get "transfer_amount"
         if not self.mnemonic:
             raise "You need to specify mnemonic or signer to execute this method"
         self.client.validate_transaction_order()

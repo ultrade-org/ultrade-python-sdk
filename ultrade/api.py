@@ -33,7 +33,7 @@ def ping():
 
 
 def get_order_by_id(symbol, order_id):
-    # there should be symbol query support
+    # this endpoint should support symbol query
     url = f"{get_domain()}/market/getOrderById?orderId={order_id}"
     data = requests.get(url).json()
     if not len(data["order"]):
