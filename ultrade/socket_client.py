@@ -4,15 +4,15 @@ import time
 socket = None
 options = {
   'symbol': "yldy_stbl",
-  'streams': [ 4,5,6,7,8,9],
-  'options': {"address": "47HZBXMZ4V34L4ONFGQESWJYVSDVIRSZPBQM3B7WUZZXZ2622EXXXO6GSU", "partnerId": "87654321"}
+  'streams': [4,5,6,7,8,9],
+  'options': {"address": "47HZBXMZ4V34L4ONFGQESWJYVSDVIRSZPBQM3B7WUZZXZ2622EXXXO6GSU", "partnerId": "12345678"}
 }
 opts = {"sid":"oA8iJaSHOM7bo7nIAAAc","upgrades":[],"pingInterval":25000,"pingTimeout":20000,"maxPayload":1000000}
 socket_pool = {}
 
 url = "wss://dev-ws.ultradedev.net/socket.io"
 
-def callback(event):
+def callback(event, args):
     print("event", event)
     pass
 
@@ -22,7 +22,7 @@ def subscribe(url, options, callback):
 
     if not socket:
         socket = socketio.Client(logger=True, engineio_logger=True)
-        add_event_listeners(socket)
+        add_event_listeners(socket, options, callback)
         socket.connect(url)
         socket.wait()
 
@@ -39,12 +39,12 @@ def unsubscribe(handler_id):
             socket.disconnect()
             socket = None
 
-def add_event_listeners(socket):
+def add_event_listeners(socket, options, callback):
     print("adding event listeners...")
     def event_handler(event, args):
         print("2")
         callback(event, args)
-    socket.on('*',event_handler)
+    socket.on('*', callback)
 
     def reconnect_handler():
         print("1")

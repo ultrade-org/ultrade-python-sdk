@@ -1,6 +1,7 @@
 from random import random
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+import socket_client
 from api import get_order_by_id, get_exchange_info, get_trade_orders
 from algod_service import AlgodService
 import utils
@@ -8,8 +9,6 @@ import utils
 from constants import OPEN_ORDER_STATUS
 
 class Client ():
-    def subscribe():
-        socket.subscribe()
     def __init__(self,
                  auth_credentials: Dict[str, Any],
                  options: Dict[str, Any]
@@ -132,13 +131,8 @@ class Client ():
 
         return {"balances": balances, "local_state": account_info.get('apps-local-state', [])}
 
-    
+    def subscribe(self, options, callback):
+        socket_client.subscribe(self.websocket_url, options, callback)
 
-    def subscribe(self):
-        pass
-
-    def unsubscribe(self):
-        pass
-
-    def connect():
-        pass
+    def unsubscribe(self, handler_id):
+        socket_client.unsubscribe(handler_id)
