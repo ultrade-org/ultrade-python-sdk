@@ -1,11 +1,11 @@
 import socketio
 import time
-from typing import Callable, Optional
+from typing import Callable, Optional, TypedDict
 
 socket: Optional[socketio.Client] = None
 socket_pool: Optional[dict[str, 'SubscribeOptions']] = {}
 
-class SubscribeOptions():
+class SubscribeOptions(TypedDict):
     symbol: str
     streams: list[int]
     options: dict[str, any]
