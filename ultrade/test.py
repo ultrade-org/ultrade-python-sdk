@@ -37,7 +37,6 @@ order_1 = {  # algo-usdt
     "quantity": 2000000,
     "price": 800,
     "transfer_amount": 2000000,
-    "sender": address,
     "partner_app_id": "87654321"
 }
 
@@ -48,11 +47,9 @@ order_2 = {
     "quantity": 350000000,
     "price": 800,
     "transfer_amount": 350000000,
-    "sender": address,
     "partner_app_id": "87654321"
 }
 
-# "sender": address,
 # "transfer_amount": 2000000,
 
 example_order_id = "SDODRM6GMMPVVWJNYCAIXV7W3EGGOJ3V5PL7XJUKHLDDTQIYG6SA"

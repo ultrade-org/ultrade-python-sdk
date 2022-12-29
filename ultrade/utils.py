@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Dict
 
 def is_asset_opted_in(balances: Dict[str, str], asset_id: int):
     for key in balances:
