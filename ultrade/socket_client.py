@@ -1,10 +1,16 @@
 import socketio
 import time
+from typing import Callable, Optional
 
-socket: socketio.Client = None
-socket_pool = {}
+socket: Optional[socketio.Client] = None
+socket_pool: Optional[dict[str, 'SubscribeOptions']] = {}
 
-def subscribe(url, options, callback):
+class SubscribeOptions():
+    symbol: str
+    streams: list[int]
+    options: dict[str, any]
+
+def subscribe(url: str, options: SubscribeOptions, callback: Callable[[str, list[any]], any]):
     handler_id = str(time.time_ns())
     global socket
 
@@ -18,7 +24,7 @@ def subscribe(url, options, callback):
 
     return handler_id
 
-def unsubscribe(handler_id):
+def unsubscribe(handler_id: str):
     global socket
     try:
         options = socket_pool[handler_id]
@@ -29,7 +35,7 @@ def unsubscribe(handler_id):
             socket.disconnect()
             socket = None
 
-def add_event_listeners(socket, options, callback):
+def add_event_listeners(socket: socketio.Client, options: SubscribeOptions, callback: Callable[[str, list[any]], any]):
     socket.on('*', callback)
 
     def reconnect_handler():

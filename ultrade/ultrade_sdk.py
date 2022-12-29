@@ -128,6 +128,8 @@ class Client ():
         return {"balances": balances, "local_state": account_info.get('apps-local-state', [])}
 
     def subscribe(self, options, callback):
+        if options.get("address") == None:
+            options["address"] = self.client.get_account_address()
         return socket_client.subscribe(self.websocket_url, options, callback)
 
     def unsubscribe(self, handler_id):
