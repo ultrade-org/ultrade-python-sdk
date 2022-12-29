@@ -132,7 +132,7 @@ class Client ():
         return {"balances": balances, "local_state": account_info.get('apps-local-state', [])}
 
     def subscribe(self, options, callback):
-        socket_client.subscribe(self.websocket_url, options, callback)
+        return socket_client.subscribe(self.websocket_url, options, callback)
 
     def unsubscribe(self, handler_id):
         socket_client.unsubscribe(handler_id)
