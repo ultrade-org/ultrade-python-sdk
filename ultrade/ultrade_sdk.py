@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TypedDict
 
 import socket_client
 from api import get_order_by_id, get_exchange_info, get_trade_orders
@@ -6,6 +6,16 @@ from algod_service import AlgodService
 import utils
 
 from constants import OPEN_ORDER_STATUS
+
+class Order(TypedDict):
+    id: str
+    symbol: str
+    side: str
+    type: str
+    time_force: str
+    quantity: int
+    price: int
+    status: int
 
 class Client ():
     def __init__(self,
