@@ -2,7 +2,6 @@ import requests
 from constants import get_domain
 import time
 
-
 # should be replaced when dedicated endpoint is ready
 def get_exchange_info(identifier):
     data = requests.get(f"{get_domain()}/market/markets").json()
@@ -12,7 +11,7 @@ def get_exchange_info(identifier):
     try:
         identifier = int(identifier)
         key = "application_id"
-    except:
+    except ValueError:
         key = "pair_key"
 
     for dict in data:
@@ -33,7 +32,7 @@ def ping():
 
 
 def get_order_by_id(symbol, order_id):
-    # there should be symbol query support
+    # this endpoint should support symbol query
     url = f"{get_domain()}/market/getOrderById?orderId={order_id}"
     data = requests.get(url).json()
     if not len(data["order"]):

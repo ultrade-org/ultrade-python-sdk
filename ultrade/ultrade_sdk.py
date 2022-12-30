@@ -1,6 +1,6 @@
-from random import random
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional
 
+import socket_client
 from api import get_order_by_id, get_exchange_info, get_trade_orders
 from algod_service import AlgodService
 import utils
@@ -8,7 +8,6 @@ import utils
 from constants import OPEN_ORDER_STATUS
 
 class Client ():
-
     def __init__(self,
                  auth_credentials: Dict[str, Any],
                  options: Dict[str, Any]
@@ -28,6 +27,7 @@ class Client ():
 
         self.client = AlgodService(options.get(
             "algo_sdk_client"), auth_credentials.get("mnemonic"))
+        
         self.websocket_url: Optional[str] = options.get("websocket_url")
         self.mnemonic: Optional[str] = auth_credentials.get(
             "mnemonic")  # todo remove creds from here
@@ -36,9 +36,8 @@ class Client ():
             "client_secret")
         self.company: Optional[str] = auth_credentials.get("company")
         self.client_id: Optional[str] = auth_credentials.get("client_id")
-
+        
     def new_order(self, symbol, order):
-        # todo: implement use of on_complete callback, figure out where to get "transfer_amount"
         if not self.mnemonic:
             raise "You need to specify mnemonic or signer to execute this method"
         self.client.validate_transaction_order()
@@ -77,10 +76,10 @@ class Client ():
             asset_index, app_args, info["application_id"]))
 
         signed_txns = self.client.sign_transaction_grp(unsigned_txns)
-
         tx_id = self.client.send_transaction_grp(signed_txns)
 
         print(f"Order created successfully, order_id: {tx_id}")
+        return tx_id
 
     def cancel_order(self, symbol, order_id):
         if not self.mnemonic:
@@ -96,7 +95,7 @@ class Client ():
 
         signed_txn = self.client.sign_transaction_grp(unsigned_txn)
         tx_id = self.client.send_transaction_grp(signed_txn)
-
+        return tx_id
     
     def cancel_all_orders(self, symbol):   
         address = self.client.get_account_address()
@@ -104,18 +103,15 @@ class Client ():
         asset_index = get_exchange_info(symbol)["price_id"]
 
         unsigned_txns = []
-        i = 0
         for order in user_trade_orders:
-            i=i+1
-            print(i)
             app_args = ["cancel_order", order["orders_id"], order["slot"]]
-            print("asset_index",asset_index)
             unsigned_txn = self.client.make_app_call_txn(asset_index, app_args, order["pair_id"]) 
             unsigned_txns.append(unsigned_txn)
 
         signed_txns = self.client.sign_transaction_grp(unsigned_txns)
         tx_id = self.client.send_transaction_grp(signed_txns)
-
+        return tx_id
+    
     def get_balance_and_state(self, address) -> Dict[str, int]:
         balances: Dict[str, int] = dict()
 
@@ -131,13 +127,10 @@ class Client ():
 
         return {"balances": balances, "local_state": account_info.get('apps-local-state', [])}
 
-    
+    def subscribe(self, options, callback):
+        if options.get("address") == None:
+            options["address"] = self.client.get_account_address()
+        return socket_client.subscribe(self.websocket_url, options, callback)
 
-    def subscribe(self):
-        pass
-
-    def unsubscribe(self):
-        pass
-
-    def connect():
-        pass
+    def unsubscribe(self, handler_id):
+        socket_client.unsubscribe(handler_id)
