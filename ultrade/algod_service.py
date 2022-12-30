@@ -133,7 +133,7 @@ class AlgodService:
 
         return signed_txns
 
-    def send_transaction_grp(self, signed_group):
+    def send_transaction_grp(self, signed_group) -> str:
         print("Sending Transaction grp...")
         txid = self.client.send_transactions(signed_group)
         response = self.wait_for_transaction(txid)
