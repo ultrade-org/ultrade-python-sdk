@@ -97,3 +97,14 @@ def get_wallet_transactions(address, symbol=None):  # is not documented
     data = requests.get(
         f"{get_domain()}/market/wallet-transactions?address={address}{symbol_query}").json()
     return data
+
+def get_encoded_balance(address, app_id):
+        data = requests.get(
+         f"https://indexer.testnet.algoexplorerapi.io/v2/accounts/{address}?include-all=true").json()
+        
+        state = next(state for state in data["account"].get('apps-local-state') if state["id"] == app_id and state["deleted"] == False)
+        if not state:
+            return
+        
+        key = next(elem for elem in state["key-value"] if elem["key"] == "YWNjb3VudEluZm8=")
+        return key["value"].get("bytes")

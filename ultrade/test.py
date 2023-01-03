@@ -2,6 +2,7 @@ from test_credentials import TEST_MNEMONIC_KEY, TEST_ALGOD_TOKEN, TEST_ALGOD_ADD
 from ultrade_sdk import Client
 import api
 
+import algod_service
 from algosdk.v2client import algod
 from algosdk import account, mnemonic
 

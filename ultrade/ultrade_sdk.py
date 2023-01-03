@@ -1,11 +1,15 @@
 from random import random
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from api import get_order_by_id, get_exchange_info, get_trade_orders
+from algosdk import encoding
+import api
 from algod_service import AlgodService
 import utils
+import base64
+import msgpack
 
-from constants import OPEN_ORDER_STATUS
+from decode import unpack_data
+from constants import OPEN_ORDER_STATUS, BALANCE_DECODE_FORMAT
 
 class Client ():
 
@@ -43,7 +47,7 @@ class Client ():
             raise "You need to specify mnemonic or signer to execute this method"
         self.client.validate_transaction_order()
 
-        info = get_exchange_info(symbol)
+        info = api.get_exchange_info(symbol)
 
         sender_address = self.client.get_account_address()
 
@@ -81,14 +85,15 @@ class Client ():
         tx_id = self.client.send_transaction_grp(signed_txns)
 
         print(f"Order created successfully, order_id: {tx_id}")
+        return tx_id
 
     def cancel_order(self, symbol, order_id):
         if not self.mnemonic:
             raise "You need to specify mnemonic or signer to execute this method"
         self.client.validate_transaction_order()
 
-        data = get_order_by_id(symbol, order_id)
-        asset_index = get_exchange_info(symbol)["price_id"]
+        data = api.get_order_by_id(symbol, order_id)
+        asset_index = api.get_exchange_info(symbol)["price_id"]
         order = data[0]
 
         app_args = ["cancel_order", order["orders_id"], order["slot"]]
@@ -100,8 +105,8 @@ class Client ():
     
     def cancel_all_orders(self, symbol):   
         address = self.client.get_account_address()
-        user_trade_orders = get_trade_orders(address, OPEN_ORDER_STATUS, symbol)
-        asset_index = get_exchange_info(symbol)["price_id"]
+        user_trade_orders = api.get_trade_orders(address, OPEN_ORDER_STATUS, symbol)
+        asset_index = api.get_exchange_info(symbol)["price_id"]
 
         unsigned_txns = []
         i = 0
@@ -131,8 +136,6 @@ class Client ():
 
         return {"balances": balances, "local_state": account_info.get('apps-local-state', [])}
 
-    
-
     def subscribe(self):
         pass
 
@@ -141,3 +144,10 @@ class Client ():
 
     def connect():
         pass
+
+    def get_pair_balance(self, app_id):
+        address = self.client.get_account_address()
+        encoded_data = api.get_encoded_balance(address, app_id)
+        balance_data = unpack_data(encoded_data, BALANCE_DECODE_FORMAT)
+
+        return balance_data
