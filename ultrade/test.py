@@ -35,24 +35,20 @@ order_1 = {  # algo-usdt
     "type": "0",
     "quantity": 2000000,
     "price": 800,
-    "transfer_amount": 2000000,
     "partner_app_id": "87654321"
 }
 
 order_2 = {
-    # YLDY_STBL
+    # yldy_stbl
     "side": 'S',
     "type": "0",
     "quantity": 350000000,
     "price": 800,
-    "transfer_amount": 350000000,
     "partner_app_id": "87654321"
 }
 
-# "transfer_amount": 2000000,
-
 example_order_id = "SDODRM6GMMPVVWJNYCAIXV7W3EGGOJ3V5PL7XJUKHLDDTQIYG6SA"
-symbol = "YLDY_STBL"
+symbol = "yldy_stbl"
 
 
 #ultrade_sdk.new_order(symbol, order_2)

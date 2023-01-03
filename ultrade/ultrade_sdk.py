@@ -1,7 +1,8 @@
 from typing import Any, Dict, List, Optional, TypedDict
 
+import api
 import socket_client
-from api import get_order_by_id, get_exchange_info, get_trade_orders
+
 from algod_service import AlgodService
 import utils
 
@@ -52,7 +53,7 @@ class Client ():
             raise "You need to specify mnemonic or signer to execute this method"
         self.client.validate_transaction_order()
 
-        info = get_exchange_info(symbol)
+        info = api.get_exchange_info(symbol)
 
         sender_address = self.client.get_account_address()
 
@@ -74,13 +75,16 @@ class Client ():
         app_args = utils.construct_args_for_app_call(
             order["side"], order["type"], order["price"], order["quantity"], order["partner_app_id"])
         asset_index = info["base_id"] if order["side"] == "S" else info["price_id"]
+        transfer_amount = self.client.calculate_transfer_amount(info["application_id"], order["side"], order["quantity"])
 
-        if asset_index == 0:
+        if not transfer_amount:
+            pass
+        elif asset_index == 0:
             unsigned_txns.append(self.client.make_payment_txn(
-                info["application_id"], sender_address, order["transfer_amount"]))
+                info["application_id"], sender_address, transfer_amount))
         else:
             unsigned_txns.append(self.client.make_transfer_txn(
-                asset_index, info["application_id"], sender_address, order["transfer_amount"]))
+                asset_index, info["application_id"], sender_address, transfer_amount))
 
         unsigned_txns.append(self.client.make_app_call_txn(
             asset_index, app_args, info["application_id"]))
@@ -96,8 +100,8 @@ class Client ():
             raise "You need to specify mnemonic or signer to execute this method"
         self.client.validate_transaction_order()
 
-        data = get_order_by_id(symbol, order_id)
-        asset_index = get_exchange_info(symbol)["price_id"]
+        data = api.get_order_by_id(symbol, order_id)
+        asset_index = api.get_exchange_info(symbol)["price_id"]
         order = data[0]
 
         app_args = ["cancel_order", order["orders_id"], order["slot"]]
@@ -109,8 +113,8 @@ class Client ():
     
     def cancel_all_orders(self, symbol):   
         address = self.client.get_account_address()
-        user_trade_orders = get_trade_orders(address, OPEN_ORDER_STATUS, symbol)
-        asset_index = get_exchange_info(symbol)["price_id"]
+        user_trade_orders = api.get_trade_orders(address, OPEN_ORDER_STATUS, symbol)
+        asset_index = api.get_exchange_info(symbol)["price_id"]
 
         unsigned_txns = []
         for order in user_trade_orders:

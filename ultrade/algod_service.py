@@ -6,7 +6,10 @@ from algosdk import account, constants, mnemonic
 from algosdk.future import transaction
 from algosdk.logic import get_application_address
 from algosdk.v2client.algod import AlgodClient
+from decode import unpack_data
+import api
 
+from constants import BALANCE_DECODE_FORMAT
 
 class AlgodService:
     def __init__(self, client, mnemonic=None):
@@ -152,3 +155,21 @@ class AlgodService:
 
     def validate_transaction_order(self):
         pass  # todo
+
+    def get_pair_balances(self, app_id):
+        address = self.get_account_address()
+        encoded_data = api.get_encoded_balance(address, app_id)
+        balance_data = unpack_data(encoded_data, BALANCE_DECODE_FORMAT)
+
+        return balance_data
+
+    def calculate_transfer_amount(self, app_id, side, quantity):
+        pair_balances = self.get_pair_balances(app_id)
+
+        available_balance = pair_balances["priceCoin_available"] if side == "B" else pair_balances["baseCoin_available"]
+        transfer_amount = quantity - available_balance
+
+        if transfer_amount < 0:
+            return 0
+
+        return transfer_amount
