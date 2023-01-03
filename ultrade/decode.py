@@ -2,7 +2,7 @@ from algosdk import encoding
 
 import base64
 
-def unpack_data(data, format):  
+def unpack_data(data: str, format: dict):  
     decoded_data = base64.b64decode(data)     
     result = {}
     index = 0
@@ -20,6 +20,5 @@ def unpack_data(data, format):
             index += 8 
         elif type["type"] == 'string':
             pass
-        pass
     
     return result
