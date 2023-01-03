@@ -1,16 +1,12 @@
 from typing import Any, Dict, List, Optional, TypedDict
 
-from algosdk import encoding
 import api
 import socket_client
 
 from algod_service import AlgodService
 import utils
-import base64
-import msgpack
 
-from decode import unpack_data
-from constants import OPEN_ORDER_STATUS, BALANCE_DECODE_FORMAT
+from constants import OPEN_ORDER_STATUS
 
 class Order(TypedDict):
     id: str
@@ -79,13 +75,16 @@ class Client ():
         app_args = utils.construct_args_for_app_call(
             order["side"], order["type"], order["price"], order["quantity"], order["partner_app_id"])
         asset_index = info["base_id"] if order["side"] == "S" else info["price_id"]
+        transfer_amount = self.client.calculate_transfer_amount(info["application_id"], order["side"], order["quantity"])
 
-        if asset_index == 0:
+        if not transfer_amount:
+            pass
+        elif asset_index == 0:
             unsigned_txns.append(self.client.make_payment_txn(
-                info["application_id"], sender_address, order["transfer_amount"]))
+                info["application_id"], sender_address, transfer_amount))
         else:
             unsigned_txns.append(self.client.make_transfer_txn(
-                asset_index, info["application_id"], sender_address, order["transfer_amount"]))
+                asset_index, info["application_id"], sender_address, transfer_amount))
 
         unsigned_txns.append(self.client.make_app_call_txn(
             asset_index, app_args, info["application_id"]))
@@ -141,13 +140,6 @@ class Client ():
             balances[asset_id] = amount
 
         return {"balances": balances, "local_state": account_info.get('apps-local-state', [])}
-
-    def get_pair_balance(self, app_id):
-        address = self.client.get_account_address()
-        encoded_data = api.get_encoded_balance(address, app_id)
-        balance_data = unpack_data(encoded_data, BALANCE_DECODE_FORMAT)
-
-        return balance_data
 
     def subscribe(self, options, callback):
         if options.get("address") == None:
