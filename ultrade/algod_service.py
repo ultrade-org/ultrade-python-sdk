@@ -1,16 +1,15 @@
 
 from random import random
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List
 
-from algosdk import account, constants, mnemonic
-from algosdk.future import transaction
+from algosdk import account, mnemonic
+from algosdk import transaction
 from algosdk.logic import get_application_address
 from algosdk.v2client.algod import AlgodClient
-from decode import unpack_data
-import api
 
-from constants import BALANCE_DECODE_FORMAT
-
+from .api import get_encoded_balance
+from .constants import BALANCE_DECODE_FORMAT
+from .decode import unpack_data
 class AlgodService:
     def __init__(self, client, mnemonic=None):
         self.client: AlgodClient = client
@@ -37,11 +36,10 @@ class AlgodService:
         return txn
 
     def make_transfer_txn(self, asset_index, app_id, sender, transfer_amount):
-
         if transfer_amount <= 0:
             return
 
-        print(f"Sending a transfer transaction #{asset_index}...")
+        print(f"Preparing a transfer transaction #{asset_index}...")
 
         txn = transaction.AssetTransferTxn(
             sender,
@@ -98,7 +96,7 @@ class AlgodService:
         return self.client.suggested_params()
 
     def get_private_key(self):
-        if not self._check_is_mnemonic_valid():
+        if not self.validate_mnemonic():
             raise "An error occurred when trying to get private key from mnemonic"
 
         return mnemonic.to_private_key(self.mnemonic)
@@ -139,10 +137,6 @@ class AlgodService:
     def send_transaction_grp(self, signed_group) -> str:
         print("Sending Transaction grp...")
         txid = self.client.send_transactions(signed_group)
-        response = self.wait_for_transaction(txid)
-        print("LOGS:", response.get("logs", ""))
-        print("login's:", response.get("logints", ""))
-
         return txid
 
     def get_account_address(self):
@@ -150,7 +144,7 @@ class AlgodService:
         address = account.address_from_private_key(key)
         return address
 
-    def _check_is_mnemonic_valid(self):
+    def validate_mnemonic(self):
         return True  # todo
 
     def validate_transaction_order(self):
@@ -158,7 +152,7 @@ class AlgodService:
 
     def get_pair_balances(self, app_id):
         address = self.get_account_address()
-        encoded_data = api.get_encoded_balance(address, app_id)
+        encoded_data = get_encoded_balance(address, app_id)
         balance_data = unpack_data(encoded_data, BALANCE_DECODE_FORMAT)
 
         return balance_data

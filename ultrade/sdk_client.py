@@ -1,12 +1,10 @@
 from typing import Any, Dict, List, Optional, TypedDict
 
-import api
-import socket_client
-
-from algod_service import AlgodService
-import utils
-
-from constants import OPEN_ORDER_STATUS
+from .api import get_exchange_info, get_order_by_id, get_trade_orders
+from .socket_client import subscribe, unsubscribe
+from .algod_service import AlgodService
+from .utils import is_asset_opted_in, is_app_opted_in, construct_args_for_app_call
+from .constants import OPEN_ORDER_STATUS
 
 class Order(TypedDict):
     id: str
@@ -48,31 +46,31 @@ class Client ():
         self.company: Optional[str] = auth_credentials.get("company")
         self.client_id: Optional[str] = auth_credentials.get("client_id")
         
-    def new_order(self, symbol, order):
+    def new_order(self, order):
         if not self.mnemonic:
             raise "You need to specify mnemonic or signer to execute this method"
         self.client.validate_transaction_order()
 
-        info = api.get_exchange_info(symbol)
+        info = get_exchange_info(order["symbol"])
 
         sender_address = self.client.get_account_address()
 
         unsigned_txns = []
         account_info = self.get_balance_and_state(sender_address)
 
-        if utils.is_asset_opted_in(account_info.get("balances"), info["base_id"]) is False:
+        if is_asset_opted_in(account_info.get("balances"), info["base_id"]) is False:
             unsigned_txns.append(self.client.opt_in_asset(
                 sender_address, info["base_id"]))
 
-        if utils.is_asset_opted_in(account_info.get("balances"), info["price_id"]) is False:
+        if is_asset_opted_in(account_info.get("balances"), info["price_id"]) is False:
             unsigned_txns.append(self.client.opt_in_asset(
                 sender_address, info["price_id"]))
 
-        if utils.is_app_opted_in(info["application_id"], account_info.get("local_state")) is False:
+        if is_app_opted_in(info["application_id"], account_info.get("local_state")) is False:
             unsigned_txns.append(self.client.opt_in_app(
                 info["application_id"], sender_address))
 
-        app_args = utils.construct_args_for_app_call(
+        app_args = construct_args_for_app_call(
             order["side"], order["type"], order["price"], order["quantity"], order["partner_app_id"])
         asset_index = info["base_id"] if order["side"] == "S" else info["price_id"]
         transfer_amount = self.client.calculate_transfer_amount(info["application_id"], order["side"], order["quantity"])
@@ -100,8 +98,8 @@ class Client ():
             raise "You need to specify mnemonic or signer to execute this method"
         self.client.validate_transaction_order()
 
-        data = api.get_order_by_id(symbol, order_id)
-        asset_index = api.get_exchange_info(symbol)["price_id"]
+        data = get_order_by_id(symbol, order_id)
+        asset_index = get_exchange_info(symbol)["price_id"]
         order = data[0]
 
         app_args = ["cancel_order", order["orders_id"], order["slot"]]
@@ -113,8 +111,8 @@ class Client ():
     
     def cancel_all_orders(self, symbol):   
         address = self.client.get_account_address()
-        user_trade_orders = api.get_trade_orders(address, OPEN_ORDER_STATUS, symbol)
-        asset_index = api.get_exchange_info(symbol)["price_id"]
+        user_trade_orders = get_trade_orders(address, OPEN_ORDER_STATUS, symbol)
+        asset_index = get_exchange_info(symbol)["price_id"]
 
         unsigned_txns = []
         for order in user_trade_orders:
@@ -144,7 +142,7 @@ class Client ():
     def subscribe(self, options, callback):
         if options.get("address") == None:
             options["address"] = self.client.get_account_address()
-        return socket_client.subscribe(self.websocket_url, options, callback)
+        return subscribe(self.websocket_url, options, callback)
 
     def unsubscribe(self, handler_id):
-        socket_client.unsubscribe(handler_id)
+        unsubscribe(handler_id)

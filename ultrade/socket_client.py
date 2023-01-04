@@ -1,6 +1,6 @@
 import socketio
 import time
-from typing import Callable, Optional, TypedDict
+from typing import Callable, Optional, TypedDict, Dict
 
 socket: Optional[socketio.Client] = None
 socket_pool: Optional[dict[str, 'SubscribeOptions']] = {}
@@ -8,7 +8,7 @@ socket_pool: Optional[dict[str, 'SubscribeOptions']] = {}
 class SubscribeOptions(TypedDict):
     symbol: str
     streams: list[int]
-    options: dict[str, any]
+    options: Dict[str, any]
 
 def subscribe(url: str, options: SubscribeOptions, callback: Callable[[str, list[any]], any]):
     handler_id = str(time.time_ns())
