@@ -1,6 +1,6 @@
 
 from random import random
-from typing import Any, Dict, List
+from typing import List
 
 from algosdk import account, mnemonic
 from algosdk import transaction
@@ -10,6 +10,8 @@ from algosdk.v2client.algod import AlgodClient
 from .api import get_encoded_balance
 from .constants import BALANCE_DECODE_FORMAT
 from .decode import unpack_data
+
+
 class AlgodService:
     def __init__(self, client, mnemonic=None):
         self.client: AlgodClient = client
@@ -50,7 +52,7 @@ class AlgodService:
         )
 
         return txn
-    
+
     def make_payment_txn(self, app_id, sender, transfer_amount):
         print("Preparing a payment transaction...")
 
@@ -115,14 +117,16 @@ class AlgodService:
                 return pending_txn
 
             if pending_txn["pool-error"]:
-                raise Exception("Pool error: {}".format(pending_txn["pool-error"]))
+                raise Exception("Pool error: {}".format(
+                    pending_txn["pool-error"]))
 
             last_status = self.client.status_after_block(last_round + 1)
 
             last_round += 1
 
         raise Exception(
-            "Transaction {} not confirmed after {} rounds".format(tx_id, timeout)
+            "Transaction {} not confirmed after {} rounds".format(
+                tx_id, timeout)
         )
 
     def sign_transaction_grp(self, txn_group) -> List:

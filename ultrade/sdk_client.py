@@ -1,10 +1,11 @@
 from typing import Any, Dict, List, Optional, TypedDict
 
-from .api import get_exchange_info, get_order_by_id, get_trade_orders
-from .socket_client import subscribe, unsubscribe
+from . import api
+from . import socket_client
 from .algod_service import AlgodService
 from .utils import is_asset_opted_in, is_app_opted_in, construct_args_for_app_call
 from .constants import OPEN_ORDER_STATUS
+
 
 class Order(TypedDict):
     id: str
@@ -15,6 +16,7 @@ class Order(TypedDict):
     quantity: int
     price: int
     status: int
+
 
 class Client ():
     def __init__(self,
@@ -36,7 +38,7 @@ class Client ():
 
         self.client = AlgodService(options.get(
             "algo_sdk_client"), auth_credentials.get("mnemonic"))
-        
+
         self.websocket_url: Optional[str] = options.get("websocket_url")
         self.mnemonic: Optional[str] = auth_credentials.get(
             "mnemonic")  # todo remove creds from here
@@ -45,13 +47,13 @@ class Client ():
             "client_secret")
         self.company: Optional[str] = auth_credentials.get("company")
         self.client_id: Optional[str] = auth_credentials.get("client_id")
-        
+
     def new_order(self, order):
         if not self.mnemonic:
             raise "You need to specify mnemonic or signer to execute this method"
         self.client.validate_transaction_order()
 
-        info = get_exchange_info(order["symbol"])
+        info = api.get_exchange_info(order["symbol"])
 
         sender_address = self.client.get_account_address()
 
@@ -73,7 +75,8 @@ class Client ():
         app_args = construct_args_for_app_call(
             order["side"], order["type"], order["price"], order["quantity"], order["partner_app_id"])
         asset_index = info["base_id"] if order["side"] == "S" else info["price_id"]
-        transfer_amount = self.client.calculate_transfer_amount(info["application_id"], order["side"], order["quantity"])
+        transfer_amount = self.client.calculate_transfer_amount(
+            info["application_id"], order["side"], order["quantity"])
 
         if not transfer_amount:
             pass
@@ -98,32 +101,35 @@ class Client ():
             raise "You need to specify mnemonic or signer to execute this method"
         self.client.validate_transaction_order()
 
-        data = get_order_by_id(symbol, order_id)
-        asset_index = get_exchange_info(symbol)["price_id"]
+        data = api.get_order_by_id(symbol, order_id)
+        asset_index = api.get_exchange_info(symbol)["price_id"]
         order = data[0]
 
         app_args = ["cancel_order", order["orders_id"], order["slot"]]
-        unsigned_txn = self.client.make_app_call_txn(asset_index, app_args, order["application_id"])
+        unsigned_txn = self.client.make_app_call_txn(
+            asset_index, app_args, order["application_id"])
 
         signed_txn = self.client.sign_transaction_grp(unsigned_txn)
         tx_id = self.client.send_transaction_grp(signed_txn)
         return tx_id
-    
-    def cancel_all_orders(self, symbol):   
+
+    def cancel_all_orders(self, symbol):
         address = self.client.get_account_address()
-        user_trade_orders = get_trade_orders(address, OPEN_ORDER_STATUS, symbol)
-        asset_index = get_exchange_info(symbol)["price_id"]
+        user_trade_orders = api.get_trade_orders(
+            address, OPEN_ORDER_STATUS, symbol)
+        asset_index = api.get_exchange_info(symbol)["price_id"]
 
         unsigned_txns = []
         for order in user_trade_orders:
             app_args = ["cancel_order", order["orders_id"], order["slot"]]
-            unsigned_txn = self.client.make_app_call_txn(asset_index, app_args, order["pair_id"]) 
+            unsigned_txn = self.client.make_app_call_txn(
+                asset_index, app_args, order["pair_id"])
             unsigned_txns.append(unsigned_txn)
 
         signed_txns = self.client.sign_transaction_grp(unsigned_txns)
         tx_id = self.client.send_transaction_grp(signed_txns)
         return tx_id
-    
+
     def get_balance_and_state(self, address) -> Dict[str, int]:
         balances: Dict[str, int] = dict()
 
@@ -142,7 +148,7 @@ class Client ():
     def subscribe(self, options, callback):
         if options.get("address") == None:
             options["address"] = self.client.get_account_address()
-        return subscribe(self.websocket_url, options, callback)
+        return socket_client.subscribe(self.websocket_url, options, callback)
 
     def unsubscribe(self, handler_id):
-        unsubscribe(handler_id)
+        socket_client.unsubscribe(handler_id)
