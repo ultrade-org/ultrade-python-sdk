@@ -162,9 +162,12 @@ class AlgodService:
         return balance_data
 
     def calculate_transfer_amount(self, app_id, side, quantity):
-        pair_balances = self.get_pair_balances(app_id)
+        try:
+            pair_balances = self.get_pair_balances(app_id)
+            available_balance = pair_balances["priceCoin_available"] if side == "B" else pair_balances["baseCoin_available"]
+        except:
+            available_balance = 0
 
-        available_balance = pair_balances["priceCoin_available"] if side == "B" else pair_balances["baseCoin_available"]
         transfer_amount = quantity - available_balance
 
         if transfer_amount < 0:
