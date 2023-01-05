@@ -87,7 +87,7 @@ def get_history(symbol, interval, start_time, end_time, limit=500):
     return data
 
 
-def get_trade_orders(address, status, symbol=None):  # is not documented
+def get_trade_orders(address, status=1, symbol=None):  # is not documented
     symbol_query = f"&symbol={symbol}" if symbol else ""
     data = requests.get(
         f"{get_domain()}/market/orders-with-trades?address={address}&status={status}{symbol_query}").json()

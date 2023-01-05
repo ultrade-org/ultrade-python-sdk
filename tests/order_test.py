@@ -1,17 +1,19 @@
 
 from ultrade.sdk_client import Client
+from ultrade import api
 
 from unittest.mock import patch
 from .test_credentials import TEST_MNEMONIC_KEY, TEST_ALGOD_TOKEN, TEST_ALGOD_ADDRESS
 
 from algosdk.v2client import algod
 from algosdk import transaction
-
+from pytest_mock import mocker
 algod_client = algod.AlgodClient(TEST_ALGOD_TOKEN, TEST_ALGOD_ADDRESS)
 
 # key = mnemonic.to_private_key(TEST_MNEMONIC_KEY)
 # address = account.address_from_private_key(key)
 
+TEST_ALGO_WALLET = "47HZBXMZ4V34L4ONFGQESWJYVSDVIRSZPBQM3B7WUZZXZ2622EXXXO6GSU"
 credentials = {"mnemonic": TEST_MNEMONIC_KEY}
 opts = {"network": "testnet", "algo_sdk_client": algod_client,
         "api_url": None, "websocket_url": "wss://dev-ws.ultradedev.net/socket.io"}
@@ -58,8 +60,8 @@ def mocked_send_transaction(self, txn_grp):
 
 def mocked_get_order_by_id(symbol, order_id):
     return [{
-        "orders_id": 53694,
-        "slot": 60,
+        "orders_id": 99999,
+        "slot": 50,
         "application_id": 92958595  # yldy_stbl
     }]
 
@@ -93,13 +95,28 @@ class TestNewOrder():
 
 
 @patch('ultrade.algod_service.AlgodService.send_transaction_grp', mocked_send_transaction)
-@patch('ultrade.api.get_order_by_id', mocked_get_order_by_id)
 class TestCancelOrder():
-    def test_yldy_stbl(self):
-        example_order_id = 76735
+    @patch('ultrade.api.get_order_by_id', mocked_get_order_by_id)
+    def test_for_non_existed_order(self):
+        example_order_id = 99999
         symbol = "yldy_stbl"
 
         txn_result = client.cancel_order(symbol, example_order_id)
+        assert txn_result == ('REJECT', "")
+
+    def test_cancel_random_order(self):
+        order_list = api.get_trade_orders(TEST_ALGO_WALLET)
+        order = order_list[0] if len(order_list) > 0 else None
+        if order == None:
+            return
+
+        order_id = order.get("id")
+        symbol = api.get_order_by_id(None, order_id)[0]["pair_key"]
+        print("symbol", symbol)
+        print(f"testing cancellation of order with id:{order_id}")
+
+        txn_result = client.cancel_order(symbol, order_id)
+
         assert txn_result == ('PASS', "")
 
 # ws_sub_key = ultrade_sdk.subscribe(ws_options, ws_callback)
