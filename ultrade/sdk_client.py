@@ -126,6 +126,9 @@ class Client ():
                 asset_index, app_args, order["pair_id"])
             unsigned_txns.append(unsigned_txn)
 
+        if len(unsigned_txns) == 0:
+            return None
+
         signed_txns = self.client.sign_transaction_grp(unsigned_txns)
         tx_id = self.client.send_transaction_grp(signed_txns)
         return tx_id

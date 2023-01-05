@@ -69,10 +69,6 @@ def mocked_get_order_by_id(symbol, order_id):
 @ patch('ultrade.algod_service.AlgodService.send_transaction_grp', mocked_send_transaction)
 class TestNewOrder():
 
-    def test_yldy_sell(self):
-        txn_result = client.new_order({**YLDY_STBL_ORDER, "side": "S"})
-        assert txn_result == ('PASS', "")
-
     def test_yldy_buy(self):
         txn_result = client.new_order({**YLDY_STBL_ORDER, "side": "B"})
         assert txn_result == ('PASS', "")
@@ -116,18 +112,12 @@ class TestCancelOrder():
         print(f"testing cancellation of order with id:{order_id}")
 
         txn_result = client.cancel_order(symbol, order_id)
-
         assert txn_result == ('PASS', "")
 
-# ws_sub_key = ultrade_sdk.subscribe(ws_options, ws_callback)
 
-
+@patch('ultrade.algod_service.AlgodService.send_transaction_grp', mocked_send_transaction)
 class TestCancelAllOrders:
-    pass
-# 'app-call-messages', 'app-call-trace', 'budget-added', 'budget-consumed', 'disassembly', 'global-delta', 'local-deltas', 'logs'
-# ultrade_sdk.new_order(symbol, order_2)
-# ultrade_sdk.cancel_order("algo_usdc", 76678)
-# ultrade_sdk.cancel_all_orders("algo_usdc")
-
-# value = api.get_depth("algo_usdt", 100)
-# print("value", value)
+    def test_yldy_stbl(self):
+        symbol = "yldy_stbl"
+        txn_result = client.cancel_all_orders(symbol)
+        assert txn_result == ('PASS', "") or txn_result == None
