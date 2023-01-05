@@ -101,9 +101,8 @@ class Client ():
             raise "You need to specify mnemonic or signer to execute this method"
         self.client.validate_transaction_order()
 
-        data = api.get_order_by_id(symbol, order_id)
+        order = api.get_order_by_id(symbol, order_id)
         asset_index = api.get_exchange_info(symbol)["price_id"]
-        order = data[0]
 
         app_args = ["cancel_order", order["orders_id"], order["slot"]]
         unsigned_txn = self.client.make_app_call_txn(

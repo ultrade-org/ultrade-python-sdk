@@ -1,9 +1,10 @@
 
+from . import utils
 from ultrade.sdk_client import Client
 from ultrade import api
 
 from unittest.mock import patch
-from .test_credentials import TEST_MNEMONIC_KEY, TEST_ALGOD_TOKEN, TEST_ALGOD_ADDRESS
+from .test_credentials import TEST_MNEMONIC_KEY, TEST_ALGOD_TOKEN, TEST_ALGOD_ADDRESS, TEST_ALGO_WALLET
 
 from algosdk.v2client import algod
 from algosdk import transaction
@@ -13,7 +14,6 @@ algod_client = algod.AlgodClient(TEST_ALGOD_TOKEN, TEST_ALGOD_ADDRESS)
 # key = mnemonic.to_private_key(TEST_MNEMONIC_KEY)
 # address = account.address_from_private_key(key)
 
-TEST_ALGO_WALLET = "47HZBXMZ4V34L4ONFGQESWJYVSDVIRSZPBQM3B7WUZZXZ2622EXXXO6GSU"
 credentials = {"mnemonic": TEST_MNEMONIC_KEY}
 opts = {"network": "testnet", "algo_sdk_client": algod_client,
         "api_url": None, "websocket_url": "wss://dev-ws.ultradedev.net/socket.io"}
@@ -59,14 +59,14 @@ def mocked_send_transaction(self, txn_grp):
 
 
 def mocked_get_order_by_id(symbol, order_id):
-    return [{
+    return {
         "orders_id": 99999,
         "slot": 50,
         "application_id": 92958595  # yldy_stbl
-    }]
+    }
 
 
-@ patch('ultrade.algod_service.AlgodService.send_transaction_grp', mocked_send_transaction)
+@patch('ultrade.algod_service.AlgodService.send_transaction_grp', mocked_send_transaction)
 class TestNewOrder():
 
     def test_yldy_buy(self):
@@ -101,13 +101,12 @@ class TestCancelOrder():
         assert txn_result == ('REJECT', "")
 
     def test_cancel_random_order(self):
-        order_list = api.get_trade_orders(TEST_ALGO_WALLET)
-        order = order_list[0] if len(order_list) > 0 else None
+        order = utils.find_open_order()
         if order == None:
             return
 
         order_id = order.get("id")
-        symbol = api.get_order_by_id(None, order_id)[0]["pair_key"]
+        symbol = api.get_order_by_id(None, order_id)["pair_key"]
         print("symbol", symbol)
         print(f"testing cancellation of order with id:{order_id}")
 

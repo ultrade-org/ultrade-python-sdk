@@ -40,7 +40,7 @@ def get_order_by_id(symbol, order_id):
     data = requests.get(url).json()
     if not len(data["order"]):
         raise "Order not found"
-    return data["order"]
+    return data["order"][0]
 
 
 def get_open_orders(symbol):
@@ -105,11 +105,14 @@ def get_encoded_balance(address, app_id):
     data = requests.get(
         f"https://indexer.testnet.algoexplorerapi.io/v2/accounts/{address}?include-all=true").json()
 
-    state = next(state for state in data["account"].get(
-        'apps-local-state') if state["id"] == app_id and state["deleted"] == False)
+    state = next((state for state in data["account"].get(
+        'apps-local-state') if state["id"] == app_id and state["deleted"] == False), None)
     if not state:
-        return
+        raise "An error occurred while trying to get available balance from the smart contract"
 
-    key = next(elem for elem in state["key-value"]
-               if elem["key"] == "YWNjb3VudEluZm8=")
+    key = next((elem for elem in state["key-value"]
+               if elem["key"] == "YWNjb3VudEluZm8="), None)
+    if not key:
+        raise "Error: can't find balance value for the specified application_id"
+
     return key["value"].get("bytes")

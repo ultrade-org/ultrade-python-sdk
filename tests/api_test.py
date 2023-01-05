@@ -7,10 +7,11 @@ class TestGetExchangeInfo():
     def test_yldy_stbl(self):
         symbol = "yldy_stbl"
         data = api.get_exchange_info(symbol)
-        data["id"], data["application_id"], data["pair_key"], data["base_id"]
+        utils.validate_response_for_expected_fields(
+            data, ["id", "application_id", "pair_key", "base_id"])
 
     def test_with_wrong_symbol(self):
-        symbol = "ulds_test123"
+        symbol = "test_test123"
         with pytest.raises(Exception):
             api.get_exchange_info(symbol)
 
@@ -25,8 +26,8 @@ class TestApi():
         if not order:
             return
 
-        order_by_id = api.get_order_by_id(order["id"])
-        order_by_id["pair_key"]
+        order_by_id = api.get_order_by_id(None, order["id"])
+        utils.validate_response_for_expected_fields(order_by_id, ["pair_key"])
 
     def test_get_open_orders(self):
         pass

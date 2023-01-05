@@ -157,6 +157,7 @@ class AlgodService:
     def get_pair_balances(self, app_id):
         address = self.get_account_address()
         encoded_data = get_encoded_balance(address, app_id)
+
         balance_data = unpack_data(encoded_data, BALANCE_DECODE_FORMAT)
 
         return balance_data
