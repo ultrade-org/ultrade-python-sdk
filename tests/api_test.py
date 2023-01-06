@@ -30,21 +30,29 @@ class TestApi():
         order_by_id = api.get_order_by_id(None, order["id"])
         utils.validate_response_for_expected_fields(order_by_id, ["pair_key"])
 
-    # def test_get_open_orders(self):
-    #     api.get_open_orders()
+    def test_get_open_orders(self):
+        symbols = api.get_symbols("")
+        for s in symbols:
+            orders = api.get_open_orders(s)
+            if len(orders) != 0:
+                utils.validate_response_for_expected_fields(orders[0], [])
+                return
 
-    # def test_get_orders(self):
-    #     api.get_orders()
+        raise ("Error: no open orders were found")
+
+    def test_get_orders(self):
+        # waiting for implementation on the back-end
+        pass
 
     def test_get_history(self):
-        # api.get_history()
+        api.get_history()
         pass
 
     def test_get_price(self):
-        # symbol = utils.get_symbol_of_open_order()
-        # price = api.get_price(symbol)
-        # assert isinstance(price, dict) endpoint is not working
-        pass
+        symbol = utils.get_symbol_of_open_order()
+        price = api.get_price(symbol)
+        utils.validate_response_for_expected_fields(
+            price, ["last", "bid", "ask"])
 
     def test_get_depth(self):
         symbol = utils.get_symbol_of_open_order()
@@ -64,8 +72,8 @@ class TestApi():
         symbols_list = api.get_symbols(mask)
         assert len(symbols_list) > 0
 
-    def test_get_trade_orders(self):
-        orders = api.get_trade_orders(TEST_ALGOD_ADDRESS)
+    def test_get_address_orders(self):
+        orders = api.get_address_orders(TEST_ALGOD_ADDRESS)
         if len(orders) == 0:
             return
 

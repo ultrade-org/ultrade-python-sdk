@@ -114,7 +114,7 @@ class Client ():
 
     def cancel_all_orders(self, symbol):
         address = self.client.get_account_address()
-        user_trade_orders = api.get_trade_orders(
+        user_trade_orders = api.get_address_orders(
             address, OPEN_ORDER_STATUS, symbol)
         asset_index = api.get_exchange_info(symbol)["price_id"]
 
