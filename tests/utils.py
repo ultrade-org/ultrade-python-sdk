@@ -8,7 +8,17 @@ def find_open_order():
     return order
 
 
-def validate_response_for_expected_fields(res_data, fields_to_check=[]):
+def get_symbol_of_open_order():
+    order = find_open_order()
+    if not order:
+        return None
+
+    pair_info = api.get_exchange_info(order["pair_id"])
+    print("pair key:", pair_info["pair_key"])
+    return pair_info["pair_key"]
+
+
+def validate_response_for_expected_fields(res_data: dict, fields_to_check=[]):
     if not isinstance(res_data, dict):
         return
 
@@ -18,4 +28,4 @@ def validate_response_for_expected_fields(res_data, fields_to_check=[]):
             field = f
             res_data[f]
     except:
-        raise f"Error: field '{field}' not exist in response data"
+        raise f"Error: field '{field}' is not exist in response data"

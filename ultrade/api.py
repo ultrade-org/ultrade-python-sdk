@@ -59,7 +59,7 @@ def get_price(symbol):
     return data
 
 
-def get_depth(symbol, depth):
+def get_depth(symbol, depth=100):
     data = requests.get(
         f"{get_domain()}/market/depth?symbol={symbol}&depth={depth}").json()
     return data

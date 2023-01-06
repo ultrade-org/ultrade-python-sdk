@@ -1,6 +1,7 @@
 import pytest
 from . import utils
 from ultrade import api
+from .test_credentials import TEST_ALGO_WALLET, TEST_SYMBOL, TEST_ALGOD_ADDRESS
 
 
 class TestGetExchangeInfo():
@@ -29,32 +30,57 @@ class TestApi():
         order_by_id = api.get_order_by_id(None, order["id"])
         utils.validate_response_for_expected_fields(order_by_id, ["pair_key"])
 
-    def test_get_open_orders(self):
-        pass
+    # def test_get_open_orders(self):
+    #     api.get_open_orders()
 
-    def test_get_orders(self):
+    # def test_get_orders(self):
+    #     api.get_orders()
+
+    def test_get_history(self):
+        # api.get_history()
         pass
 
     def test_get_price(self):
+        # symbol = utils.get_symbol_of_open_order()
+        # price = api.get_price(symbol)
+        # assert isinstance(price, dict) endpoint is not working
         pass
 
     def test_get_depth(self):
-        pass
+        symbol = utils.get_symbol_of_open_order()
+        depth = api.get_depth(symbol)
+        utils.validate_response_for_expected_fields(depth, ["buy", "sell"])
 
     def test_get_last_trades(self):
-        pass
+        trades = api.get_last_trades(TEST_SYMBOL)
+        if len(trades) == 0:
+            return
+
+        utils.validate_response_for_expected_fields(
+            trades[0], ["price", "amount", "buy_user_id", "sell_user_id"])
 
     def test_get_symbols(self):
-        pass
-
-    def test_get_history(self):
-        pass
+        mask = "algo"
+        symbols_list = api.get_symbols(mask)
+        assert len(symbols_list) > 0
 
     def test_get_trade_orders(self):
-        pass
+        orders = api.get_trade_orders(TEST_ALGOD_ADDRESS)
+        if len(orders) == 0:
+            return
+
+        utils.validate_response_for_expected_fields(
+            orders[0], ["pair_id", "slot", "id"])
 
     def test_get_wallet_transactions(self):
-        pass
+        transactions = api.get_wallet_transactions(TEST_ALGOD_ADDRESS)
+        if len(transactions) == 0:
+            return
+
+        utils.validate_response_for_expected_fields(
+            transactions[0], ["txnId", "pair", "amount"])
 
     def test_get_encoded_balance(self):
-        pass
+        app_id = 92958595  # yldy_stbl
+        balance = api.get_encoded_balance(TEST_ALGO_WALLET, app_id)
+        assert balance != None
