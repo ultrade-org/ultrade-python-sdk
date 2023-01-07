@@ -1,8 +1,11 @@
 import requests
-from constants import get_domain
 import time
 
+from .constants import get_domain
+
 # should be replaced when dedicated endpoint is ready
+
+
 def get_exchange_info(identifier):
     data = requests.get(f"{get_domain()}/market/markets").json()
     if identifier == None:
@@ -37,7 +40,7 @@ def get_order_by_id(symbol, order_id):
     data = requests.get(url).json()
     if not len(data["order"]):
         raise "Order not found"
-    return data["order"]
+    return data["order"][0]
 
 
 def get_open_orders(symbol):
@@ -46,7 +49,7 @@ def get_open_orders(symbol):
     return data["openOrders"]
 
 
-def get_orders(symbol, start_time, end_time, limit=500, page=0):
+def get_orders(symbol, status, start_time, end_time, limit=500, page=0):
     # waiting for back-end side implementation
     pass
 
@@ -56,7 +59,7 @@ def get_price(symbol):
     return data
 
 
-def get_depth(symbol, depth):
+def get_depth(symbol, depth=100):
     data = requests.get(
         f"{get_domain()}/market/depth?symbol={symbol}&depth={depth}").json()
     return data
@@ -84,7 +87,7 @@ def get_history(symbol, interval, start_time, end_time, limit=500):
     return data
 
 
-def get_trade_orders(address, status, symbol=None):  # is not documented
+def get_address_orders(address, status=1, symbol=None):  # is not documented
     symbol_query = f"&symbol={symbol}" if symbol else ""
     data = requests.get(
         f"{get_domain()}/market/orders-with-trades?address={address}&status={status}{symbol_query}").json()
@@ -97,13 +100,19 @@ def get_wallet_transactions(address, symbol=None):  # is not documented
         f"{get_domain()}/market/wallet-transactions?address={address}{symbol_query}").json()
     return data
 
+
 def get_encoded_balance(address, app_id):
-        data = requests.get(
-         f"https://indexer.testnet.algoexplorerapi.io/v2/accounts/{address}?include-all=true").json()
-        
-        state = next(state for state in data["account"].get('apps-local-state') if state["id"] == app_id and state["deleted"] == False)
-        if not state:
-            return
-        
-        key = next(elem for elem in state["key-value"] if elem["key"] == "YWNjb3VudEluZm8=")
-        return key["value"].get("bytes")
+    data = requests.get(
+        f"https://indexer.testnet.algoexplorerapi.io/v2/accounts/{address}?include-all=true").json()
+
+    state = next((state for state in data["account"].get(
+        'apps-local-state') if state["id"] == app_id and state["deleted"] == False), None)
+    if not state:
+        raise "An error occurred while trying to get available balance from the smart contract"
+
+    key = next((elem for elem in state["key-value"]
+               if elem["key"] == "YWNjb3VudEluZm8="), None)
+    if not key:
+        raise "Error: can't find balance value for the specified application_id"
+
+    return key["value"].get("bytes")

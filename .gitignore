@@ -1,9 +1,9 @@
 .env
 env
 ultrade/__pycache__/
-ultrade/test_credentials.py
-ultrade_python_sdk.egg-info
+tests/__pycache__/
+tests/test_credentials.py
 .vscode
 build
 dist
-ultrade2.egg-info
+ultrade.egg-info

@@ -1,14 +1,16 @@
 import socketio
 import time
-from typing import Callable, Optional, TypedDict
+from typing import Callable, Optional, TypedDict, Dict
 
 socket: Optional[socketio.Client] = None
 socket_pool: Optional[dict[str, 'SubscribeOptions']] = {}
 
+
 class SubscribeOptions(TypedDict):
     symbol: str
     streams: list[int]
-    options: dict[str, any]
+    options: Dict[str, any]
+
 
 def subscribe(url: str, options: SubscribeOptions, callback: Callable[[str, list[any]], any]):
     handler_id = str(time.time_ns())
@@ -24,6 +26,7 @@ def subscribe(url: str, options: SubscribeOptions, callback: Callable[[str, list
 
     return handler_id
 
+
 def unsubscribe(handler_id: str):
     global socket
     try:
@@ -35,12 +38,13 @@ def unsubscribe(handler_id: str):
             socket.disconnect()
             socket = None
 
+
 def add_event_listeners(socket: socketio.Client, options: SubscribeOptions, callback: Callable[[str, list[any]], any]):
     socket.on('*', callback)
 
     def reconnect_handler():
         socket.emit("subscribe", options)
-    socket.on("reconnect",reconnect_handler)
+    socket.on("reconnect", reconnect_handler)
 
     def connect_handler():
         print('ws connection established')
