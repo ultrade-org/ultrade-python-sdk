@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional, TypedDict
 
-from . import api
+from .api import api
 from . import socket_client
 from .algod_service import AlgodService
 from .utils import is_asset_opted_in, is_app_opted_in, construct_args_for_app_call
