@@ -60,14 +60,14 @@ async def get_open_orders(symbol):
     async with session.get(url, headers=headers) as resp:
         try:
             res = requests.get(url)
-            # data = await resp.json()
+            data = await resp.json()
         except (aiohttp.ContentTypeError):
             print("error", symbol)
             await session.close()
             return []
 
         await session.close()
-        # return data["openOrders"]
+        return data["openOrders"]
 
 
 async def get_orders(symbol, status, start_time, end_time, limit=500, page=0):
@@ -118,7 +118,7 @@ async def get_symbols(mask) -> dict[str, str]:
         return data
 
 
-async def get_history(symbol, interval, start_time, end_time, limit=500):
+async def get_history(symbol, interval="", start_time="", end_time="", limit=""):
     session = aiohttp.ClientSession()
     url = f"{get_domain()}/market/history?symbol={symbol}&interval={interval}&startTime={start_time}&endTime={end_time}&limit={limit}"
     async with session.get(url) as resp:

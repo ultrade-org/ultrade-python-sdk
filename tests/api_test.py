@@ -52,7 +52,8 @@ class TestApi():
         pass
 
     async def test_get_history(self):
-        await api.get_history()
+        # waiting for endpoint update
+        history = await api.get_history(TEST_SYMBOL)
         pass
 
     async def test_get_price(self):
