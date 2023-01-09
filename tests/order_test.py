@@ -1,7 +1,7 @@
 
 from . import utils
 from ultrade.sdk_client import Client
-from ultrade import api
+from ultrade.api import api
 
 from unittest.mock import patch
 from .test_credentials import TEST_MNEMONIC_KEY, TEST_ALGOD_TOKEN, TEST_ALGOD_ADDRESS, TEST_ALGO_WALLET

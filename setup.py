@@ -16,6 +16,8 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     install_requires=[
         "py-algorand-sdk",
-        "python-socketio"
+        "python-socketio",
+        "asyncio",
+        "aiohttp"
     ]
 )

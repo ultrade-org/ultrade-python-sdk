@@ -1,6 +1,8 @@
 from ultrade import api
 from .test_credentials import TEST_ALGO_WALLET
 
+from ultrade import api
+
 
 def find_open_order():
     order_list = api.get_address_orders(TEST_ALGO_WALLET, status=1)
