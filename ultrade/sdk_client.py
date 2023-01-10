@@ -52,6 +52,8 @@ class Client ():
         self.client_id: Optional[str] = auth_credentials.get("client_id")
 
     def new_order(self, order):
+        partner_app_id = "87654321"  # temporary solution
+
         if not self.mnemonic:
             raise "You need to specify mnemonic or signer to execute this method"
         self.client.validate_transaction_order()
@@ -76,7 +78,7 @@ class Client ():
                 info["application_id"], sender_address))
 
         app_args = construct_args_for_app_call(
-            order["side"], order["type"], order["price"], order["quantity"], order["partner_app_id"])
+            order["side"], order["type"], order["price"], order["quantity"], partner_app_id)
         asset_index = info["base_id"] if order["side"] == "S" else info["price_id"]
         transfer_amount = self.client.calculate_transfer_amount(
             info["application_id"], order["side"], order["quantity"])
