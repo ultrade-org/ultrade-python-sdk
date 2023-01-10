@@ -1,6 +1,6 @@
 
 from . import utils
-from ultrade.sdk_client import Client, OPTIONS
+from ultrade.sdk_client import Client
 from ultrade import api
 
 from unittest.mock import patch

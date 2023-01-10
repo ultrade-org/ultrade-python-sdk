@@ -27,7 +27,7 @@ async def get_exchange_info(identifier=None):
             if dict[key] == identifier:
                 return dict
 
-        raise "Can't find exchange info for the specified symbol"
+        raise Exception("Can't find exchange info for the specified symbol")
 
 
 async def ping():
@@ -47,11 +47,13 @@ async def get_order_by_id(symbol, order_id):
     url = f"{get_domain()}/market/getOrderById?orderId={order_id}"
     async with session.get(url) as resp:
         data = await resp.json()
-        await session.close()
-        if not len(data["order"]):
-            raise "Order not found"
 
-        return data["order"][0]
+        await session.close()
+        try:
+            order = data["order"][0]
+            return order
+        except TypeError:
+            raise Exception("Order not found")
 
 
 async def get_open_orders(symbol):
@@ -156,11 +158,13 @@ async def get_encoded_balance(address, app_id):
         state = next((state for state in data["account"].get(
             'apps-local-state') if state["id"] == app_id and state["deleted"] == False), None)
         if not state:
-            raise "An error occurred while trying to get available balance from the smart contract"
+            raise Exception(
+                "An error occurred while trying to get available balance from the smart contract")
 
         key = next((elem for elem in state["key-value"]
                     if elem["key"] == "YWNjb3VudEluZm8="), None)
         if not key:
-            raise "Error: can't find balance value for the specified application_id"
+            raise Exception(
+                "Error: can't find balance value for the specified application_id")
 
         return key["value"].get("bytes")

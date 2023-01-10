@@ -39,8 +39,10 @@ class TestApi():
 
     async def test_get_open_orders(self):
         symbols = await api.get_symbols("")
+        print("symbols", symbols)
         for s in symbols:
-            orders = await api.get_open_orders(s)
+            orders = await api.get_open_orders(s["pairKey"])
+            print("open", orders)
             if len(orders) != 0:
                 utils.validate_response_for_expected_fields(orders[0], [])
                 return
