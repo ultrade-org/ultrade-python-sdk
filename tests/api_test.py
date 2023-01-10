@@ -1,11 +1,8 @@
 import pytest
-from . import utils
 from ultrade import api
+
 from .test_credentials import TEST_ALGO_WALLET, TEST_SYMBOL, TEST_ALGOD_ADDRESS
-
-
-class TestFailed(Exception):
-    pass
+from . import utils
 
 
 @pytest.mark.asyncio
@@ -46,7 +43,7 @@ class TestApi():
                 utils.validate_response_for_expected_fields(orders[0], [])
                 return
 
-        raise TestFailed
+        raise Exception("Test failed")
 
     async def test_get_orders(self):
         # waiting for implementation on the back-end

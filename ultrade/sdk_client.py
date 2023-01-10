@@ -1,11 +1,11 @@
 from typing import Any, Dict, List, Optional, TypedDict
 
-from .api import api
+from . import api
 from . import socket_client
 from .algod_service import AlgodService
 from .utils import is_asset_opted_in, is_app_opted_in, construct_args_for_app_call
 from .constants import OPEN_ORDER_STATUS
-import socket_options
+from . import socket_options
 
 OPTIONS = socket_options
 
@@ -51,7 +51,7 @@ class Client ():
         self.company: Optional[str] = auth_credentials.get("company")
         self.client_id: Optional[str] = auth_credentials.get("client_id")
 
-    def new_order(self, order):
+    async def new_order(self, order):
         partner_app_id = "87654321"  # temporary solution
 
         if not self.mnemonic:
@@ -59,7 +59,7 @@ class Client ():
                 "You need to specify mnemonic or signer to execute this method")
         self.client.validate_transaction_order()
 
-        info = api.get_exchange_info(order["symbol"])
+        info = await api.get_exchange_info(order["symbol"])
 
         sender_address = self.client.get_account_address()
 
@@ -81,7 +81,7 @@ class Client ():
         app_args = construct_args_for_app_call(
             order["side"], order["type"], order["price"], order["quantity"], partner_app_id)
         asset_index = info["base_id"] if order["side"] == "S" else info["price_id"]
-        transfer_amount = self.client.calculate_transfer_amount(
+        transfer_amount = await self.client.calculate_transfer_amount(
             info["application_id"], order["side"], order["quantity"])
 
         if not transfer_amount:
@@ -102,34 +102,34 @@ class Client ():
         print(f"Order created successfully, order_id: {tx_id}")
         return tx_id
 
-    def cancel_order(self, symbol, order_id):
+    async def cancel_order(self, symbol, order_id):
         if not self.mnemonic:
             raise Exception(
                 "You need to specify mnemonic or signer to execute this method")
         self.client.validate_transaction_order()
 
-        order = api.get_order_by_id(symbol, order_id)
-        asset_index = api.get_exchange_info(symbol)["price_id"]
+        order = await api.get_order_by_id(symbol, order_id)
+        exchange_info = await api.get_exchange_info(symbol)
 
         app_args = ["cancel_order", order["orders_id"], order["slot"]]
         unsigned_txn = self.client.make_app_call_txn(
-            asset_index, app_args, order["application_id"])
+            exchange_info["price_id"], app_args, order["application_id"])
 
         signed_txn = self.client.sign_transaction_grp(unsigned_txn)
         tx_id = self.client.send_transaction_grp(signed_txn)
         return tx_id
 
-    def cancel_all_orders(self, symbol):
+    async def cancel_all_orders(self, symbol):
         address = self.client.get_account_address()
-        user_trade_orders = api.get_address_orders(
+        user_trade_orders = await api.get_address_orders(
             address, OPEN_ORDER_STATUS, symbol)
-        asset_index = api.get_exchange_info(symbol)["price_id"]
+        exchange_info = await api.get_exchange_info(symbol)
 
         unsigned_txns = []
         for order in user_trade_orders:
             app_args = ["cancel_order", order["orders_id"], order["slot"]]
             unsigned_txn = self.client.make_app_call_txn(
-                asset_index, app_args, order["pair_id"])
+                exchange_info["price_id"], app_args, order["pair_id"])
             unsigned_txns.append(unsigned_txn)
 
         if len(unsigned_txns) == 0:
