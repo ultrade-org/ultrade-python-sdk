@@ -53,7 +53,7 @@ def mocked_send_transaction(self, txn_grp):
     return (txn.get('app-call-messages')[1], data["error"])
 
 
-def mocked_get_order_by_id(symbol, order_id):
+async def mocked_get_order_by_id(symbol, order_id):
     return {
         "orders_id": 99999,
         "slot": 50,

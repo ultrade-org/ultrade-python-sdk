@@ -60,7 +60,6 @@ async def get_open_orders(symbol):
     url = f"{get_domain()}/market/open-orders?symbol={symbol}"
     async with session.get(url) as resp:
         try:
-            res = requests.get(url)
             data = await resp.json()
         except (aiohttp.ContentTypeError):
             print("error", symbol)
