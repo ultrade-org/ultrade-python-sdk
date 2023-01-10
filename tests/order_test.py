@@ -1,10 +1,10 @@
 
 from . import utils
-from ultrade.sdk_client import Client
-from ultrade.api import api
+from ultrade.sdk_client import Client, OPTIONS
+from ultrade import api
 
 from unittest.mock import patch
-from .test_credentials import TEST_MNEMONIC_KEY, TEST_ALGOD_TOKEN, TEST_ALGOD_ADDRESS, TEST_ALGO_WALLET
+from .test_credentials import TEST_MNEMONIC_KEY, TEST_ALGOD_TOKEN, TEST_ALGOD_ADDRESS
 
 from algosdk.v2client import algod
 from algosdk import transaction
