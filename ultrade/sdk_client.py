@@ -6,6 +6,7 @@ from .algod_service import AlgodService
 from .utils import is_asset_opted_in, is_app_opted_in, construct_args_for_app_call
 from .constants import OPEN_ORDER_STATUS
 from . import socket_options
+from algosdk.v2client.algod import AlgodClient
 
 OPTIONS = socket_options
 
@@ -21,10 +22,40 @@ class Order(TypedDict):
     status: int
 
 
+class NewOrderOptions(TypedDict):
+    symbol: str
+    side: str
+    type: str
+    quantity: int
+    price: int
+
+
+class AccountCredentials(TypedDict):
+    mnemonic: str
+
+
+class ClientOptions(TypedDict):
+    network: str
+    algo_sdk_client: AlgodClient
+    api_url: str
+    websocket_url: str
+
+
 class Client ():
+    """
+    UltradeSdk client class. Handles subscribe/unsubscribe to ultrade websockets,
+    also can create/cancel orders on the ultrade exchange
+
+    Args:
+        credentials (dict)
+
+        options (dict) 
+
+    """
+
     def __init__(self,
-                 auth_credentials: Dict[str, Any],
-                 options: Dict[str, Any]
+                 auth_credentials: AccountCredentials,
+                 options: ClientOptions
                  ):
         if options["network"] == "mainnet":
             self.server = ''
@@ -51,7 +82,12 @@ class Client ():
         self.company: Optional[str] = auth_credentials.get("company")
         self.client_id: Optional[str] = auth_credentials.get("client_id")
 
-    async def new_order(self, order):
+    async def new_order(self, symbol, side, type, quantity, price):
+        """
+        Create new order by sending group transaction to algorand API
+
+        Return transaction id
+        """
         partner_app_id = "87654321"  # temporary solution
 
         if not self.mnemonic:
@@ -59,7 +95,7 @@ class Client ():
                 "You need to specify mnemonic or signer to execute this method")
         self.client.validate_transaction_order()
 
-        info = await api.get_exchange_info(order["symbol"])
+        info = await api.get_exchange_info(symbol)
 
         sender_address = self.client.get_account_address()
 
@@ -79,10 +115,10 @@ class Client ():
                 info["application_id"], sender_address))
 
         app_args = construct_args_for_app_call(
-            order["side"], order["type"], order["price"], order["quantity"], partner_app_id)
-        asset_index = info["base_id"] if order["side"] == "S" else info["price_id"]
+            side, type, price, quantity, partner_app_id)
+        asset_index = info["base_id"] if side == "S" else info["price_id"]
         transfer_amount = await self.client.calculate_transfer_amount(
-            info["application_id"], order["side"], order["quantity"])
+            info["application_id"], side, quantity)
 
         if not transfer_amount:
             pass
@@ -102,7 +138,13 @@ class Client ():
         print(f"Order created successfully, order_id: {tx_id}")
         return tx_id
 
-    async def cancel_order(self, symbol, order_id):
+    async def cancel_order(self, symbol: str, order_id: int):
+        """
+        Find an open order by provided id and symbol.
+        If an order was found, it sends appCall transaction with cancel request to algorand API
+
+        Return transaction id
+        """
         if not self.mnemonic:
             raise Exception(
                 "You need to specify mnemonic or signer to execute this method")
@@ -120,6 +162,12 @@ class Client ():
         return tx_id
 
     async def cancel_all_orders(self, symbol):
+        """
+        Perform cancellation of all existing orders for wallet specified in algod client
+        by sending appCall transaction to algorand API
+
+        Return transaction id
+        """
         address = self.client.get_account_address()
         user_trade_orders = await api.get_address_orders(
             address, OPEN_ORDER_STATUS, symbol)
@@ -154,10 +202,18 @@ class Client ():
 
         return {"balances": balances, "local_state": account_info.get('apps-local-state', [])}
 
-    def subscribe(self, options, callback):
+    async def subscribe(self, options, callback):
+        """
+        Subscribe current client to websocket streams listed in arg "options"
+
+        Return id of established connection
+        """
         if options.get("address") == None:
             options["address"] = self.client.get_account_address()
-        return socket_client.subscribe(self.websocket_url, options, callback)
+        return await socket_client.subscribe(self.websocket_url, options, callback)
 
-    def unsubscribe(self, handler_id):
-        socket_client.unsubscribe(handler_id)
+    async def unsubscribe(self, connection_id):
+        """
+        Unsubscribe from ws connection by provided id
+        """
+        await socket_client.unsubscribe(connection_id)
