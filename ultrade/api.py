@@ -3,11 +3,10 @@ import requests
 from .constants import get_domain
 
 import aiohttp
-# should be replaced when dedicated endpoint is ready
-headers = {"Content-Type": "application/json"}
 
 
 async def get_exchange_info(identifier=None):
+    # should be replaced when dedicated endpoint is ready
     session = aiohttp.ClientSession()
     url = f"{get_domain()}/market/markets"
     async with session.get(url) as resp:
@@ -59,7 +58,7 @@ async def get_order_by_id(symbol, order_id):
 async def get_open_orders(symbol):
     session = aiohttp.ClientSession()
     url = f"{get_domain()}/market/open-orders?symbol={symbol}"
-    async with session.get(url, headers=headers) as resp:
+    async with session.get(url) as resp:
         try:
             res = requests.get(url)
             data = await resp.json()

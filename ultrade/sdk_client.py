@@ -55,7 +55,8 @@ class Client ():
         partner_app_id = "87654321"  # temporary solution
 
         if not self.mnemonic:
-            raise "You need to specify mnemonic or signer to execute this method"
+            raise Exception(
+                "You need to specify mnemonic or signer to execute this method")
         self.client.validate_transaction_order()
 
         info = api.get_exchange_info(order["symbol"])
@@ -103,7 +104,8 @@ class Client ():
 
     def cancel_order(self, symbol, order_id):
         if not self.mnemonic:
-            raise "You need to specify mnemonic or signer to execute this method"
+            raise Exception(
+                "You need to specify mnemonic or signer to execute this method")
         self.client.validate_transaction_order()
 
         order = api.get_order_by_id(symbol, order_id)

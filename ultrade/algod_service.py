@@ -99,7 +99,8 @@ class AlgodService:
 
     def get_private_key(self):
         if not self.validate_mnemonic():
-            raise "An error occurred when trying to get private key from mnemonic"
+            raise Exception(
+                "An error occurred when trying to get private key from mnemonic")
 
         return mnemonic.to_private_key(self.mnemonic)
 

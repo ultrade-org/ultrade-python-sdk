@@ -8,11 +8,7 @@ from .test_credentials import TEST_MNEMONIC_KEY, TEST_ALGOD_TOKEN, TEST_ALGOD_AD
 
 from algosdk.v2client import algod
 from algosdk import transaction
-from pytest_mock import mocker
 algod_client = algod.AlgodClient(TEST_ALGOD_TOKEN, TEST_ALGOD_ADDRESS)
-
-# key = mnemonic.to_private_key(TEST_MNEMONIC_KEY)
-# address = account.address_from_private_key(key)
 
 credentials = {"mnemonic": TEST_MNEMONIC_KEY}
 opts = {"network": "testnet", "algo_sdk_client": algod_client,

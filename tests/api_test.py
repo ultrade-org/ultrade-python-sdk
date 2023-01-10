@@ -2,7 +2,6 @@ import pytest
 from . import utils
 from ultrade import api
 from .test_credentials import TEST_ALGO_WALLET, TEST_SYMBOL, TEST_ALGOD_ADDRESS
-import asyncio
 
 
 class TestFailed(Exception):
