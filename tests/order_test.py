@@ -24,8 +24,7 @@ ALGO_USDT_ORDER = {
     "side": 'S',
     "type": "0",
     "quantity": 2000000,
-    "price": 800,
-    "partner_app_id": "87654321"
+    "price": 800
 }
 
 YLDY_STBL_ORDER = {
@@ -33,8 +32,7 @@ YLDY_STBL_ORDER = {
     "side": 'S',
     "type": "0",
     "quantity": 350000000,
-    "price": 800,
-    "partner_app_id": "87654321"
+    "price": 800
 }
 
 VIP_MYKE_ORDER = {
@@ -42,8 +40,7 @@ VIP_MYKE_ORDER = {
     "side": 'S',
     "type": "0",
     "quantity": 2,
-    "price": 800,
-    "partner_app_id": "87654321"
+    "price": 800
 }
 
 
