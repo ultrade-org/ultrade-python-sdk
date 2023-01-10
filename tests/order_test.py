@@ -19,7 +19,7 @@ client = Client(credentials, opts)
 
 ALGO_USDT_ORDER = {
     "symbol": "algo_usdt",
-    "side": 'S',
+    "side": 'B',
     "type": "0",
     "quantity": 2000000,
     "price": 800
@@ -27,7 +27,7 @@ ALGO_USDT_ORDER = {
 
 YLDY_STBL_ORDER = {
     "symbol": "yldy_stbl",
-    "side": 'S',
+    "side": 'B',
     "type": "0",
     "quantity": 350000000,
     "price": 800
@@ -66,30 +66,30 @@ async def mocked_get_order_by_id(symbol, order_id):
 class TestNewOrder():
 
     async def test_yldy_buy(self):
-        txn_result = await client.new_order({**YLDY_STBL_ORDER, "side": "B"})
+        txn_result = await client.new_order(**YLDY_STBL_ORDER)
         assert txn_result == ('PASS', "")
 
     async def test_yldy_with_bad_quantity(self):
-        txn_result = await client.new_order({**YLDY_STBL_ORDER, "quantity": 350})
+        txn_result = await client.new_order(**{**YLDY_STBL_ORDER, "quantity": 350})
         assert txn_result == ('REJECT', "")
 
     async def test_algo_sell(self):
-        txn_result = await client.new_order({**ALGO_USDT_ORDER, "side": "S"})
+        txn_result = await client.new_order(**{**ALGO_USDT_ORDER, "side": "S"})
         assert txn_result == ('PASS', "")
 
     async def test_algo_buy(self):
-        txn_result = await client.new_order({**ALGO_USDT_ORDER, "side": "B"})
+        txn_result = await client.new_order(**ALGO_USDT_ORDER)
         assert txn_result == ('PASS', "")
 
     async def test_vip_myke(self):
-        txn_result = await client.new_order(VIP_MYKE_ORDER)
+        txn_result = await client.new_order(**VIP_MYKE_ORDER)
         assert txn_result == ('PASS', "")
 
 
-@pytest.mark.asyncio
-@patch('ultrade.algod_service.AlgodService.send_transaction_grp', mocked_send_transaction)
+@ pytest.mark.asyncio
+@ patch('ultrade.algod_service.AlgodService.send_transaction_grp', mocked_send_transaction)
 class TestCancelOrder():
-    @patch('ultrade.api.get_order_by_id', mocked_get_order_by_id)
+    @ patch('ultrade.api.get_order_by_id', mocked_get_order_by_id)
     async def test_for_non_existed_order(self):
         example_order_id = 99999
         symbol = "yldy_stbl"
@@ -111,8 +111,8 @@ class TestCancelOrder():
         assert txn_result == ('PASS', "")
 
 
-@pytest.mark.asyncio
-@patch('ultrade.algod_service.AlgodService.send_transaction_grp', mocked_send_transaction)
+@ pytest.mark.asyncio
+@ patch('ultrade.algod_service.AlgodService.send_transaction_grp', mocked_send_transaction)
 class TestCancelAllOrders:
     async def test_yldy_stbl(self):
         symbol = "yldy_stbl"

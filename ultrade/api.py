@@ -106,7 +106,7 @@ async def get_last_trades(symbol):
 
 async def get_symbols(mask) -> dict[str, str]:
     """
-    Returns a list of dictionaries with matched pair keys
+    Return a list of dictionaries with matched pair keys
 
     Return example: [{'pairKey': 'algo_usdt'}]
     """
