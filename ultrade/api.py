@@ -6,10 +6,13 @@ import aiohttp
 
 async def get_exchange_info(identifier=None):
     """
-    Get info from the exchange about specified pair
+    Get pair info from the Ultrade exchange
+
+    Parameters:
+        identifier (str|int)(optional): symbol or pair id
 
     Return object with pair info
-    If pair is not specified return list
+    If identifier is not specified return list of pairs info
     """
     # should be replaced when dedicated endpoint is ready
     session = aiohttp.ClientSession()
@@ -38,7 +41,7 @@ async def ping():
     """
     Check server connections
 
-    Return request latency in ms
+    Return latency of the request in ms
     """
     session = aiohttp.ClientSession()
     url = f"{get_domain()}/system/time"
@@ -98,7 +101,7 @@ async def get_orders(symbol, status, start_time, end_time, limit=500, page=0):
 
 async def get_price(symbol):
     """
-    Get price of specified pair from the server 
+    Get prices of specified pair from the server
     """
     session = aiohttp.ClientSession()
     url = f"{get_domain()}/market/price?symbol={symbol}"
@@ -110,7 +113,11 @@ async def get_price(symbol):
 
 async def get_depth(symbol, depth=100):
     """
-    Get depth for the specified symbol from the Ultrade exchange
+    Get depth for specified symbol from the Ultrade exchange
+
+    Parameters:
+        symbol (str): symbol represent existing pair, example: 'algo_usdt'\n
+        depth (int): depth for specific pair, max_value=100
     """
     session = aiohttp.ClientSession()
     url = f"{get_domain()}/market/depth?symbol={symbol}&depth={depth}"
@@ -162,7 +169,8 @@ async def get_address_orders(address, status=1, symbol=None):  # is not document
     """
     Get orders list for specified address
 
-    With default status argument return only open orders
+    With default status it return only open orders
+    If symbol not specified, return orders for pairs
     """
     session = aiohttp.ClientSession()
     symbol_query = f"&symbol={symbol}" if symbol else ""
