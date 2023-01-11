@@ -96,5 +96,5 @@ class TestApi():
 
     async def test_get_encoded_balance(self):
         app_id = 92958595  # yldy_stbl
-        balance = await api.get_encoded_balance(TEST_ALGO_WALLET, app_id)
+        balance = await api._get_encoded_balance(TEST_ALGO_WALLET, app_id)
         assert balance != None
