@@ -43,14 +43,24 @@ class ClientOptions(TypedDict):
 
 class Client ():
     """
-    UltradeSdk client class. Handles subscribe/unsubscribe to ultrade websockets,
+    UltradeSdk client class. Handles subscribing/unsubscribing to/from ultrade websockets,
     also can create/cancel orders on the ultrade exchange
 
     Args:
-        credentials (dict)
+        credentials (dict): \n
+            example:
+            {
+                'mnemonic': 'your mnemonic here'
+            }
 
-        options (dict) 
-
+        options (dict): \n
+            example:
+            {
+                'network' (str): can be 'mainnet', 'testnet' or 'dev',
+                'algo_sdk_client' (AlgodClient): algosdk client ,
+                'websocket_url' (str): websocket url,
+                'api_url' (str)(optional): custom API url
+            }
     """
 
     def __init__(self,
@@ -61,6 +71,9 @@ class Client ():
             self.server = ''
             self.api_url = ""
         elif options["network"] == "testnet":
+            self.api_url = "https://testnet-apigw.ultradedev.net"
+            self.server = 'https://node.testnet.algoexplorerapi.io'
+        elif options["network"] == "dev":
             self.api_url = "https://dev-apigw.ultradedev.net"
             self.server = 'https://node.testnet.algoexplorerapi.io'
         else:
@@ -84,7 +97,16 @@ class Client ():
 
     async def new_order(self, symbol, side, type, quantity, price):
         """
-        Create new order by sending group transaction to algorand API
+        Create new order on the Ultrade exchange by sending group transaction to algorand API
+
+        Parameters:
+
+            symbol (str): symbol represent existing pair, example: 'algo_usdt'\n
+            side (str): represent either 'S' or 'B' order (SELL or BUY)\n
+            type (str): can be one of these four order types: '0', 'P', 'I' or 'M',
+            which are represent LIMIT, POST, IOK and MARKET orders respectively\n
+            quantity (decimal): quantity of the base coin \n
+            price (decimal): quantity of the price coin
 
         Return transaction id
         """
@@ -139,8 +161,11 @@ class Client ():
 
     async def cancel_order(self, symbol: str, order_id: int):
         """
-        Find an open order by provided id and symbol.
-        If an order was found, it sends appCall transaction with cancel request to algorand API
+        Cancel the order matching the id and symbol arguments
+
+        Parameters:
+            symbol (str): symbol represent existing pair, example: 'algo_usdt'\n
+            order_id (int): id of the order to cancel, can be provided by Ultrade API
 
         Return transaction id
         """
@@ -162,7 +187,9 @@ class Client ():
     async def cancel_all_orders(self, symbol):
         """
         Perform cancellation of all existing orders for wallet specified in algod client
-        by sending appCall transaction to algorand API
+
+        Parameters:
+            symbol (str): symbol represent existing pair, example: 'algo_usdt'
 
         Return transaction id
         """
@@ -202,7 +229,16 @@ class Client ():
 
     async def subscribe(self, options, callback):
         """
-        Subscribe current client to websocket streams listed in arg "options"
+        Subscribe client to websocket streams listed in arg "options"
+
+        Parameters:
+            options (dict): websocket subscribe options, example:\n
+                {
+                    'symbol': "yldy_stbl",\n
+                    'streams': [OPTIONS.ORDERS, OPTIONS.TRADES],\n
+                    'options': {"address": "your wallet address here"}
+                }\n
+            callback (function): a function, will be called on any occurred websocket event, should accept 'event' and 'args' parameters
 
         Return id of established connection
         """
@@ -213,5 +249,8 @@ class Client ():
     async def unsubscribe(self, connection_id):
         """
         Unsubscribe from ws connection by provided id
+
+        Parameters:
+            connection_id (str): id of the connection
         """
         await socket_client.unsubscribe(connection_id)
