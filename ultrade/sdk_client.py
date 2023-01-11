@@ -93,7 +93,6 @@ class Client ():
         if not self.mnemonic:
             raise Exception(
                 "You need to specify mnemonic or signer to execute this method")
-        self.client.validate_transaction_order()
 
         info = await api.get_exchange_info(symbol)
 
@@ -148,7 +147,6 @@ class Client ():
         if not self.mnemonic:
             raise Exception(
                 "You need to specify mnemonic or signer to execute this method")
-        self.client.validate_transaction_order()
 
         order = await api.get_order_by_id(symbol, order_id)
         exchange_info = await api.get_exchange_info(symbol)

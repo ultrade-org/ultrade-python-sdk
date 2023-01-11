@@ -7,7 +7,7 @@ from algosdk import transaction
 from algosdk.logic import get_application_address
 from algosdk.v2client.algod import AlgodClient
 
-from .api import get_encoded_balance
+from .api import _get_encoded_balance
 from .constants import BALANCE_DECODE_FORMAT
 from .decode import unpack_data
 
@@ -98,11 +98,12 @@ class AlgodService:
         return self.client.suggested_params()
 
     def get_private_key(self):
-        if not self.validate_mnemonic():
+        try:
+            key = mnemonic.to_private_key(self.mnemonic)
+            return key
+        except:
             raise Exception(
                 "An error occurred when trying to get private key from mnemonic")
-
-        return mnemonic.to_private_key(self.mnemonic)
 
     def wait_for_transaction(
         self, tx_id: str, timeout: int = 10
@@ -149,15 +150,9 @@ class AlgodService:
         address = account.address_from_private_key(key)
         return address
 
-    def validate_mnemonic(self):
-        return True  # todo
-
-    def validate_transaction_order(self):
-        pass  # todo
-
     async def get_pair_balances(self, app_id):
         address = self.get_account_address()
-        encoded_data = await get_encoded_balance(address, app_id)
+        encoded_data = await _get_encoded_balance(address, app_id)
 
         balance_data = unpack_data(encoded_data, BALANCE_DECODE_FORMAT)
 
