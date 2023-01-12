@@ -7,12 +7,13 @@ import aiohttp
 async def get_exchange_info(identifier=None):
     """
     Get pair info from the Ultrade exchange
+    If identifier is not specified returns a list of pairs info
 
     Args:
-        identifier (str|int)(optional): symbol or pair id
+        identifier (str|int): symbol or pair id
 
-    Return object with pair info
-    If identifier is not specified return list of pairs info
+    Returns:
+        object with pair info
     """
     # should be replaced when dedicated endpoint is ready
     session = aiohttp.ClientSession()
@@ -39,9 +40,10 @@ async def get_exchange_info(identifier=None):
 
 async def ping():
     """
-    Check server connections
+    Check connection with server
 
-    Return latency of the request in ms
+    Returns:
+        latency of the sent request in ms
     """
     session = aiohttp.ClientSession()
     url = f"{get_domain()}/system/time"
@@ -57,7 +59,8 @@ async def get_order_by_id(symbol, order_id):
     """
     Find order with specified id and symbol
 
-    Return order object
+    Returns:
+        order object
     """
     # this endpoint should support symbol query
     session = aiohttp.ClientSession()
@@ -77,7 +80,8 @@ async def get_open_orders(symbol):
     """
     Get orderbook for the specified symbol
 
-    Return orderbook object
+    Returns:
+        orderbook object
     """
     session = aiohttp.ClientSession()
     url = f"{get_domain()}/market/open-orders?symbol={symbol}"
@@ -101,7 +105,10 @@ async def get_orders(symbol, status, start_time, end_time, limit=500, page=0):
 
 async def get_price(symbol):
     """
-    Get prices of specified pair from the server
+    Get prices for the specified pair from the server
+
+    Returns:
+        current price of the pair
     """
     session = aiohttp.ClientSession()
     url = f"{get_domain()}/market/price?symbol={symbol}"
@@ -115,9 +122,12 @@ async def get_depth(symbol, depth=100):
     """
     Get depth for specified symbol from the Ultrade exchange
 
-    Parameters:
-        symbol (str): symbol represent existing pair, example: 'algo_usdt'\n
+    Args:
+        symbol (str): symbol represent existing pair, for example: 'algo_usdt'
         depth (int): depth for specific pair, max_value=100
+
+    Returns:
+        depth object for the specified pair
     """
     session = aiohttp.ClientSession()
     url = f"{get_domain()}/market/depth?symbol={symbol}&depth={depth}"
@@ -130,6 +140,9 @@ async def get_depth(symbol, depth=100):
 async def get_last_trades(symbol):
     """
     Get last trades for the specified symbol from the Ultrade exchange
+
+    Returns:
+        last trades from the exchange
     """
     session = aiohttp.ClientSession()
     url = f"{get_domain()}/market/last-trades?symbol={symbol}"
@@ -141,9 +154,10 @@ async def get_last_trades(symbol):
 
 async def get_symbols(mask) -> dict[str, str]:
     """
-    Return a list of dictionaries with matched pair keys
+    Return example: For mask="algo_u" -> [{'pairKey': 'algo_usdt'}]
 
-    Return example: [{'pairKey': 'algo_usdt'}]
+    Returns:
+        list of symbols matching the mask
     """
     session = aiohttp.ClientSession()
     url = f"{get_domain()}/market/symbols?mask={mask}"
@@ -156,6 +170,9 @@ async def get_symbols(mask) -> dict[str, str]:
 async def get_history(symbol, interval="", start_time="", end_time="", limit=""):
     """
     Get trade history with graph data from the Ultrade exchange
+
+    Returns:
+        history object
     """
     session = aiohttp.ClientSession()
     url = f"{get_domain()}/market/history?symbol={symbol}&interval={interval}&startTime={start_time}&endTime={end_time}&limit={limit}"
@@ -168,9 +185,11 @@ async def get_history(symbol, interval="", start_time="", end_time="", limit="")
 async def get_address_orders(address, status=1, symbol=None):
     """
     Get orders list for specified address
-
     With default status it return only open orders
-    If symbol not specified, return orders for pairs
+    If symbol not specified, return orders for all pairs
+
+    Returns:
+        list of order objects
     """
     session = aiohttp.ClientSession()
     symbol_query = f"&symbol={symbol}" if symbol else ""

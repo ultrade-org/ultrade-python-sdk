@@ -42,7 +42,7 @@ Create new order on the Ultrade exchange by sending group transaction to algoran
 * **side** (str) : represent either 'S' or 'B' order (SELL or BUY)
 * **type** (str) : can be one of these four order types: '0', 'P', 'I' or 'M',
     which are represent LIMIT, POST, IOK and MARKET orders respectively
-* **quantity** (decimal) : quantity of the base coin 
+* **quantity** (decimal) : quantity of the base coin
 * **price** (decimal) : quantity of the price coin
 
 
