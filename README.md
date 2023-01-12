@@ -1,4 +1,7 @@
 # ultrade-python-sdk pip install package
 
-(https://github.com/ultrade-org/ultrade-python-sdk/develop/docs/api.md)
-(https://github.com/ultrade-org/ultrade-python-sdk/develop/docs/client.md)
+## Source:
+
+### ultrade_sdk.Client: (https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/docs/client.md)
+
+### ultrade_sdk.api: (https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/docs/api.md)
