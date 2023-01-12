@@ -8,7 +8,7 @@ async def get_exchange_info(identifier=None):
     """
     Get pair info from the Ultrade exchange
 
-    Parameters:
+    Args:
         identifier (str|int)(optional): symbol or pair id
 
     Return object with pair info
@@ -165,7 +165,7 @@ async def get_history(symbol, interval="", start_time="", end_time="", limit="")
         return data
 
 
-async def get_address_orders(address, status=1, symbol=None):  # is not documented
+async def get_address_orders(address, status=1, symbol=None):
     """
     Get orders list for specified address
 
@@ -181,7 +181,7 @@ async def get_address_orders(address, status=1, symbol=None):  # is not document
         return data
 
 
-async def get_wallet_transactions(address, symbol=None):  # is not documented
+async def get_wallet_transactions(address, symbol=None):
     session = aiohttp.ClientSession()
     symbol_query = f"&symbol={symbol}" if symbol else ""
     url = f"{get_domain()}/market/wallet-transactions?address={address}{symbol_query}"

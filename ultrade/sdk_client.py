@@ -43,24 +43,11 @@ class ClientOptions(TypedDict):
 
 class Client ():
     """
-    UltradeSdk client class. Handles subscribing/unsubscribing to/from ultrade websockets,
-    also can create/cancel orders on the ultrade exchange
+    UltradeSdk client. Provides methods for creating and canceling orders on Ultrade exchange. Also can be used for subscribing to Ultrade data streams
 
     Args:
-        credentials (dict): \n
-            example:
-            {
-                'mnemonic': 'your mnemonic here'
-            }
-
-        options (dict): \n
-            example:
-            {
-                'network' (str): can be 'mainnet', 'testnet' or 'dev',
-                'algo_sdk_client' (AlgodClient): algosdk client ,
-                'websocket_url' (str): websocket url,
-                'api_url' (str)(optional): custom API url
-            }
+        credentials (dict): credentials as a mnemonic or a private key
+        options (dict): options allows to change default URLs for API
     """
 
     def __init__(self,
@@ -99,16 +86,17 @@ class Client ():
         """
         Create new order on the Ultrade exchange by sending group transaction to algorand API
 
-        Parameters:
+        Args:
 
-            symbol (str): symbol represent existing pair, example: 'algo_usdt'\n
-            side (str): represent either 'S' or 'B' order (SELL or BUY)\n
+            symbol (str): symbol represent existing pair, example: 'algo_usdt'
+            side (str): represent either 'S' or 'B' order (SELL or BUY)
             type (str): can be one of these four order types: '0', 'P', 'I' or 'M',
-            which are represent LIMIT, POST, IOK and MARKET orders respectively\n
-            quantity (decimal): quantity of the base coin \n
+                which are represent LIMIT, POST, IOK and MARKET orders respectively
+            quantity (decimal): quantity of the base coin
             price (decimal): quantity of the price coin
 
-        Return transaction id
+        Returns:
+            str: First transaction id
         """
         partner_app_id = "87654321"  # temporary solution
 
@@ -163,11 +151,12 @@ class Client ():
         """
         Cancel the order matching the id and symbol arguments
 
-        Parameters:
-            symbol (str): symbol represent existing pair, example: 'algo_usdt'\n
+        Args:
+            symbol (str): symbol represent existing pair, example: 'algo_usdt'
             order_id (int): id of the order to cancel, can be provided by Ultrade API
 
-        Return transaction id
+        Returns:
+            str: First transaction id
         """
         if not self.mnemonic:
             raise Exception(
@@ -188,10 +177,11 @@ class Client ():
         """
         Perform cancellation of all existing orders for wallet specified in algod client
 
-        Parameters:
+        Args:
             symbol (str): symbol represent existing pair, example: 'algo_usdt'
 
-        Return transaction id
+        Returns:
+            str: First transaction id
         """
         address = self.client.get_account_address()
         user_trade_orders = await api.get_address_orders(
@@ -230,17 +220,19 @@ class Client ():
     async def subscribe(self, options, callback):
         """
         Subscribe client to websocket streams listed in arg "options"
+        Can be used multiple times for different pairs
 
-        Parameters:
-            options (dict): websocket subscribe options, example:\n
+        Args:
+            options (dict): websocket subscribe options, example:
                 {
-                    'symbol': "yldy_stbl",\n
-                    'streams': [OPTIONS.ORDERS, OPTIONS.TRADES],\n
+                    'symbol': "yldy_stbl",
+                    'streams': [OPTIONS.ORDERS, OPTIONS.TRADES],
                     'options': {"address": "your wallet address here"}
-                }\n
+                }
             callback (function): a function, will be called on any occurred websocket event, should accept 'event' and 'args' parameters
 
-        Return id of established connection
+        Returns:
+            str: Id of the established connection
         """
         if options.get("address") == None:
             options["address"] = self.client.get_account_address()
@@ -248,9 +240,9 @@ class Client ():
 
     async def unsubscribe(self, connection_id):
         """
-        Unsubscribe from ws connection by provided id
+        Unsubscribe from ws connection
 
-        Parameters:
-            connection_id (str): id of the connection
+        Args:
+            connection_id (str): Id of the connection
         """
         await socket_client.unsubscribe(connection_id)
