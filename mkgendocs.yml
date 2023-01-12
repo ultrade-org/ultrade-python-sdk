@@ -1,0 +1,25 @@
+sources_dir: docs
+templates_dir: docs/templates
+repo: https://github.com/ultrade-org/ultrade-python-sdk
+version: develop
+
+pages:
+  - page: "client.md"
+    source: "ultrade/sdk_client.py"
+    classes:
+      - Client
+
+  - page: "api.md"
+    source: "ultrade/api.py"
+    functions:
+      - get_exchange_info
+      - ping
+      - get_order_by_id
+      - get_open_orders
+      - get_orders
+      - get_price
+      - get_depth
+      - get_last_trades
+      - get_symbols
+      - get_history
+      - get_address_orders
