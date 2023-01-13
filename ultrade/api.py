@@ -55,54 +55,6 @@ async def ping():
         return round(time.time() * 1000) - data['currentTime']
 
 
-async def get_order_by_id(symbol, order_id):
-    """
-    Find order with specified id and symbol
-
-    Returns:
-        order object
-    """
-    # this endpoint should support symbol query
-    session = aiohttp.ClientSession()
-    url = f"{get_domain()}/market/getOrderById?orderId={order_id}"
-    async with session.get(url) as resp:
-        data = await resp.json()
-
-        await session.close()
-        try:
-            order = data["order"][0]
-            return order
-        except TypeError:
-            raise Exception("Order not found")
-
-
-async def get_open_orders(symbol):
-    """
-    Get orderbook for the specified symbol
-
-    Returns:
-        orderbook object
-    """
-    session = aiohttp.ClientSession()
-    url = f"{get_domain()}/market/open-orders?symbol={symbol}"
-    async with session.get(url) as resp:
-        try:
-            data = await resp.json()
-        except (aiohttp.ContentTypeError):
-            await session.close()
-            return []
-
-        await session.close()
-        return data["openOrders"]
-
-
-async def get_orders(symbol, status, start_time, end_time, limit=500, page=0):
-    session = aiohttp.ClientSession()
-    # waiting for back-end side implementation
-    await session.close()
-    pass
-
-
 async def get_price(symbol):
     """
     Get prices for the specified pair from the server
@@ -127,25 +79,10 @@ async def get_depth(symbol, depth=100):
         depth (int): depth for specific pair, max_value=100
 
     Returns:
-        depth object for the specified pair
+        order book for the specified pair
     """
     session = aiohttp.ClientSession()
     url = f"{get_domain()}/market/depth?symbol={symbol}&depth={depth}"
-    async with session.get(url) as resp:
-        data = await resp.json()
-        await session.close()
-        return data
-
-
-async def get_last_trades(symbol):
-    """
-    Get last trades for the specified symbol from the Ultrade exchange
-
-    Returns:
-        last trades from the exchange
-    """
-    session = aiohttp.ClientSession()
-    url = f"{get_domain()}/market/last-trades?symbol={symbol}"
     async with session.get(url) as resp:
         data = await resp.json()
         await session.close()
@@ -176,34 +113,6 @@ async def get_history(symbol, interval="", start_time="", end_time="", limit="")
     """
     session = aiohttp.ClientSession()
     url = f"{get_domain()}/market/history?symbol={symbol}&interval={interval}&startTime={start_time}&endTime={end_time}&limit={limit}"
-    async with session.get(url) as resp:
-        data = await resp.json()
-        await session.close()
-        return data
-
-
-async def get_address_orders(address, status=1, symbol=None):
-    """
-    Get orders list for specified address
-    With default status it return only open orders
-    If symbol not specified, return orders for all pairs
-
-    Returns:
-        list of order objects
-    """
-    session = aiohttp.ClientSession()
-    symbol_query = f"&symbol={symbol}" if symbol else ""
-    url = f"{get_domain()}/market/orders-with-trades?address={address}&status={status}{symbol_query}"
-    async with session.get(url) as resp:
-        data = await resp.json()
-        await session.close()
-        return data
-
-
-async def get_wallet_transactions(address, symbol=None):
-    session = aiohttp.ClientSession()
-    symbol_query = f"&symbol={symbol}" if symbol else ""
-    url = f"{get_domain()}/market/wallet-transactions?address={address}{symbol_query}"
     async with session.get(url) as resp:
         data = await resp.json()
         await session.close()

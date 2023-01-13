@@ -2,14 +2,14 @@ from ultrade import api
 from .test_credentials import TEST_ALGO_WALLET
 
 
-async def find_open_order():
-    order_list = await api.get_address_orders(TEST_ALGO_WALLET, status=1)
+async def find_open_order(client):
+    order_list = await client.get_orders(status=1)
     order = order_list[0] if len(order_list) > 0 else None
     return order
 
 
-async def get_symbol_of_open_order():
-    order = await find_open_order()
+async def get_symbol_of_open_order(client):
+    order = await find_open_order(client)
     if not order:
         return None
 
