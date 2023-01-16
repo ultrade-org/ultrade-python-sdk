@@ -16,8 +16,8 @@
 from algosdk.v2client import algod
 from ultrade.sdk_client import Client
 
-algod_token = "your algod token here"
-algod_address = "your algod address"
+algod_token = "your algod token here, empty if use a public node"
+algod_address = "if empty, will use public node address, example: https://node.testnet.algoexplorerapi.io"
 
 # create algod client
 algod_client = algod.AlgodClient(algod_token, algod_address)
@@ -27,10 +27,10 @@ options = {
     "network": "testnet",
     "algo_sdk_client": algod_client,
     "api_url": None,
-    "websocket_url": "wss://dev-ws.ultradedev.net/socket.io"
+    "websocket_url": "wss://testnet-ws.ultradedev.net/socket.io"
     }
 
-credentials = {"mnemonic": "your mnemonic here"}
+credentials = {"mnemonic": 'alpha bravo charlie delta'}
 
 # create ultrade-sdk client
 client = Client(credentials, options)
