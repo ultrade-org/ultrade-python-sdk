@@ -2,9 +2,9 @@
 
 ## Sources:
 
-### ultrade_sdk.Client: https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/docs/client.md
+- [ultrade_sdk.Client](https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/docs/client.md) — main client, requires credentials
 
-### ultrade_sdk.api: https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/docs/api.md
+- [ultrade_sdk.api](https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/docs/api.md) — module for interaction with ultrade public API
 
 ## Quick start
 
@@ -34,18 +34,18 @@ client = Client(credentials, options)
 
 ### Testing:
 
-    To run tests, type:
+To run tests, type:
 
-    ```bash
-    pytest -n auto tests
-    ```
+```bash
+pytest -n auto tests
+```
 
 ### Generating Documentation:
 
-    To generate .md documentation, run:
+To generate .md documentation, run:
 
-    ```bash
-    gendocs --config mkgendocs.yml
-    ```
+```bash
+gendocs --config mkgendocs.yml
+```
 
-    Docs will be located in the docs/ directory.
+Docs will be located in the docs/ directory.
