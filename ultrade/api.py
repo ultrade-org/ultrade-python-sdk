@@ -4,38 +4,51 @@ from .constants import get_domain
 import aiohttp
 
 
-async def get_exchange_info(identifier=None):
+async def get_pair_list(partner_id=None):
     """
-    Get pair info from the Ultrade exchange
-    If identifier is not specified returns a list of pairs info
+    Get pair list for the specified partner_id
+    If partner_id is not specified, returns info about all existing pairs
 
     Args:
-        identifier (str|int): symbol or pair id
+        partner_id (int, optional)
 
     Returns:
-        object with pair info
+        dict
     """
-    # should be replaced when dedicated endpoint is ready
     session = aiohttp.ClientSession()
-    url = f"{get_domain()}/market/markets"
+    query = f"?partner_id={partner_id}" if partner_id else ""
+    url = f"{get_domain()}/market/markets{query}"
     async with session.get(url) as resp:
         data = await resp.json()
         await session.close()
 
-        if identifier == None:
-            return data
+        return data
 
-        try:
-            identifier = int(identifier)
-            key = "application_id"
-        except ValueError:
-            key = "pair_key"
 
-        for dict in data:
-            if dict[key] == identifier:
-                return dict
+async def get_exchange_info(identifier):
+    """
+    Get info about specified pair
 
-        raise Exception("Can't find exchange info for the specified symbol")
+    Args:
+        identifier (str|int): symbol or pair id
+    Returns:
+        dict
+    """
+
+    # should be replaced when dedicated endpoint is ready
+    data = await get_pair_list()
+
+    try:
+        identifier = int(identifier)
+        key = "application_id"
+    except ValueError:
+        key = "pair_key"
+
+    for dict in data:
+        if dict[key] == identifier:
+            return dict
+
+    raise Exception("Can't find exchange info for the specified symbol")
 
 
 async def ping():
@@ -43,7 +56,7 @@ async def ping():
     Check connection with server
 
     Returns:
-        latency of the sent request in ms
+        int: latency of the sent request in ms
     """
     session = aiohttp.ClientSession()
     url = f"{get_domain()}/system/time"
@@ -60,7 +73,7 @@ async def get_price(symbol):
     Get prices for the specified pair from the server
 
     Returns:
-        current price of the pair
+        dict
     """
     session = aiohttp.ClientSession()
     url = f"{get_domain()}/market/price?symbol={symbol}"
@@ -79,7 +92,7 @@ async def get_depth(symbol, depth=100):
         depth (int): depth for specific pair, max_value=100
 
     Returns:
-        order book for the specified pair
+        dict: order book for the specified pair
     """
     session = aiohttp.ClientSession()
     url = f"{get_domain()}/market/depth?symbol={symbol}&depth={depth}"
@@ -94,7 +107,7 @@ async def get_symbols(mask) -> dict[str, str]:
     Return example: For mask="algo_u" -> [{'pairKey': 'algo_usdt'}]
 
     Returns:
-        list of symbols matching the mask
+        list
     """
     session = aiohttp.ClientSession()
     url = f"{get_domain()}/market/symbols?mask={mask}"
@@ -109,10 +122,29 @@ async def get_history(symbol, interval="", start_time="", end_time="", limit="")
     Get trade history with graph data from the Ultrade exchange
 
     Returns:
-        history object
+        dict
     """
     session = aiohttp.ClientSession()
     url = f"{get_domain()}/market/history?symbol={symbol}&interval={interval}&startTime={start_time}&endTime={end_time}&limit={limit}"
+    async with session.get(url) as resp:
+        data = await resp.json()
+        await session.close()
+        return data
+
+
+async def get_last_trades(symbol):
+    # should work with user address
+    """
+    Get last trades for the specified symbol
+
+    Args:
+        symbol (str): symbol represents existing pair, example: 'algo_usdt'
+
+    Returns:
+        list
+    """
+    session = aiohttp.ClientSession()
+    url = f"{get_domain()}/market/last-trades?symbol={symbol}"
     async with session.get(url) as resp:
         data = await resp.json()
         await session.close()

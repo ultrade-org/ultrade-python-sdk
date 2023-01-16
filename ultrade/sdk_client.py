@@ -187,7 +187,6 @@ class Client ():
         Returns:
             str: First transaction id
         """
-        address = self.client.get_account_address()
         user_trade_orders = await self.get_orders(symbol, OPEN_ORDER_STATUS)
         exchange_info = await api.get_exchange_info(symbol)
 
@@ -251,24 +250,6 @@ class Client ():
         """
         await socket_client.unsubscribe(connection_id)
 
-    async def get_last_trades(self, symbol):
-        # should work with user address
-        """
-        Get last trades for the specified symbol
-
-        Args:
-            symbol (str): symbol represents existing pair, example: 'algo_usdt'
-
-        Returns:
-            List of last trades
-        """
-        session = aiohttp.ClientSession()
-        url = f"{get_domain()}/market/last-trades?symbol={symbol}"
-        async with session.get(url) as resp:
-            data = await resp.json()
-            await session.close()
-            return data
-
     async def get_orders(self, symbol=None, status=1, start_time=None, end_time=None, limit=500, page=0):
         """
         Get orders list for specified address
@@ -280,7 +261,7 @@ class Client ():
              status (int): status of the returned orders
 
         Returns:
-            List of order objects
+            list
         """
         session = aiohttp.ClientSession()
         address = self.client.get_account_address()
@@ -299,7 +280,7 @@ class Client ():
              symbol (str): symbol represents existing pair, example: 'algo_usdt'
 
         Returns:
-            List of transactions
+            list
         """
         session = aiohttp.ClientSession()
         address = self.client.get_account_address()
@@ -312,10 +293,10 @@ class Client ():
 
     async def get_order_by_id(self, symbol, order_id):
         """
-        Find order with specified id and symbol
+        Get order with specific id and symbol
 
         Returns:
-            order object
+            dict
         """
         # this endpoint should support symbol query
         # should work with user address

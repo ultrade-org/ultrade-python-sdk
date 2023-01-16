@@ -17,9 +17,9 @@ async def subscribe(url: str, options: SubscribeOptions, callback: Callable[[str
     global socket
 
     if not socket:
-        socket = socketio.AsyncClient()
+        socket = socketio.AsyncClient(reconnection_delay_max=1000)
         add_event_listeners(socket, options, callback)
-        await socket.connect(url)
+        await socket.connect(url, transports=["websocket"])
         await socket.wait()
 
     await socket.emit("subscribe", options)
