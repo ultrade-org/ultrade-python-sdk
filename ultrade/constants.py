@@ -1,5 +1,13 @@
+default_domain = "https://dev-apigw.ultradedev.net"
+
+
+def set_domain(domain):
+    global default_domain
+    default_domain = domain
+
+
 def get_domain():
-    return "https://dev-apigw.ultradedev.net"
+    return default_domain
 
 
 OPEN_ORDER_STATUS = "1"

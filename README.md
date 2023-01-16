@@ -48,4 +48,4 @@ To generate .md documentation, run:
 gendocs --config mkgendocs.yml
 ```
 
-Docs will be located in the docs/ directory.
+Docs will be located in the `docs/` directory.

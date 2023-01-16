@@ -6,7 +6,7 @@ from . import api
 from . import socket_client
 from .algod_service import AlgodService
 from .utils import is_asset_opted_in, is_app_opted_in, construct_args_for_app_call
-from .constants import OPEN_ORDER_STATUS, get_domain
+from .constants import OPEN_ORDER_STATUS, get_domain, set_domain
 from . import socket_options
 
 
@@ -68,6 +68,8 @@ class Client ():
         else:
             self.api_url = "http://localhost:5001"
             self.server = 'http://localhost:4001'
+
+        set_domain(self.api_url)
 
         if options["api_url"] != None:
             self.api_url = options["api_url"]

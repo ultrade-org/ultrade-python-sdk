@@ -13,7 +13,7 @@ from .test_credentials import TEST_MNEMONIC_KEY, TEST_ALGOD_TOKEN, TEST_ALGOD_AD
 algod_client = algod.AlgodClient(TEST_ALGOD_TOKEN, TEST_ALGOD_ADDRESS)
 
 credentials = {"mnemonic": TEST_MNEMONIC_KEY}
-opts = {"network": "testnet", "algo_sdk_client": algod_client,
+opts = {"network": "dev", "algo_sdk_client": algod_client,
         "api_url": None, "websocket_url": "wss://dev-ws.ultradedev.net/socket.io"}
 client = Client(credentials, opts)
 
