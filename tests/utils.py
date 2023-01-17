@@ -1,5 +1,4 @@
 from ultrade import api
-from .test_credentials import TEST_ALGO_WALLET
 
 
 async def find_open_order(client):

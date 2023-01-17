@@ -142,14 +142,6 @@ class TestApiCalls():
 
         raise Exception("Test failed")
 
-    async def test_get_last_trades(self):
-        trades = await client.get_last_trades(TEST_SYMBOL)
-        if len(trades) == 0:
-            return
-
-        utils.validate_response_for_expected_fields(
-            trades[0], ["price", "amount", "buy_user_id", "sell_user_id"])
-
     async def test_get_orders(self):
         orders = await client.get_orders()
         if len(orders) == 0:
@@ -212,3 +204,11 @@ class TestApi():
         app_id = 92958595  # yldy_stbl
         balance = await api._get_encoded_balance(TEST_ALGO_WALLET, app_id)
         assert balance != None
+
+    async def test_get_last_trades(self):
+        trades = await api.get_last_trades(TEST_SYMBOL)
+        if len(trades) == 0:
+            return
+
+        utils.validate_response_for_expected_fields(
+            trades[0], ["price", "amount", "buy_user_id", "sell_user_id"])
