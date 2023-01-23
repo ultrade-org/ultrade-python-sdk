@@ -1,5 +1,6 @@
 import time
 from .constants import get_domain
+from typing import Dict
 
 import aiohttp
 
@@ -102,7 +103,7 @@ async def get_depth(symbol, depth=100):
         return data
 
 
-async def get_symbols(mask) -> dict[str, str]:
+async def get_symbols(mask) -> Dict[str, str]:
     """
     Return example: For mask="algo_u" -> [{'pairKey': 'algo_usdt'}]
 
