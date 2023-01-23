@@ -1,18 +1,18 @@
 import socketio
 import time
-from typing import Callable, Optional, TypedDict, Dict
+from typing import Callable, Optional, TypedDict, Dict, List
 
 socket: Optional[socketio.AsyncClient] = None
-socket_pool: Optional[dict[str, 'SubscribeOptions']] = {}
+socket_pool: Optional[Dict[str, 'SubscribeOptions']] = {}
 
 
 class SubscribeOptions(TypedDict):
     symbol: str
-    streams: list[int]
+    streams: List[int]
     options: Dict[str, any]
 
 
-async def subscribe(url: str, options: SubscribeOptions, callback: Callable[[str, list[any]], any]):
+async def subscribe(url: str, options: SubscribeOptions, callback: Callable[[str, List[any]], any]):
     handler_id = str(time.time_ns())
     global socket
 
@@ -40,7 +40,7 @@ async def unsubscribe(handler_id: str):
             socket = None
 
 
-def add_event_listeners(socket: socketio.Client, options: SubscribeOptions, callback: Callable[[str, list[any]], any]):
+def add_event_listeners(socket: socketio.Client, options: SubscribeOptions, callback: Callable[[str, List[any]], any]):
     socket.on('*', callback)
 
     async def reconnect_handler():
