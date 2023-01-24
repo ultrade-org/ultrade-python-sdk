@@ -160,8 +160,7 @@ async def _get_encoded_balance(address, app_id):
         state = next((state for state in data["account"].get(
             'apps-local-state') if state["id"] == app_id and state["deleted"] == False), None)
         if not state:
-            raise Exception(
-                "An error occurred while trying to get available balance from the smart contract")
+            return None
 
         key = next((elem for elem in state["key-value"]
                     if elem["key"] == "YWNjb3VudEluZm8="), None)
