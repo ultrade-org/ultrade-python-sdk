@@ -13,7 +13,7 @@ from algosdk.v2client import algod
 from ultrade.sdk_client import Client
 
 algod_token = ""    # your algod token here, empty if use a public node
-algod_address = https://node.testnet.algoexplorerapi.io     # Your algod node adress. Pass this for default public testnet nide
+algod_address = "https://node.testnet.algoexplorerapi.io"    # Your algod node adress. Pass this for default public testnet nide
 
 # create algod client
 algod_client = algod.AlgodClient(algod_token, algod_address)
