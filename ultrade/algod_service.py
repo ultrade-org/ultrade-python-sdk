@@ -158,12 +158,15 @@ class AlgodService:
 
         return balance_data
 
-    async def calculate_transfer_amount(self, app_id, side, quantity):
+    async def calculate_transfer_amount(self, app_id, side, quantity, price, decimal):
         try:
             pair_balances = await self.get_pair_balances(app_id)
             available_balance = pair_balances["priceCoin_available"] if side == "B" else pair_balances["baseCoin_available"]
         except:
             available_balance = 0
+
+        if side == "B":
+            quantity = (quantity / decimal) * price
 
         transfer_amount = quantity - available_balance
 
