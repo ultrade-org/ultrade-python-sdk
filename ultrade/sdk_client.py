@@ -131,7 +131,7 @@ class Client ():
             side, type, price, quantity, partner_app_id)
         asset_index = info["base_id"] if side == "S" else info["price_id"]
         transfer_amount = await self.client.calculate_transfer_amount(
-            info["application_id"], side, quantity)
+            info["application_id"], side, quantity, price, info["base_decimal"])
 
         if not transfer_amount:
             pass
