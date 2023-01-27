@@ -1,5 +1,5 @@
 import time
-from .constants import get_domain
+from .constants import get_api_domain, get_algod_indexer_domain
 from typing import Dict
 
 import aiohttp
@@ -18,7 +18,7 @@ async def get_pair_list(partner_id=None):
     """
     session = aiohttp.ClientSession()
     query = f"?partner_id={partner_id}" if partner_id else ""
-    url = f"{get_domain()}/market/markets{query}"
+    url = f"{get_api_domain()}/market/markets{query}"
     async with session.get(url) as resp:
         data = await resp.json()
         await session.close()
@@ -60,7 +60,7 @@ async def ping():
         int: latency of the sent request in ms
     """
     session = aiohttp.ClientSession()
-    url = f"{get_domain()}/system/time"
+    url = f"{get_api_domain()}/system/time"
     async with session.get(url) as resp:
         resp.raise_for_status()
         data = await resp.json()
@@ -77,7 +77,7 @@ async def get_price(symbol):
         dict
     """
     session = aiohttp.ClientSession()
-    url = f"{get_domain()}/market/price?symbol={symbol}"
+    url = f"{get_api_domain()}/market/price?symbol={symbol}"
     async with session.get(url) as resp:
         data = await resp.json()
         await session.close()
@@ -96,7 +96,7 @@ async def get_depth(symbol, depth=100):
         dict: order book for the specified pair
     """
     session = aiohttp.ClientSession()
-    url = f"{get_domain()}/market/depth?symbol={symbol}&depth={depth}"
+    url = f"{get_api_domain()}/market/depth?symbol={symbol}&depth={depth}"
     async with session.get(url) as resp:
         data = await resp.json()
         await session.close()
@@ -111,7 +111,7 @@ async def get_symbols(mask) -> Dict[str, str]:
         list
     """
     session = aiohttp.ClientSession()
-    url = f"{get_domain()}/market/symbols?mask={mask}"
+    url = f"{get_api_domain()}/market/symbols?mask={mask}"
     async with session.get(url) as resp:
         data = await resp.json()
         await session.close()
@@ -126,7 +126,7 @@ async def get_history(symbol, interval="", start_time="", end_time="", limit="")
         dict
     """
     session = aiohttp.ClientSession()
-    url = f"{get_domain()}/market/history?symbol={symbol}&interval={interval}&startTime={start_time}&endTime={end_time}&limit={limit}"
+    url = f"{get_api_domain()}/market/history?symbol={symbol}&interval={interval}&startTime={start_time}&endTime={end_time}&limit={limit}"
     async with session.get(url) as resp:
         data = await resp.json()
         await session.close()
@@ -134,7 +134,6 @@ async def get_history(symbol, interval="", start_time="", end_time="", limit="")
 
 
 async def get_last_trades(symbol):
-    # should work with user address
     """
     Get last trades for the specified symbol
 
@@ -145,7 +144,7 @@ async def get_last_trades(symbol):
         list
     """
     session = aiohttp.ClientSession()
-    url = f"{get_domain()}/market/last-trades?symbol={symbol}"
+    url = f"{get_api_domain()}/market/last-trades?symbol={symbol}"
     async with session.get(url) as resp:
         data = await resp.json()
         await session.close()
@@ -154,7 +153,7 @@ async def get_last_trades(symbol):
 
 async def _get_encoded_balance(address, app_id):
     session = aiohttp.ClientSession()
-    url = f"https://indexer.testnet.algoexplorerapi.io/v2/accounts/{address}?include-all=true"
+    url = f"{get_algod_indexer_domain()}/v2/accounts/{address}?include-all=true"
     async with session.get(url) as resp:
         data = await resp.json()
         await session.close()
