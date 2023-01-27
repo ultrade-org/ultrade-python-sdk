@@ -6,7 +6,7 @@ from . import api
 from . import socket_client
 from .algod_service import AlgodService
 from .utils import is_asset_opted_in, is_app_opted_in, construct_args_for_app_call
-from .constants import OPEN_ORDER_STATUS, get_domain, set_domain
+from .constants import OPEN_ORDER_STATUS, get_api_domain, set_domains
 from . import socket_options
 
 
@@ -57,22 +57,25 @@ class Client ():
                  options: ClientOptions
                  ):
         if options["network"] == "mainnet":
-            self.server = ''
+            self.algod_node = ''
             self.api_url = ""
         elif options["network"] == "testnet":
             self.api_url = "https://testnet-apigw.ultradedev.net"
-            self.server = 'https://node.testnet.algoexplorerapi.io'
+            self.algod_node = 'https://node.testnet.algoexplorerapi.io'
+            self.algod_indexer = 'https://indexer.testnet.algoexplorerapi.io'
         elif options["network"] == "dev":
             self.api_url = "https://dev-apigw.ultradedev.net"
-            self.server = 'https://node.testnet.algoexplorerapi.io'
+            self.algod_node = 'https://node.testnet.algoexplorerapi.io'
+            self.algod_indexer = 'https://indexer.testnet.algoexplorerapi.io'
         else:
             self.api_url = "http://localhost:5001"
-            self.server = 'http://localhost:4001'
-
-        set_domain(self.api_url)
+            self.algod_node = 'http://localhost:4001'
+            self.algod_indexer = 'http://localhost:8980'
 
         if options["api_url"] != None:
             self.api_url = options["api_url"]
+
+        set_domains(self.api_url, self.algod_indexer, self.algod_node)
 
         self.client = AlgodService(options.get(
             "algo_sdk_client"), auth_credentials.get("mnemonic"))
@@ -95,7 +98,7 @@ class Client ():
             symbol (str): symbol represent existing pair, example: 'algo_usdt'
             side (str): represent either 'S' or 'B' order (SELL or BUY)
             type (str): can be one of these four order types: '0', 'P', 'I' or 'M',
-                which are represent LIMIT, POST, IOC and MARKET orders respectively
+                which represent LIMIT, POST, IOC and MARKET orders respectively
             quantity (decimal): quantity of the base coin
             price (decimal): quantity of the price coin
 
@@ -266,7 +269,7 @@ class Client ():
         session = aiohttp.ClientSession()
         address = self.client.get_account_address()
         symbol_query = f"&symbol={symbol}" if symbol else ""
-        url = f"{get_domain()}/market/orders-with-trades?address={address}&status={status}{symbol_query}"
+        url = f"{get_api_domain()}/market/orders-with-trades?address={address}&status={status}{symbol_query}"
         async with session.get(url) as resp:
             data = await resp.json()
             await session.close()
@@ -285,7 +288,7 @@ class Client ():
         session = aiohttp.ClientSession()
         address = self.client.get_account_address()
         symbol_query = f"&symbol={symbol}" if symbol else ""
-        url = f"{get_domain()}/market/wallet-transactions?address={address}{symbol_query}"
+        url = f"{get_api_domain()}/market/wallet-transactions?address={address}{symbol_query}"
         async with session.get(url) as resp:
             data = await resp.json()
             await session.close()
@@ -301,7 +304,7 @@ class Client ():
         # this endpoint should support symbol query
         # should work with user address
         session = aiohttp.ClientSession()
-        url = f"{get_domain()}/market/getOrderById?orderId={order_id}"
+        url = f"{get_api_domain()}/market/getOrderById?orderId={order_id}"
         async with session.get(url) as resp:
             data = await resp.json()
 
