@@ -168,7 +168,7 @@ class AlgodService:
         if side == "B":
             quantity = (quantity / decimal) * price
 
-        transfer_amount = quantity - available_balance
+        transfer_amount = round(quantity - available_balance)
 
         if transfer_amount < 0:
             return 0
