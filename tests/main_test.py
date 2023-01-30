@@ -182,7 +182,10 @@ class TestApi():
     async def test_get_history(self):
         # waiting for endpoint update
         history = await api.get_history(TEST_SYMBOL)
-        pass
+        print("history", history)
+        # raise TypeError("aaa")
+        utils.validate_response_for_expected_fields(
+            history[0] if len(history) > 0 else [], ["v", "o", "c", "h", "l"])
 
     async def test_get_price(self):
         symbol = await utils.get_symbol_of_open_order(client)

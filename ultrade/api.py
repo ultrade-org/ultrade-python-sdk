@@ -1,8 +1,10 @@
 import time
-from .constants import get_api_domain, get_algod_indexer_domain
 from typing import Dict
 
 import aiohttp
+
+from .constants import get_api_domain, get_algod_indexer_domain
+from .utils import construct_query_string_for_api_request
 
 
 async def get_pair_list(partner_id=None):
@@ -26,17 +28,7 @@ async def get_pair_list(partner_id=None):
         return data
 
 
-async def get_exchange_info(identifier):
-    """
-    Get info about specified pair
-
-    Args:
-        identifier (str|int): symbol or pair id
-    Returns:
-        dict
-    """
-
-    # should be replaced when dedicated endpoint is ready
+async def _get_exchange_info_old(identifier):
     data = await get_pair_list()
 
     try:
@@ -50,6 +42,26 @@ async def get_exchange_info(identifier):
             return dict
 
     raise Exception("Can't find exchange info for the specified symbol")
+
+
+async def get_exchange_info(symbol):
+    """
+    Get info about specified pair
+
+    Args:
+        symbol
+    Returns:
+        dict
+    """
+
+    session = aiohttp.ClientSession()
+    url = f"{get_api_domain()}/market/market?symbol={symbol}"
+    async with session.get(url) as resp:
+        resp.raise_for_status()
+        data = await resp.json()
+
+        await session.close()
+    return data
 
 
 async def ping():
@@ -118,15 +130,14 @@ async def get_symbols(mask) -> Dict[str, str]:
         return data
 
 
-async def get_history(symbol, interval="", start_time="", end_time="", limit=""):
+async def get_history(symbol, interval=None, start_time=None, end_time=None, limit=None):
     """
-    Get trade history with graph data from the Ultrade exchange
-
     Returns:
         dict
     """
+    query_string = construct_query_string_for_api_request(locals())
     session = aiohttp.ClientSession()
-    url = f"{get_api_domain()}/market/history?symbol={symbol}&interval={interval}&startTime={start_time}&endTime={end_time}&limit={limit}"
+    url = f"{get_api_domain()}/market/history{query_string}"
     async with session.get(url) as resp:
         data = await resp.json()
         await session.close()

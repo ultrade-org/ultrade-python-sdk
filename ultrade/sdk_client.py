@@ -5,7 +5,7 @@ from algosdk.v2client.algod import AlgodClient
 from . import api
 from . import socket_client
 from .algod_service import AlgodService
-from .utils import is_asset_opted_in, is_app_opted_in, construct_args_for_app_call
+from .utils import is_asset_opted_in, is_app_opted_in, construct_args_for_app_call, construct_query_string_for_api_request
 from .constants import OPEN_ORDER_STATUS, get_api_domain, set_domains
 from . import socket_options
 
@@ -253,7 +253,7 @@ class Client ():
         """
         await socket_client.unsubscribe(connection_id)
 
-    async def get_orders(self, symbol=None, status=1, start_time=None, end_time=None, limit=500, page=0):
+    async def get_orders(self, symbol=None, status=1, start_time=None, end_time=None, limit=500):
         """
         Get orders list for specified address
         With default status it return only open orders
@@ -266,10 +266,11 @@ class Client ():
         Returns:
             list
         """
-        session = aiohttp.ClientSession()
         address = self.client.get_account_address()
-        symbol_query = f"&symbol={symbol}" if symbol else ""
-        url = f"{get_api_domain()}/market/orders-with-trades?address={address}&status={status}{symbol_query}"
+        query_string = construct_query_string_for_api_request(locals())
+
+        session = aiohttp.ClientSession()
+        url = f"{get_api_domain()}/market/orders-with-trades{query_string}"
         async with session.get(url) as resp:
             data = await resp.json()
             await session.close()
@@ -285,10 +286,11 @@ class Client ():
         Returns:
             list
         """
-        session = aiohttp.ClientSession()
         address = self.client.get_account_address()
-        symbol_query = f"&symbol={symbol}" if symbol else ""
-        url = f"{get_api_domain()}/market/wallet-transactions?address={address}{symbol_query}"
+        query_string = construct_query_string_for_api_request(locals())
+
+        session = aiohttp.ClientSession()
+        url = f"{get_api_domain()}/market/wallet-transactions{query_string}"
         async with session.get(url) as resp:
             data = await resp.json()
             await session.close()
