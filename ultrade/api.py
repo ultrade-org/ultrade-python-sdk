@@ -130,7 +130,7 @@ async def get_symbols(mask) -> Dict[str, str]:
         return data
 
 
-async def get_history(symbol, interval=None, start_time=None, end_time=None, limit=None):
+async def get_history(symbol, interval=None, start_time=None, end_time=None, limit=None, page=None):
     """
     Returns:
         dict
