@@ -316,3 +316,29 @@ class Client ():
                 return order
             except TypeError:
                 raise Exception("Order not found")
+
+    async def get_balances(self, symbol):
+        pair_info = await api.get_exchange_info(symbol)
+        wallet_balances = self._get_balance_and_state()["balances"]
+
+        exchange_balances = await self.client.get_pair_balances(
+            pair_info["application_id"])
+
+        balances_dict = {}
+
+        balances_dict["priceCoin_locked"] = exchange_balances.get(
+            "priceCoin_locked")
+        balances_dict["priceCoin_available"] = exchange_balances.get(
+            "priceCoin_available")
+        balances_dict["baseCoin_locked"] = exchange_balances.get(
+            "baseCoin_locked")
+        balances_dict["baseCoin_available"] = exchange_balances.get(
+            "baseCoin_available")
+
+        for key in wallet_balances:
+            if key == pair_info["base_id"]:
+                balances_dict["baseCoin"] = wallet_balances.get(key)
+            if key == pair_info["price_id"]:
+                balances_dict["priceCoin"] = wallet_balances.get(key)
+
+        return balances_dict

@@ -130,7 +130,7 @@ class TestApiCalls():
         order_by_id = await client.get_order_by_id(None, order["id"])
         utils.validate_response_for_expected_fields(order_by_id, ["pair_key"])
 
-    async def test_get_open_orders(self):
+    async def test_get_orders(self):
         symbols = await api.get_symbols("")
 
         for s in symbols:
@@ -157,6 +157,11 @@ class TestApiCalls():
 
         utils.validate_response_for_expected_fields(
             transactions[0], ["txnId", "pair", "amount"])
+
+    async def test_get_balances(self):
+        data = await client.get_balances("yldy_stbl")
+        utils.validate_response_for_expected_fields(
+            data, ["priceCoin_locked", "priceCoin_available", "baseCoin_locked", "baseCoin_available", "priceCoin", "baseCoin"])
 
 
 @pytest.mark.asyncio
