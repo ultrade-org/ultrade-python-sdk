@@ -163,6 +163,11 @@ class TestApiCalls():
         utils.validate_response_for_expected_fields(
             data, ["priceCoin_locked", "priceCoin_available", "baseCoin_locked", "baseCoin_available", "priceCoin", "baseCoin"])
 
+    async def test_get_balances_with_algo(self):
+        data = await client.get_balances("algo_usdc")
+        utils.validate_response_for_expected_fields(
+            data, ["priceCoin_locked", "priceCoin_available", "baseCoin_locked", "baseCoin_available", "priceCoin", "baseCoin"])
+
 
 @pytest.mark.asyncio
 class TestGetExchangeInfo():
