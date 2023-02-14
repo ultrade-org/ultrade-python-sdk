@@ -336,10 +336,8 @@ class Client ():
             "baseCoin_available")
 
         for key in wallet_balances:
-            key = int(key)
-            if key == pair_info["base_id"]:
+            if int(key) == pair_info["base_id"]:
                 balances_dict["baseCoin"] = wallet_balances.get(key)
-            if key == pair_info["price_id"]:
+            if int(key) == pair_info["price_id"]:
                 balances_dict["priceCoin"] = wallet_balances.get(key)
-
         return balances_dict
