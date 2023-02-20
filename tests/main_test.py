@@ -190,10 +190,8 @@ class TestApi():
         assert type(latency) == int
 
     async def test_get_history(self):
-        # waiting for endpoint update
         history = await api.get_history(TEST_SYMBOL)
         print("history", history)
-        # raise TypeError("aaa")
         utils.validate_response_for_expected_fields(
             history[0] if len(history) > 0 else [], ["v", "o", "c", "h", "l"])
 
