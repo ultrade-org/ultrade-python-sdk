@@ -137,7 +137,8 @@ class TestApiCalls():
             orders = await client.get_orders(s["pairKey"], status=1)
             print("open", orders)
             if len(orders) != 0:
-                utils.validate_response_for_expected_fields(orders[0], [])
+                utils.validate_response_for_expected_fields(
+                    orders[0], ["pair_id", "slot", "id"])
                 return
 
         raise Exception("Test failed")
@@ -190,10 +191,8 @@ class TestApi():
         assert type(latency) == int
 
     async def test_get_history(self):
-        # waiting for endpoint update
         history = await api.get_history(TEST_SYMBOL)
         print("history", history)
-        # raise TypeError("aaa")
         utils.validate_response_for_expected_fields(
             history[0] if len(history) > 0 else [], ["v", "o", "c", "h", "l"])
 
