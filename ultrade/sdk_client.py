@@ -111,7 +111,8 @@ class Client ():
             raise Exception(
                 "You need to specify mnemonic or signer to execute this method")
 
-        info = await api.get_exchange_info(symbol)
+        pairs = await api.get_pair_list()
+        info = [info for info in pairs if info['pair_key'] == symbol][0]
 
         sender_address = self.client.get_account_address()
 
@@ -170,9 +171,10 @@ class Client ():
                 "You need to specify mnemonic or signer to execute this method")
 
         order = await self.get_order_by_id(symbol, order_id)
-        exchange_info = await api.get_exchange_info(symbol)
+        pairs = await api.get_pair_list()
+        exchange_info = [info for info in pairs if info['pair_key'] == symbol][0]
 
-        app_args = ["cancel_order", order["orders_id"], order["slot"]]
+        app_args = ["cancel_order", order["id"], order["slot"]]
         unsigned_txn = self.client.make_app_call_txn(
             exchange_info["price_id"], app_args, order["application_id"])
 
@@ -191,7 +193,8 @@ class Client ():
             str: First transaction id
         """
         user_trade_orders = await self.get_orders(symbol, OPEN_ORDER_STATUS)
-        exchange_info = await api.get_exchange_info(symbol)
+        pairs = await api.get_pair_list()
+        exchange_info = [info for info in pairs if info['pair_key'] == symbol][0]
 
         unsigned_txns = []
         for order in user_trade_orders:
@@ -307,6 +310,7 @@ class Client ():
         # should work with user address
         session = aiohttp.ClientSession()
         url = f"{get_api_domain()}/market/getOrderById?orderId={order_id}"
+        print(url)
         async with session.get(url) as resp:
             data = await resp.json()
 
@@ -335,6 +339,7 @@ class Client ():
         balances_dict["baseCoin_available"] = exchange_balances.get(
             "baseCoin_available")
 
+        print(wallet_balances)
         for key in wallet_balances:
             if int(key) == pair_info["base_id"]:
                 balances_dict["baseCoin"] = wallet_balances.get(key)
