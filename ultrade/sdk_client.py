@@ -102,8 +102,8 @@ class Client ():
             quantity (decimal): quantity of the base coin
             price (decimal): quantity of the price coin
 
-        Returns:
-            str: First transaction id
+        If order successfully fulfilled returns dictionary with order_id and slot data in it
+
         """
         partner_app_id = "87654321"  # temporary solution
 
@@ -157,13 +157,14 @@ class Client ():
         print(f"Order created successfully, order_id: {tx_id}")
         return txn_logs
 
-    async def cancel_order(self, symbol: str, order_id: int):
+    async def cancel_order(self, symbol: str, order_id: int, slot: int):
         """
         Cancel the order matching the id and symbol arguments
 
         Args:
             symbol (str): symbol represent existing pair, example: 'algo_usdt'
             order_id (int): id of the order to cancel, provided by Ultrade API
+            slot (int): order position in the smart contract
 
         Returns:
             str: First transaction id
@@ -172,15 +173,15 @@ class Client ():
             raise Exception(
                 "You need to specify mnemonic or signer to execute this method")
 
-        order = await self.get_order_by_id(symbol, order_id)
         exchange_info = await api.get_exchange_info(symbol)
 
-        app_args = ["cancel_order", order["orders_id"], order["slot"]]
+        app_args = ["cancel_order", order_id, slot]
         unsigned_txn = self.client.make_app_call_txn(
-            exchange_info["price_id"], app_args, order["application_id"])
+            exchange_info["price_id"], app_args, exchange_info["application_id"])
 
         signed_txn = self.client.sign_transaction_grp(unsigned_txn)
         tx_id = self.client.send_transaction_grp(signed_txn)
+
         return tx_id
 
     async def cancel_all_orders(self, symbol):
