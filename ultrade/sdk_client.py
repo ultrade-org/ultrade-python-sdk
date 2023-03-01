@@ -152,7 +152,6 @@ class Client ():
         tx_id = self.client.send_transaction_grp(signed_txns)
 
         pending_txn = self.client.wait_for_transaction(tx_id)
-        print("pend", pending_txn["logs"])
         txn_logs = decode_txn_logs(pending_txn["logs"])
 
         print(f"Order created successfully, order_id: {tx_id}")
