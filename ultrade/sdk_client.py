@@ -173,15 +173,15 @@ class Client ():
             raise Exception(
                 "You need to specify mnemonic or signer to execute this method")
 
-        order = await self.get_order_by_id(symbol, order_id)
         exchange_info = await api.get_exchange_info(symbol)
 
-        app_args = ["cancel_order", order["orders_id"], order["slot"]]
+        app_args = ["cancel_order", order_id, slot]
         unsigned_txn = self.client.make_app_call_txn(
-            exchange_info["price_id"], app_args, order["application_id"])
+            exchange_info["price_id"], app_args, exchange_info["application_id"])
 
         signed_txn = self.client.sign_transaction_grp(unsigned_txn)
         tx_id = self.client.send_transaction_grp(signed_txn)
+
         return tx_id
 
     async def cancel_all_orders(self, symbol):
