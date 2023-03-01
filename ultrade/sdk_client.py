@@ -5,7 +5,7 @@ from algosdk.v2client.algod import AlgodClient
 from . import api
 from . import socket_client
 from .algod_service import AlgodService
-from .utils import is_asset_opted_in, is_app_opted_in, construct_args_for_app_call, construct_query_string_for_api_request
+from .utils import is_asset_opted_in, is_app_opted_in, construct_args_for_app_call, construct_query_string_for_api_request, decode_txn_logs
 from .constants import OPEN_ORDER_STATUS, get_api_domain, set_domains
 from . import socket_options
 
@@ -151,8 +151,11 @@ class Client ():
         signed_txns = self.client.sign_transaction_grp(unsigned_txns)
         tx_id = self.client.send_transaction_grp(signed_txns)
 
+        pending_txn = self.client.wait_for_transaction(tx_id)
+        txn_logs = decode_txn_logs(pending_txn["logs"])
+
         print(f"Order created successfully, order_id: {tx_id}")
-        return tx_id
+        return txn_logs
 
     async def cancel_order(self, symbol: str, order_id: int):
         """
