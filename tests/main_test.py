@@ -53,16 +53,18 @@ def mocked_send_transaction(self, txn_grp):
     return (txn.get('app-call-messages')[1], data["error"])
 
 
-async def mocked_get_order_by_id(self, symbol, order_id):
-    return {
-        "orders_id": 99999,
-        "slot": 50,
-        "application_id": 92958595  # yldy_stbl
-    }
+def mocked_wait_for_transaction(self, txn_id):
+    return {"logs": txn_id}
+
+
+def mocked_decode_txn_logs(logs):
+    return logs
 
 
 @pytest.mark.asyncio
 @patch('ultrade.algod_service.AlgodService.send_transaction_grp', mocked_send_transaction)
+@patch('ultrade.algod_service.AlgodService.wait_for_transaction', mocked_wait_for_transaction)
+@patch('ultrade.sdk_client.decode_txn_logs', mocked_decode_txn_logs)
 class TestNewOrder():
 
     async def test_yldy_buy(self):
@@ -89,12 +91,12 @@ class TestNewOrder():
 @ pytest.mark.asyncio
 @ patch('ultrade.algod_service.AlgodService.send_transaction_grp', mocked_send_transaction)
 class TestCancelOrder():
-    @ patch('ultrade.sdk_client.Client.get_order_by_id', mocked_get_order_by_id)
     async def test_for_non_existed_order(self):
         example_order_id = 99999
+        example_slot = 99
         symbol = "yldy_stbl"
 
-        txn_result = await client.cancel_order(symbol, example_order_id)
+        txn_result = await client.cancel_order(symbol, example_order_id, example_slot)
         assert txn_result == ('REJECT', "")
 
     async def test_cancel_random_order(self):
@@ -107,7 +109,7 @@ class TestCancelOrder():
         print("symbol", order["pair_key"])
         print(f"testing cancellation of order with id:{order_id}")
 
-        txn_result = await client.cancel_order(order["pair_key"], order_id)
+        txn_result = await client.cancel_order(order["pair_key"], order["orders_id"], order["slot"])
         assert txn_result == ('PASS', "")
 
 

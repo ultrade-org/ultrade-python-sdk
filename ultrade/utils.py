@@ -40,7 +40,9 @@ def decode_txn_logs(txn_logs):
     decoded_logs = [int.from_bytes(base64.b64decode(
         log), byteorder='big') for log in txn_logs]
 
-    print("decoded_logs", decoded_logs)
+    if len(decoded_logs) < 8:
+        raise Exception("Unable to decode txn logs")
+
     decoded_data = {}
 
     decoded_data["order_id"] = decoded_logs[1]
