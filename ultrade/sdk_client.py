@@ -149,7 +149,9 @@ class Client ():
             asset_index, app_args, info["application_id"]))
 
         signed_txns = self.client.sign_transaction_grp(unsigned_txns)
-        tx_id = self.client.send_transaction_grp(signed_txns)
+        signed_app_call = signed_txns[-1]
+        tx_id = signed_app_call.get_txid()
+        self.client.send_transaction_grp(signed_txns)
 
         pending_txn = self.client.wait_for_transaction(tx_id)
         txn_logs = decode_txn_logs(pending_txn["logs"])
