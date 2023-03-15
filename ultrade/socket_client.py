@@ -2,7 +2,6 @@ import socketio
 import time
 from typing import Callable, Optional, TypedDict, Dict, List
 
-socket: Optional[socketio.AsyncClient] = None
 socket_pool: Optional[Dict[str, 'SubscribeOptions']] = {}
 
 
@@ -12,42 +11,37 @@ class SubscribeOptions(TypedDict):
     options: Dict[str, any]
 
 
-async def subscribe(url: str, options: SubscribeOptions, callback: Callable[[str, List[any]], any]):
-    handler_id = str(time.time_ns())
-    global socket
+class SocketService():
+    def __init__(self, url):
+        self.subscribe_options = []
+        self.socket = socketio.AsyncClient(reconnection_delay_max=1000)
+        self.url = url
+        pass
 
-    if not socket:
-        socket = socketio.AsyncClient(reconnection_delay_max=1000)
-        add_event_listeners(socket, options, callback)
-        await socket.connect(url, transports=["websocket"])
-        await socket.wait()
+    async def subscribe(self, options: SubscribeOptions, callback: Callable[[str, List[any]], any]):
+        handler_id = str(time.time_ns())
+        self.add_event_listeners(options, callback)
+        await self.socket.connect(self.url, transports=["websocket"])
+        await self.socket.wait()
 
-    await socket.emit("subscribe", options)
-    socket_pool[handler_id] = options
+        await self.socket.emit("subscribe", options)
+        socket_pool[handler_id] = options
 
-    return handler_id
+        return handler_id
 
-
-async def unsubscribe(handler_id: str):
-    global socket
-    try:
+    async def unsubscribe(self, handler_id: str):
         options = socket_pool[handler_id]
-        await socket.emit("unsubscribe", options)
+        await self.socket.emit("unsubscribe", options)
         del socket_pool[handler_id]
-    finally:
-        if len(socket_pool.keys()) == 0:
-            await socket.disconnect()
-            socket = None
 
+    def add_event_listeners(self, options: SubscribeOptions, callback: Callable[[str, List[any]], any]):
+        self.socket.on('*', callback)
 
-def add_event_listeners(socket: socketio.Client, options: SubscribeOptions, callback: Callable[[str, List[any]], any]):
-    socket.on('*', callback)
+        async def reconnect_handler():
+            await self.socket.emit("subscribe", options)
+        self.socket.on("reconnect", reconnect_handler)
 
-    async def reconnect_handler():
-        await socket.emit("subscribe", options)
-    socket.on("reconnect", reconnect_handler)
-
-    async def connect_handler():
-        print('ws connection established')
-        await socket.emit("subscribe", options)
-    socket.on("connect", connect_handler)
+        async def connect_handler():
+            print('ws connection established')
+            await self.socket.emit("subscribe", options)
+        self.socket.on("connect", connect_handler)

@@ -4,7 +4,7 @@ import aiohttp
 from algosdk.v2client.algod import AlgodClient
 
 from . import api
-from . import socket_client
+from .socket_client import SocketService
 from .algod_service import AlgodService
 from .utils import is_asset_opted_in, is_app_opted_in, construct_args_for_app_call, construct_query_string_for_api_request, decode_txn_logs
 from .constants import OPEN_ORDER_STATUS, get_api_domain, set_domains
@@ -44,7 +44,7 @@ class ClientOptions(TypedDict):
     websocket_url: str
 
 
-class Client ():
+class Client():
     """
     UltradeSdk client. Provides methods for creating and canceling orders on Ultrade exchange. Also can be used for subscribing to Ultrade data streams
 
@@ -78,10 +78,10 @@ class Client ():
 
         set_domains(self.api_url, self.algod_indexer, self.algod_node)
 
+        self.socket_client = SocketService(options.get("websocket_url", ""))
         self.client = AlgodService(options.get(
             "algo_sdk_client"), auth_credentials.get("mnemonic"))
 
-        self.websocket_url: Optional[str] = options.get("websocket_url")
         self.mnemonic: Optional[str] = auth_credentials.get(
             "mnemonic")  # todo remove creds from here
         self.signer: Optional[Dict] = auth_credentials.get("signer")
@@ -255,7 +255,7 @@ class Client ():
         """
         if options.get("address") == None:
             options["address"] = self.client.get_account_address()
-        return await socket_client.subscribe(self.websocket_url, options, callback)
+        return await self.socket_client.subscribe(options, callback)
 
     async def unsubscribe(self, connection_id):
         """
@@ -264,7 +264,7 @@ class Client ():
         Args:
             connection_id (str): Id of the connection
         """
-        await socket_client.unsubscribe(connection_id)
+        await self.socket_client.unsubscribe(connection_id)
 
     async def get_orders(self, symbol=None, status=1, start_time=None, end_time=None, limit=500):
         """
