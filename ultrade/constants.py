@@ -46,3 +46,6 @@ BALANCE_DECODE_FORMAT = {
         "type": "uint",
     },
 }
+
+EVENT_LIST = ['quote', 'last_price', 'depth', 'order',
+              'trades', 'trade', 'order', 'walletTransaction']

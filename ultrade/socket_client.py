@@ -1,6 +1,7 @@
 import socketio
 import time
 from typing import Callable, Optional, TypedDict, Dict, List
+from .constants import EVENT_LIST
 
 
 class SubscribeOptions(TypedDict):
@@ -16,6 +17,7 @@ class SocketService():
         self.url = url
         self.socket_pool: Optional[Dict[str, 'SubscribeOptions']] = {}
         self.isConnectionExist = False
+        self.callbacks = {event: [] for event in EVENT_LIST}
 
     async def subscribe(self, options: SubscribeOptions, callback: Callable[[str, List[any]], any]):
         if not self.isConnectionExist:
@@ -28,7 +30,7 @@ class SocketService():
         handler_id = str(time.time_ns())
 
         await self.socket.emit("subscribe", options)
-        self.socket_pool[handler_id] = options
+        self.socket_pool[handler_id] = {options, callback}
 
         return handler_id
 
