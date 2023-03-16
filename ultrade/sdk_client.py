@@ -4,7 +4,7 @@ import aiohttp
 from algosdk.v2client.algod import AlgodClient
 
 from . import api
-from .socket_client import SocketService
+from .socket_client import SocketClient
 from .algod_service import AlgodService
 from .utils import is_asset_opted_in, is_app_opted_in, construct_args_for_app_call, construct_query_string_for_api_request, decode_txn_logs
 from .constants import OPEN_ORDER_STATUS, get_api_domain, set_domains
@@ -78,7 +78,7 @@ class Client():
 
         set_domains(self.api_url, self.algod_indexer, self.algod_node)
 
-        self.socket_client = SocketService(options.get("websocket_url", ""))
+        self.socket_client = SocketClient(options.get("websocket_url", ""))
         self.client = AlgodService(options.get(
             "algo_sdk_client"), auth_credentials.get("mnemonic"))
 
@@ -189,7 +189,7 @@ class Client():
             signed_txn = self.client.sign_transaction_grp(unsigned_txn)
             tx_id = self.client.send_transaction_grp(signed_txn)
             return tx_id
-        
+
         tx_id = await asyncio.get_event_loop().run_in_executor(None, sync_function)
         return tx_id
 
