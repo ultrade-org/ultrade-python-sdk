@@ -1,4 +1,5 @@
 from typing import Any, Dict, List, Optional, TypedDict
+import asyncio
 import aiohttp
 from algosdk.v2client.algod import AlgodClient
 
@@ -105,58 +106,61 @@ class Client ():
         If order successfully fulfilled returns dictionary with order_id and slot data in it
 
         """
-        partner_app_id = "87654321"  # temporary solution
+        def sync_function():
+            partner_app_id = "87654321"  # temporary solution
 
-        if not self.mnemonic:
-            raise Exception(
-                "You need to specify mnemonic or signer to execute this method")
+            if not self.mnemonic:
+                raise Exception(
+                    "You need to specify mnemonic or signer to execute this method")
 
-        info = await api.get_exchange_info(symbol)
+            info = asyncio.run(api.get_exchange_info(symbol))
 
-        sender_address = self.client.get_account_address()
+            sender_address = self.client.get_account_address()
 
-        unsigned_txns = []
-        account_info = self._get_balance_and_state()
+            unsigned_txns = []
+            account_info = self._get_balance_and_state()
 
-        if is_asset_opted_in(account_info.get("balances"), info["base_id"]) is False:
-            unsigned_txns.append(self.client.opt_in_asset(
-                sender_address, info["base_id"]))
+            if is_asset_opted_in(account_info.get("balances"), info["base_id"]) is False:
+                unsigned_txns.append(self.client.opt_in_asset(
+                    sender_address, info["base_id"]))
 
-        if is_asset_opted_in(account_info.get("balances"), info["price_id"]) is False:
-            unsigned_txns.append(self.client.opt_in_asset(
-                sender_address, info["price_id"]))
+            if is_asset_opted_in(account_info.get("balances"), info["price_id"]) is False:
+                unsigned_txns.append(self.client.opt_in_asset(
+                    sender_address, info["price_id"]))
 
-        if is_app_opted_in(info["application_id"], account_info.get("local_state")) is False:
-            unsigned_txns.append(self.client.opt_in_app(
-                info["application_id"], sender_address))
+            if is_app_opted_in(info["application_id"], account_info.get("local_state")) is False:
+                unsigned_txns.append(self.client.opt_in_app(
+                    info["application_id"], sender_address))
 
-        app_args = construct_args_for_app_call(
-            side, type, price, quantity, partner_app_id)
-        asset_index = info["base_id"] if side == "S" else info["price_id"]
-        transfer_amount = await self.client.calculate_transfer_amount(
-            info["application_id"], side, quantity, price, info["base_decimal"])
+            app_args = construct_args_for_app_call(
+                side, type, price, quantity, partner_app_id)
+            asset_index = info["base_id"] if side == "S" else info["price_id"]
+            transfer_amount = asyncio.run(self.client.calculate_transfer_amount(
+                info["application_id"], side, quantity, price, info["base_decimal"]))
 
-        if not transfer_amount:
-            pass
-        elif asset_index == 0:
-            unsigned_txns.append(self.client.make_payment_txn(
-                info["application_id"], sender_address, transfer_amount))
-        else:
-            unsigned_txns.append(self.client.make_transfer_txn(
-                asset_index, info["application_id"], sender_address, transfer_amount))
+            if not transfer_amount:
+                pass
+            elif asset_index == 0:
+                unsigned_txns.append(self.client.make_payment_txn(
+                    info["application_id"], sender_address, transfer_amount))
+            else:
+                unsigned_txns.append(self.client.make_transfer_txn(
+                    asset_index, info["application_id"], sender_address, transfer_amount))
 
-        unsigned_txns.append(self.client.make_app_call_txn(
-            asset_index, app_args, info["application_id"]))
+            unsigned_txns.append(self.client.make_app_call_txn(
+                asset_index, app_args, info["application_id"]))
 
-        signed_txns = self.client.sign_transaction_grp(unsigned_txns)
-        signed_app_call = signed_txns[-1]
-        tx_id = signed_app_call.get_txid()
-        self.client.send_transaction_grp(signed_txns)
+            signed_txns = self.client.sign_transaction_grp(unsigned_txns)
+            signed_app_call = signed_txns[-1]
+            tx_id = signed_app_call.get_txid()
+            self.client.send_transaction_grp(signed_txns)
 
-        pending_txn = self.client.wait_for_transaction(tx_id)
-        txn_logs = decode_txn_logs(pending_txn["logs"])
+            pending_txn = self.client.wait_for_transaction(tx_id)
+            txn_logs = decode_txn_logs(pending_txn["logs"])
+            print(f"Order created successfully, order_id: {tx_id}")
+            return txn_logs
 
-        print(f"Order created successfully, order_id: {tx_id}")
+        txn_logs = await asyncio.get_event_loop().run_in_executor(None, sync_function)
         return txn_logs
 
     async def cancel_order(self, symbol: str, order_id: int, slot: int):
@@ -171,19 +175,22 @@ class Client ():
         Returns:
             str: First transaction id
         """
-        if not self.mnemonic:
-            raise Exception(
-                "You need to specify mnemonic or signer to execute this method")
+        def sync_function():
+            if not self.mnemonic:
+                raise Exception(
+                    "You need to specify mnemonic or signer to execute this method")
 
-        exchange_info = await api.get_exchange_info(symbol)
+            exchange_info = asyncio.run(api.get_exchange_info(symbol))
 
-        app_args = ["cancel_order", order_id, slot]
-        unsigned_txn = self.client.make_app_call_txn(
-            exchange_info["price_id"], app_args, exchange_info["application_id"])
+            app_args = ["cancel_order", order_id, slot]
+            unsigned_txn = self.client.make_app_call_txn(
+                exchange_info["price_id"], app_args, exchange_info["application_id"])
 
-        signed_txn = self.client.sign_transaction_grp(unsigned_txn)
-        tx_id = self.client.send_transaction_grp(signed_txn)
-
+            signed_txn = self.client.sign_transaction_grp(unsigned_txn)
+            tx_id = self.client.send_transaction_grp(signed_txn)
+            return tx_id
+        
+        tx_id = await asyncio.get_event_loop().run_in_executor(None, sync_function)
         return tx_id
 
     async def cancel_all_orders(self, symbol):
