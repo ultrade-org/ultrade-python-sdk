@@ -248,7 +248,7 @@ class Client():
                     'streams': [OPTIONS.ORDERS, OPTIONS.TRADES],
                     'options': {"address": "your wallet address here"}
                 }
-            callback (function): a function, will be called on any occurred websocket event, should accept 'event' and 'args' parameters
+            callback (function): a synchronous function, will be called on any occurred websocket event, should accept 'event' and 'args' parameters
 
         Returns:
             str: Id of the established connection

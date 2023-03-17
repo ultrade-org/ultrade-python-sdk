@@ -17,21 +17,28 @@ class SocketClient():
         self.url = url
         self.isConnectionExist = False
         self.socket_controller = SocketController()
+        self.subscribe_options = {}
+
+    def get_sub_options(self):
+        options = {'options': self.subscribe_options["options"],
+                   'symbol': self.subscribe_options["symbol"], 'streams': self.socket_controller.streams_pool}
+
+        return options
 
     async def subscribe(self, options: SubscribeOptions, callback: Callable[[str, List[any]], any]):
         if not self.isConnectionExist:
+            self.subscribe_options = options
             self.isConnectionExist = True
             self.socket = socketio.AsyncClient(reconnection_delay_max=1000)
+
+            sub_id = self.socket_controller.handle_subscribe(options, callback)
             self.add_event_listeners()
-            print("3")
             await self.socket.connect(self.url, transports=["websocket"])
-            print("4")
+            await self.socket.wait()
+            return sub_id
 
-        await self.socket.emit("subscribe", options)
-
-        self.socket_controller.handle_subscribe(options, callback)
-        print("qq")
-        return
+        await self.socket.emit("subscribe", self.get_sub_options())
+        return self.socket_controller.handle_subscribe(options, callback)
 
     async def unsubscribe(self, handler_id: str):
         remaining_subscriptions = await self.socket_controller.handle_unsubscribe(self.socket, handler_id)
@@ -45,26 +52,21 @@ class SocketClient():
         self.socket.on('*', self.socket_controller.callback_handler)
 
         async def reconnect_handler():
-            await self.socket.emit("subscribe", self.socket_controller.subscribe_options)
+            await self.socket.emit("subscribe", self.get_sub_options())
         self.socket.on("reconnect", reconnect_handler)
 
         async def connect_handler():
             print('ws connection established')
-            await self.socket.emit("subscribe", self.socket_controller.subscribe_options)
+            await self.socket.emit("subscribe", self.get_sub_options())
         self.socket.on("connect", connect_handler)
 
 
 class SocketController():
     def __init__(self):
-        self.subscribe_options = {
-            'symbol': "yldy_stbl",
-            'streams': [1, 2, 3, 5, 6],
-            'options': {"address": "your wallet address here"}
-        }
-        # self.subscribe_options = []
         self.options_pool: Optional[Dict[str, 'SubscribeOptions']] = {}
-        self.callbacks_pool = {event: [(lambda: stream_value, stream_value)]
+        self.callbacks_pool = {event: [(lambda *args: stream_value, stream_value)]
                                for event, stream_value in EVENT_LIST}
+        self.streams_pool = []
 
     def event_from_stream(self, stream):
         print("stream", stream)
@@ -74,8 +76,8 @@ class SocketController():
 
     def handle_subscribe(self, sub_options, callback):
         handler_id = str(time.time_ns())
-        print("1")
         for opt in sub_options["streams"]:
+            self.streams_pool.append(opt)
             self.callbacks_pool[self.event_from_stream(
                 opt)].append((callback, handler_id))
 
@@ -84,20 +86,24 @@ class SocketController():
         return handler_id
 
     async def handle_unsubscribe(self, socket, handler_id):
-        options = self.options_pool[handler_id]
-        for opt in options:
+        sub_options = self.options_pool[handler_id]
+        for opt in sub_options["streams"]:
             event = self.event_from_stream(opt)
             self.callbacks_pool[event] = filter(
                 lambda elem: elem[1] is not handler_id, self.callbacks_pool[event])
             if len(self.callbacks_pool[event]) < 2:
+                self.streams_pool.remove(opt)
                 await socket.emit("unsubscribe", [opt])
 
-        del self.options_pool[handler_id], options
+        del self.options_pool[handler_id], sub_options
 
         return len(self.options_pool.keys())
 
     async def callback_handler(self, event, args):
-        print("handler", event)
-        coros = [callback_tuple[0](event, args)
+        coros = [self.make_async(callback_tuple[0], event, args)
                  for callback_tuple in self.callbacks_pool[event]]
+
         await asyncio.gather(*coros)
+
+    async def make_async(self, func, *args):
+        await asyncio.get_event_loop().run_in_executor(None, func, *args)
