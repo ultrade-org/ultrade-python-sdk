@@ -22,14 +22,14 @@ class SocketClient():
     def get_sub_options(self):
         options = {'options': self.subscribe_options["options"],
                    'symbol': self.subscribe_options["symbol"], 'streams': self.socket_controller.streams_pool}
-
         return options
 
     async def subscribe(self, options: SubscribeOptions, callback: Callable[[str, List[any]], any]):
         if not self.isConnectionExist:
             self.subscribe_options = options
             self.isConnectionExist = True
-            self.socket = socketio.AsyncClient(reconnection_delay_max=1000)
+            self.socket = socketio.AsyncClient(
+                reconnection_delay_max=1000, logger=True)
 
             sub_id = self.socket_controller.handle_subscribe(options, callback)
             self.add_event_listeners()
@@ -37,9 +37,9 @@ class SocketClient():
 
             return sub_id
 
-        self.test = self.socket_controller.handle_subscribe(options, callback)
+        sub_id = self.socket_controller.handle_subscribe(options, callback)
         await self.socket.emit("subscribe", self.get_sub_options())
-        return self.socket_controller.handle_subscribe(options, callback)
+        return sub_id
 
     async def unsubscribe(self, handler_id: str):
         remaining_subscriptions = await self.socket_controller.handle_unsubscribe(self.socket, handler_id)
