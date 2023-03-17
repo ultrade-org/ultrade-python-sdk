@@ -34,9 +34,10 @@ class SocketClient():
             sub_id = self.socket_controller.handle_subscribe(options, callback)
             self.add_event_listeners()
             await self.socket.connect(self.url, transports=["websocket"])
-            await self.socket.wait()
+
             return sub_id
 
+        self.test = self.socket_controller.handle_subscribe(options, callback)
         await self.socket.emit("subscribe", self.get_sub_options())
         return self.socket_controller.handle_subscribe(options, callback)
 
@@ -69,7 +70,6 @@ class SocketController():
         self.streams_pool = []
 
     def event_from_stream(self, stream):
-        print("stream", stream)
         for event in self.callbacks_pool:
             if self.callbacks_pool[event][0][1] == stream:
                 return event
@@ -89,8 +89,9 @@ class SocketController():
         sub_options = self.options_pool[handler_id]
         for opt in sub_options["streams"]:
             event = self.event_from_stream(opt)
-            self.callbacks_pool[event] = filter(
-                lambda elem: elem[1] is not handler_id, self.callbacks_pool[event])
+            self.callbacks_pool[event] = [
+                elem for elem in self.callbacks_pool[event] if elem[1] != handler_id]
+
             if len(self.callbacks_pool[event]) < 2:
                 self.streams_pool.remove(opt)
                 await socket.emit("unsubscribe", [opt])
