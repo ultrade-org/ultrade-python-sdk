@@ -42,9 +42,13 @@ class SocketClient():
         return sub_id
 
     async def unsubscribe(self, handler_id: str):
-        remaining_subscriptions = await self.socket_controller.handle_unsubscribe(self.socket, handler_id)
+        streams_to_unsubscribe = await self.socket_controller.handle_unsubscribe(handler_id)
+        if len(streams_to_unsubscribe) > 0:
+            options = self.get_sub_options()
+            options["streams"] = streams_to_unsubscribe
+            await self.socket.emit("unsubscribe", options)
 
-        if remaining_subscriptions == 0:
+        if len(self.get_sub_options()["streams"]) == 0:
             self.isConnectionExist = False
             await self.socket.disconnect()
             self.socket = None
@@ -77,7 +81,9 @@ class SocketController():
     def handle_subscribe(self, sub_options, callback):
         handler_id = str(time.time_ns())
         for opt in sub_options["streams"]:
-            self.streams_pool.append(opt)
+            if opt not in self.streams_pool:
+                self.streams_pool.append(opt)
+
             self.callbacks_pool[self.event_from_stream(
                 opt)].append((callback, handler_id))
 
@@ -85,8 +91,9 @@ class SocketController():
 
         return handler_id
 
-    async def handle_unsubscribe(self, socket, handler_id):
+    async def handle_unsubscribe(self, handler_id):
         sub_options = self.options_pool[handler_id]
+        streams_to_delete = []
         for opt in sub_options["streams"]:
             event = self.event_from_stream(opt)
             self.callbacks_pool[event] = [
@@ -94,11 +101,11 @@ class SocketController():
 
             if len(self.callbacks_pool[event]) < 2:
                 self.streams_pool.remove(opt)
-                await socket.emit("unsubscribe", [opt])
+                streams_to_delete.append(opt)
 
         del self.options_pool[handler_id], sub_options
 
-        return len(self.options_pool.keys())
+        return streams_to_delete
 
     async def callback_handler(self, event, args):
         coros = [self.make_async(callback_tuple[0], event, args)
