@@ -25,6 +25,9 @@ class SocketClient():
         return options
 
     async def subscribe(self, options: SubscribeOptions, callback: Callable[[str, List[any]], any]):
+        if self.subscribe_options.get("symbol") and options["symbol"] != self.subscribe_options["symbol"]:
+            raise Exception("Socket client support only one pair per instance")
+
         if not self.isConnectionExist:
             self.subscribe_options = options
             self.isConnectionExist = True
