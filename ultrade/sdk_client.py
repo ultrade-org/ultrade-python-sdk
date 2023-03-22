@@ -188,8 +188,9 @@ class Client():
 
             signed_txn = self.client.sign_transaction_grp(unsigned_txn)
             tx_id = self.client.send_transaction_grp(signed_txn)
-            self.client.wait_for_transaction(tx_id)
-            return tx_id
+            pending_txn = self.client.wait_for_transaction(tx_id)
+            txn_logs = decode_txn_logs(pending_txn["logs"])
+            return txn_logs
 
         tx_id = await asyncio.get_event_loop().run_in_executor(None, sync_function)
         return tx_id

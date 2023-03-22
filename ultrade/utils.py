@@ -40,11 +40,19 @@ def decode_txn_logs(txn_logs):
     decoded_logs = [int.from_bytes(base64.b64decode(
         log), byteorder='big') for log in txn_logs]
 
-    if len(decoded_logs) < 8:
-        raise Exception("Unable to decode txn logs")
-
     decoded_data = {}
-
-    decoded_data["order_id"] = decoded_logs[1]
-    decoded_data["slot"] = decoded_logs[7]
-    return decoded_data
+    if len(decoded_logs) > 7:
+        decoded_data["order_id"] = decoded_logs[1]
+        decoded_data["slot"] = decoded_logs[7]
+        return decoded_data
+    
+    if len(decoded_logs) == 7:
+        decoded_data["order_id"] = decoded_logs[1]
+        decoded_data["released_amount"] = decoded_logs[2]
+        decoded_data["base_coin_avaliable"] = decoded_logs[3]
+        decoded_data["base_coin_locked"] = decoded_logs[4]
+        decoded_data["price_coin_avaliable"] = decoded_logs[5]
+        decoded_data["price_coin_locked"] = decoded_logs[6]
+        return decoded_data
+    
+    raise Exception("Unable to decode txn logs")
