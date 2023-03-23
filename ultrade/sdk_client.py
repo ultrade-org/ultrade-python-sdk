@@ -90,8 +90,8 @@ class Client():
             "client_secret")
         self.company: Optional[str] = auth_credentials.get("company")
         self.client_id: Optional[str] = auth_credentials.get("client_id")
-        self.available_balance = None
-        self.pending_txns = 0
+        self.available_balance = {}
+        self.pending_txns = {}
 
     async def new_order(self, symbol, side, type, quantity, price):
         """
@@ -115,15 +115,18 @@ class Client():
             if not self.mnemonic:
                 raise Exception(
                     "You need to specify mnemonic or signer to execute this method")
-
+            side_index = 0 if side == "B" else 1
             info = asyncio.run(api.get_exchange_info(symbol))
-            self.pending_txns+=1
-            if self.pending_txns == 1:
-                self.available_balance = asyncio.run(self.client.get_available_balance(info["application_id"], side))
-            elif self.available_balance == None:
+            self.pending_txns[symbol] = self.pending_txns.get(symbol, 0) + 1
+            if self.available_balance.get(symbol) == None:
+                self.available_balance[symbol] = [None, None]
+
+            if self.pending_txns[symbol] == 1:
+                self.available_balance[symbol][side_index] = asyncio.run(self.client.get_available_balance(info["application_id"], side))
+            elif self.available_balance[symbol][side_index] == None:
                 wait_count = 0
                 while(True):
-                    if self.available_balance != None:
+                    if self.available_balance[symbol][side_index] != None:
                         break
                     if wait_count > 8:
                         raise Exception("Available_balance is None")
@@ -151,10 +154,10 @@ class Client():
             asset_index = info["base_id"] if side == "S" else info["price_id"]
             
             transfer_amount = self.client.calculate_transfer_amount(
-                 side, quantity, price, info["base_decimal"], self.available_balance)
+                 side, quantity, price, info["base_decimal"], self.available_balance[symbol][side_index])
 
             updatedQuantity = (quantity / 10**info["base_decimal"]) * price if side == "B" else quantity
-            self.available_balance = 0 if transfer_amount > 0 else self.available_balance - updatedQuantity
+            self.available_balance[symbol][side_index] = 0 if transfer_amount > 0 else self.available_balance[symbol][side_index] - updatedQuantity
 
             if not transfer_amount:
                 pass
@@ -176,7 +179,7 @@ class Client():
             pending_txn = self.client.wait_for_transaction(tx_id)
             txn_logs = decode_txn_logs(pending_txn["logs"], OrderType.new_order)
             print(f"Order created successfully, order_id: {tx_id}")
-            self.pending_txns-=1
+            self.pending_txns[symbol]-=1
             return txn_logs
 
         txn_logs = await asyncio.get_event_loop().run_in_executor(None, sync_function)
