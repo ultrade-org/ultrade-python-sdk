@@ -6,8 +6,8 @@ from algosdk.v2client.algod import AlgodClient
 from . import api
 from .socket_client import SocketClient
 from .algod_service import AlgodService
-from .utils import is_asset_opted_in, is_app_opted_in, construct_args_for_app_call, construct_query_string_for_api_request, decode_txn_logs
-from .constants import OPEN_ORDER_STATUS, get_api_domain, set_domains
+from .utils import is_asset_opted_in, is_app_opted_in, construct_new_order_args, construct_query_string_for_api_request, decode_txn_logs
+from .constants import OPEN_ORDER_STATUS, get_api_domain, set_domains, OrderType
 from . import socket_options
 
 
@@ -132,7 +132,7 @@ class Client():
                 unsigned_txns.append(self.client.opt_in_app(
                     info["application_id"], sender_address))
 
-            app_args = construct_args_for_app_call(
+            app_args = construct_new_order_args(
                 side, type, price, quantity, partner_app_id)
             asset_index = info["base_id"] if side == "S" else info["price_id"]
             transfer_amount = asyncio.run(self.client.calculate_transfer_amount(
@@ -156,7 +156,7 @@ class Client():
             self.client.send_transaction_grp(signed_txns)
 
             pending_txn = self.client.wait_for_transaction(tx_id)
-            txn_logs = decode_txn_logs(pending_txn["logs"])
+            txn_logs = decode_txn_logs(pending_txn["logs"], OrderType.new_order)
             print(f"Order created successfully, order_id: {tx_id}")
             return txn_logs
 
@@ -182,14 +182,14 @@ class Client():
 
             exchange_info = asyncio.run(api.get_exchange_info(symbol))
 
-            app_args = ["cancel_order", order_id, slot]
+            app_args = [OrderType.cancel_order, order_id, slot]
             unsigned_txn = self.client.make_app_call_txn(
                 exchange_info["price_id"], app_args, exchange_info["application_id"])
 
             signed_txn = self.client.sign_transaction_grp(unsigned_txn)
             tx_id = self.client.send_transaction_grp(signed_txn)
             pending_txn = self.client.wait_for_transaction(tx_id)
-            txn_logs = decode_txn_logs(pending_txn["logs"])
+            txn_logs = decode_txn_logs(pending_txn["logs"], OrderType.cancel_order)
             return txn_logs
 
         tx_id = await asyncio.get_event_loop().run_in_executor(None, sync_function)
@@ -210,7 +210,7 @@ class Client():
 
         unsigned_txns = []
         for order in user_trade_orders:
-            app_args = ["cancel_order", order["orders_id"], order["slot"]]
+            app_args = [OrderType.cancel_order, order["orders_id"], order["slot"]]
             unsigned_txn = self.client.make_app_call_txn(
                 exchange_info["price_id"], app_args, order["pair_id"])
             unsigned_txns.append(unsigned_txn)

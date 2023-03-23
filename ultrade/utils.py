@@ -1,6 +1,6 @@
 from typing import Dict, List
 import base64
-
+from .constants import OrderType
 
 def is_asset_opted_in(balances: Dict[str, str], asset_id: int):
     for key in balances:
@@ -20,8 +20,8 @@ def is_app_opted_in(app_id: int, app_local_state):
     return False
 
 
-def construct_args_for_app_call(side, type, price, quantity, partnerAppId):
-    args = ["new_order", side, price, quantity, type, partnerAppId]
+def construct_new_order_args(side, type, price, quantity, partnerAppId):
+    args = [OrderType.new_order, side, price, quantity, type, partnerAppId]
     return args
 
 
@@ -36,17 +36,17 @@ def construct_query_string_for_api_request(args: List):
     return query_result
 
 
-def decode_txn_logs(txn_logs):
+def decode_txn_logs(txn_logs, order_type):
     decoded_logs = [int.from_bytes(base64.b64decode(
         log), byteorder='big') for log in txn_logs]
 
     decoded_data = {}
-    if len(decoded_logs) > 7:
+    if order_type == OrderType.new_order:
         decoded_data["order_id"] = decoded_logs[1]
         decoded_data["slot"] = decoded_logs[7]
         return decoded_data
     
-    if len(decoded_logs) == 7:
+    if order_type == OrderType.cancel_order:
         decoded_data["order_id"] = decoded_logs[1]
         decoded_data["released_amount"] = decoded_logs[2]
         decoded_data["base_coin_avaliable"] = decoded_logs[3]

@@ -1,3 +1,5 @@
+from enum import Enum
+
 default_api_domain = "https://dev-apigw.ultradedev.net"
 algod_indexer_url = 'https://indexer.testnet.algoexplorerapi.io'
 algod_node_url = 'https://node.testnet.algoexplorerapi.io'
@@ -49,3 +51,7 @@ BALANCE_DECODE_FORMAT = {
 
 EVENT_LIST = [('quote', 1), ('last_price', 2), ('depth', 3), ('order', 5),
               ('trades', 6), ('trade', 6), ('walletTransaction', 8), ('allStat', 9)]
+
+class OrderType(Enum):
+    cancel_order = "cancel_order"
+    new_order = "new_order"
