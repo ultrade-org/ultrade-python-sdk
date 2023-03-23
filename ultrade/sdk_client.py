@@ -89,6 +89,8 @@ class Client():
             "client_secret")
         self.company: Optional[str] = auth_credentials.get("company")
         self.client_id: Optional[str] = auth_credentials.get("client_id")
+        self.available_balance = None
+        self.pending_txns = 0
 
     async def new_order(self, symbol, side, type, quantity, price):
         """
@@ -107,6 +109,7 @@ class Client():
 
         """
         def sync_function():
+            self.pending_txns+=1
             partner_app_id = "87654321"  # temporary solution
 
             if not self.mnemonic:
@@ -114,9 +117,10 @@ class Client():
                     "You need to specify mnemonic or signer to execute this method")
 
             info = asyncio.run(api.get_exchange_info(symbol))
+            if self.pending_txns == 1:
+                self.available_balance = asyncio.run(self.client.get_available_balance(info["application_id"], side))
 
             sender_address = self.client.get_account_address()
-
             unsigned_txns = []
             account_info = self._get_balance_and_state()
 
@@ -135,8 +139,12 @@ class Client():
             app_args = construct_new_order_args(
                 side, type, price, quantity, partner_app_id)
             asset_index = info["base_id"] if side == "S" else info["price_id"]
-            transfer_amount = asyncio.run(self.client.calculate_transfer_amount(
-                info["application_id"], side, quantity, price, info["base_decimal"]))
+            
+            transfer_amount = self.client.calculate_transfer_amount(
+                 side, quantity, price, info["base_decimal"], self.available_balance)
+            
+            updatedQuantity = (quantity / 10**info["base_decimal"]) * price if side == "B" else quantity
+            self.available_balance = 0 if transfer_amount > 0 else self.available_balance - updatedQuantity
 
             if not transfer_amount:
                 pass
@@ -158,6 +166,7 @@ class Client():
             pending_txn = self.client.wait_for_transaction(tx_id)
             txn_logs = decode_txn_logs(pending_txn["logs"], OrderType.new_order)
             print(f"Order created successfully, order_id: {tx_id}")
+            self.pending_txns-=1
             return txn_logs
 
         txn_logs = await asyncio.get_event_loop().run_in_executor(None, sync_function)
