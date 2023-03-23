@@ -2,6 +2,7 @@ from typing import Any, Dict, List, Optional, TypedDict
 import asyncio
 import aiohttp
 from algosdk.v2client.algod import AlgodClient
+import time
 
 from . import api
 from .socket_client import SocketClient
@@ -109,7 +110,6 @@ class Client():
 
         """
         def sync_function():
-            self.pending_txns+=1
             partner_app_id = "87654321"  # temporary solution
 
             if not self.mnemonic:
@@ -117,8 +117,18 @@ class Client():
                     "You need to specify mnemonic or signer to execute this method")
 
             info = asyncio.run(api.get_exchange_info(symbol))
+            self.pending_txns+=1
             if self.pending_txns == 1:
                 self.available_balance = asyncio.run(self.client.get_available_balance(info["application_id"], side))
+            elif self.available_balance == None:
+                wait_count = 0
+                while(True):
+                    if self.available_balance != None:
+                        break
+                    if wait_count > 8:
+                        raise Exception("Available_balance is None")
+                    time.sleep(0.5)
+                    wait_count+=0.5
 
             sender_address = self.client.get_account_address()
             unsigned_txns = []
@@ -142,7 +152,7 @@ class Client():
             
             transfer_amount = self.client.calculate_transfer_amount(
                  side, quantity, price, info["base_decimal"], self.available_balance)
-            
+
             updatedQuantity = (quantity / 10**info["base_decimal"]) * price if side == "B" else quantity
             self.available_balance = 0 if transfer_amount > 0 else self.available_balance - updatedQuantity
 
