@@ -180,3 +180,13 @@ async def _get_encoded_balance(address, app_id):
                 "Error: can't find balance value for the specified application_id")
 
         return key["value"].get("bytes")
+
+async def get_min_algo_balance(address):
+    session = aiohttp.ClientSession()
+    url = f"{get_algod_indexer_domain()}/v2/accounts/{address}?include-all=true"
+    async with session.get(url) as resp:
+        data = await resp.json()
+        await session.close()
+        algo_buffer = 1000000
+        min_balance = data.get("account", {})["min-balance"]
+        return min_balance + algo_buffer
