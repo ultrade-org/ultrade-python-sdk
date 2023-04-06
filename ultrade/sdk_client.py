@@ -208,9 +208,9 @@ class Client():
                 pending_txn["logs"], OrderType.new_order)
             print(f"Order created successfully, order_id: {tx_id}")
 
-            self.pending_txns[symbol] -= 1
-            if self.pending_txns[symbol] == 0:
-                self.available_balance[symbol] = [None, None]
+            self.pending_txns[symbol][side_index] -= 1
+            if self.pending_txns[symbol][side_index] == 0:
+                self.available_balance[symbol][side_index] = None
 
             return txn_logs
 
