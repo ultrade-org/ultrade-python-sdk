@@ -124,6 +124,9 @@ class Client():
             info = asyncio.run(api.get_exchange_info(symbol))
             account_info = self._get_balance_and_state()
 
+            if self.pending_txns.get(symbol) == None:
+                self.pending_txns[symbol] = {}
+
             self.pending_txns[symbol][side_index] = self.pending_txns[symbol].get(
                 side_index, 0) + 1
             if self.available_balance.get(symbol) == None:
