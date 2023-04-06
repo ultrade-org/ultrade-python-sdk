@@ -7,7 +7,7 @@ import time
 from . import api
 from .socket_client import SocketClient
 from .algod_service import AlgodService
-from .utils import is_asset_opted_in, is_app_opted_in, construct_new_order_args, construct_query_string_for_api_request, decode_txn_logs
+from .utils import is_asset_opted_in, is_app_opted_in, construct_new_order_args, construct_query_string_for_api_request, decode_txn_logs, validate_mnemonic
 from .constants import OPEN_ORDER_STATUS, get_api_domain, set_domains, OrderType
 from . import socket_options
 
@@ -58,6 +58,8 @@ class Client():
                  auth_credentials: AccountCredentials,
                  options: ClientOptions
                  ):
+        validate_mnemonic(auth_credentials.get(
+            "mnemonic"))
         if options["network"] == "mainnet":
             self.algod_node = ''
             self.api_url = ""
@@ -126,19 +128,21 @@ class Client():
 
             if self.pending_txns[symbol] == 1:
                 self.algo_balance = account_info.get("balances", {"0": 0})["0"]
-                self.available_balance[symbol][side_index] = asyncio.run(self.client.get_available_balance(info["application_id"], side))
+                self.available_balance[symbol][side_index] = asyncio.run(
+                    self.client.get_available_balance(info["application_id"], side))
             elif self.available_balance[symbol][side_index] == None:
                 wait_count = 0
-                while(True):
+                while (True):
                     if self.available_balance[symbol][side_index] != None:
                         break
                     if wait_count > 8:
                         raise Exception("Available_balance is None")
                     time.sleep(0.5)
-                    wait_count+=0.5
+                    wait_count += 0.5
 
             sender_address = self.client.get_account_address()
-            min_algo_balance = asyncio.run(api.get_min_algo_balance(sender_address))
+            min_algo_balance = asyncio.run(
+                api.get_min_algo_balance(sender_address))
             unsigned_txns = []
 
             if is_asset_opted_in(account_info.get("balances"), info["base_id"]) is False:
@@ -156,13 +160,14 @@ class Client():
             app_args = construct_new_order_args(
                 side, type, price, quantity, partner_app_id)
             asset_index = info["base_id"] if side == "S" else info["price_id"]
-            
+
             transfer_amount = self.client.calculate_transfer_amount(
-                 side, quantity, price, info["base_decimal"], self.available_balance[symbol][side_index])
+                side, quantity, price, info["base_decimal"], self.available_balance[symbol][side_index])
 
             if "algo" in symbol and (symbol.split("_")[0] == "algo" and side == "S" or symbol.split("_")[1] == "algo" and side == "B"):
                 self.algo_balance -= transfer_amount
-                print("se",  self.algo_balance, min_algo_balance, transfer_amount)
+                print("se",  self.algo_balance,
+                      min_algo_balance, transfer_amount)
                 if self.algo_balance < min_algo_balance:
                     self.algo_balance += transfer_amount
                     self.pending_txns[symbol] -= 1
@@ -171,7 +176,8 @@ class Client():
 
                     raise Exception("Not enough algo for transfer")
 
-            updatedQuantity = (quantity / 10**info["base_decimal"]) * price if side == "B" else quantity
+            updatedQuantity = (
+                quantity / 10**info["base_decimal"]) * price if side == "B" else quantity
             self.available_balance[symbol][side_index] = 0 if transfer_amount > 0 else self.available_balance[symbol][side_index] - updatedQuantity
 
             if not transfer_amount:
@@ -192,10 +198,11 @@ class Client():
             self.client.send_transaction_grp(signed_txns)
 
             pending_txn = self.client.wait_for_transaction(tx_id)
-            txn_logs = decode_txn_logs(pending_txn["logs"], OrderType.new_order)
+            txn_logs = decode_txn_logs(
+                pending_txn["logs"], OrderType.new_order)
             print(f"Order created successfully, order_id: {tx_id}")
 
-            self.pending_txns[symbol]-=1
+            self.pending_txns[symbol] -= 1
             if self.pending_txns[symbol] == 0:
                 self.available_balance[symbol] = [None, None]
 
@@ -230,7 +237,8 @@ class Client():
             signed_txn = self.client.sign_transaction_grp(unsigned_txn)
             tx_id = self.client.send_transaction_grp(signed_txn)
             pending_txn = self.client.wait_for_transaction(tx_id)
-            txn_logs = decode_txn_logs(pending_txn["logs"], OrderType.cancel_order)
+            txn_logs = decode_txn_logs(
+                pending_txn["logs"], OrderType.cancel_order)
             return txn_logs
 
         tx_id = await asyncio.get_event_loop().run_in_executor(None, sync_function)
@@ -251,7 +259,8 @@ class Client():
 
         unsigned_txns = []
         for order in user_trade_orders:
-            app_args = [OrderType.cancel_order, order["orders_id"], order["slot"]]
+            app_args = [OrderType.cancel_order,
+                        order["orders_id"], order["slot"]]
             unsigned_txn = self.client.make_app_call_txn(
                 exchange_info["price_id"], app_args, order["pair_id"])
             unsigned_txns.append(unsigned_txn)
@@ -392,10 +401,12 @@ class Client():
             "baseCoin_locked")
         balances_dict["baseCoin_available"] = exchange_balances.get(
             "baseCoin_available")
-      
+
         for key in wallet_balances:
             if int(key) == pair_info["base_id"]:
-                balances_dict["baseCoin"] = wallet_balances.get(key) - min_algo if key == 0 else wallet_balances.get(key)
+                balances_dict["baseCoin"] = wallet_balances.get(
+                    key) - min_algo if key == 0 else wallet_balances.get(key)
             if int(key) == pair_info["price_id"]:
-                balances_dict["priceCoin"] = wallet_balances.get(key) - min_algo if key == 0 else wallet_balances.get(key)
+                balances_dict["priceCoin"] = wallet_balances.get(
+                    key) - min_algo if key == 0 else wallet_balances.get(key)
         return balances_dict
