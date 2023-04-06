@@ -11,6 +11,7 @@ setuptools.setup(
         "py-algorand-sdk",
         "python-socketio",
         "asyncio",
-        "aiohttp"
+        "aiohttp",
+        "bip-utils"
     ]
 )
