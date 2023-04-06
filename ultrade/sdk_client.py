@@ -113,6 +113,8 @@ class Client():
 
         """
         def sync_function():
+            print(
+                f"Preparing new order. symbol:{symbol}, side:{side}, quantity:{quantity}, price:{price}")
             partner_app_id = "87654321"  # temporary solution
 
             if not self.mnemonic:
@@ -122,11 +124,12 @@ class Client():
             info = asyncio.run(api.get_exchange_info(symbol))
             account_info = self._get_balance_and_state()
 
-            self.pending_txns[symbol] = self.pending_txns.get(symbol, 0) + 1
+            self.pending_txns[symbol][side_index] = self.pending_txns[symbol].get(
+                side_index, 0) + 1
             if self.available_balance.get(symbol) == None:
                 self.available_balance[symbol] = [None, None]
 
-            if self.pending_txns[symbol] == 1:
+            if self.pending_txns[symbol][side_index] == 1:
                 self.algo_balance = account_info.get("balances", {"0": 0})["0"]
                 self.available_balance[symbol][side_index] = asyncio.run(
                     self.client.get_available_balance(info["application_id"], side))
@@ -166,13 +169,13 @@ class Client():
 
             if "algo" in symbol and (symbol.split("_")[0] == "algo" and side == "S" or symbol.split("_")[1] == "algo" and side == "B"):
                 self.algo_balance -= transfer_amount
-                print("se",  self.algo_balance,
+                print("algo/min_algo/t_amount",  self.algo_balance,
                       min_algo_balance, transfer_amount)
                 if self.algo_balance < min_algo_balance:
                     self.algo_balance += transfer_amount
-                    self.pending_txns[symbol] -= 1
-                    if self.pending_txns[symbol] == 0:
-                        self.available_balance[symbol] = [None, None]
+                    self.pending_txns[symbol][side_index] -= 1
+                    if self.pending_txns[symbol][side_index] == 0:
+                        self.available_balance[symbol][side_index] = None
 
                     raise Exception("Not enough algo for transfer")
 
