@@ -224,7 +224,7 @@ class Client():
 
         Args:
             symbol (str): symbol represent existing pair, example: 'algo_usdt'
-            order_id (int): id of the order to cancel, provided by Ultrade API
+            order_id (int): id of the order to cancel, can be provided by Ultrade API
             slot (int): order position in the smart contract
 
         Returns:

@@ -2,7 +2,7 @@
 
 
 ## Client
-[source](https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/ultrade/sdk_client.py/#L46)
+[source](https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/ultrade/sdk_client.py/#L48)
 ```python 
 Client(
    auth_credentials: AccountCredentials, options: ClientOptions
@@ -25,10 +25,10 @@ UltradeSdk client. Provides methods for creating and canceling orders on Ultrade
 
 
 ### .new_order
-[source](https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/ultrade/sdk_client.py/#L92)
+[source](https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/ultrade/sdk_client.py/#L99)
 ```python
 .new_order(
-   symbol, side, type, quantity, price
+   symbol, side, type, quantity, price, partner_app_id = 0, direct_settle = 'N'
 )
 ```
 
@@ -40,17 +40,19 @@ Create new order on the Ultrade exchange by sending group transaction to algoran
 
 * **symbol** (str) : symbol represent existing pair, example: 'algo_usdt'
 * **side** (str) : represent either 'S' or 'B' order (SELL or BUY)
-* **type** (str) : can be one of these four order types: '0', 'P', 'I' or 'M',
+* **type** (str) : can be one of these four order types: 'L', 'P', 'I' or 'M',
     which represent LIMIT, POST, IOC and MARKET orders respectively
 * **quantity** (decimal) : quantity of the base coin
 * **price** (decimal) : quantity of the price coin
+* **partner_app_id** (int, default=0) : id of the partner to use in transactions
+* **direct_settle** (str) : can be either "N" or "Y"
 
 
 ---
 If order successfully fulfilled returns dictionary with order_id and slot data in it
 
 ### .cancel_order
-[source](https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/ultrade/sdk_client.py/#L160)
+[source](https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/ultrade/sdk_client.py/#L221)
 ```python
 .cancel_order(
    symbol: str, order_id: int, slot: int
@@ -64,7 +66,7 @@ Cancel the order matching the id and symbol arguments
 **Args**
 
 * **symbol** (str) : symbol represent existing pair, example: 'algo_usdt'
-* **order_id** (int) : id of the order to cancel, provided by Ultrade API
+* **order_id** (int) : id of the order to cancel, can be provided by Ultrade API
 * **slot** (int) : order position in the smart contract
 
 
@@ -74,7 +76,7 @@ Cancel the order matching the id and symbol arguments
 
 
 ### .cancel_all_orders
-[source](https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/ultrade/sdk_client.py/#L187)
+[source](https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/ultrade/sdk_client.py/#L256)
 ```python
 .cancel_all_orders(
    symbol
@@ -96,7 +98,7 @@ Perform cancellation of all existing orders for wallet specified in algod client
 
 
 ### .subscribe
-[source](https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/ultrade/sdk_client.py/#L230)
+[source](https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/ultrade/sdk_client.py/#L300)
 ```python
 .subscribe(
    options, callback
@@ -116,7 +118,7 @@ Can be used multiple times for different pairs
         'streams': [OPTIONS.ORDERS, OPTIONS.TRADES],
         'options': {"address": "your wallet address here"}
     }
-* **callback** (function) : a function, will be called on any occurred websocket event, should accept 'event' and 'args' parameters
+* **callback** (function) : a synchronous function, will be called on any occurred websocket event, should accept 'event' and 'args' parameters
 
 
 **Returns**
@@ -125,7 +127,7 @@ Can be used multiple times for different pairs
 
 
 ### .unsubscribe
-[source](https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/ultrade/sdk_client.py/#L251)
+[source](https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/ultrade/sdk_client.py/#L321)
 ```python
 .unsubscribe(
    connection_id
@@ -142,7 +144,7 @@ Unsubscribe from ws connection
 
 
 ### .get_orders
-[source](https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/ultrade/sdk_client.py/#L260)
+[source](https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/ultrade/sdk_client.py/#L330)
 ```python
 .get_orders(
    symbol = None, status = 1, start_time = None, end_time = None, limit = 500
@@ -166,7 +168,7 @@ If symbol not specified, return orders for all pairs
 list
 
 ### .get_wallet_transactions
-[source](https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/ultrade/sdk_client.py/#L283)
+[source](https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/ultrade/sdk_client.py/#L353)
 ```python
 .get_wallet_transactions(
    symbol = None
@@ -187,7 +189,7 @@ Get last transactions from current wallet, max_amount=100
 list
 
 ### .get_order_by_id
-[source](https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/ultrade/sdk_client.py/#L303)
+[source](https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/ultrade/sdk_client.py/#L373)
 ```python
 .get_order_by_id(
    symbol, order_id
@@ -203,7 +205,7 @@ Get order with specific id and symbol
 dict
 
 ### .get_balances
-[source](https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/ultrade/sdk_client.py/#L324)
+[source](https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/ultrade/sdk_client.py/#L394)
 ```python
 .get_balances(
    symbol
