@@ -37,7 +37,7 @@ VIP_MYKE_ORDER = {
     "symbol": "vip_myke",
     "side": 'S',
     "type": "L",
-    "quantity": L,
+    "quantity": 2,
     "price": 800
 }
 
