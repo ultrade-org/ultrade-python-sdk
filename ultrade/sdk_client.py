@@ -96,7 +96,7 @@ class Client():
         self.pending_txns = {}
         self.algo_balance = None
 
-    async def new_order(self, symbol, side, type, quantity, price):
+    async def new_order(self, symbol, side, type, quantity, price, partner_app_id=0, direct_settle="N"):
         """
         Create new order on the Ultrade exchange by sending group transaction to algorand API
 
@@ -104,18 +104,19 @@ class Client():
 
             symbol (str): symbol represent existing pair, example: 'algo_usdt'
             side (str): represent either 'S' or 'B' order (SELL or BUY)
-            type (str): can be one of these four order types: '0', 'P', 'I' or 'M',
+            type (str): can be one of these four order types: 'L', 'P', 'I' or 'M',
                 which represent LIMIT, POST, IOC and MARKET orders respectively
             quantity (decimal): quantity of the base coin
             price (decimal): quantity of the price coin
+            partner_app_id (int, default=0): id of the partner to use in transactions
+            direct_settle (str): can be either "N" or "Y"
 
         If order successfully fulfilled returns dictionary with order_id and slot data in it
 
         """
         def sync_function():
             print(
-                f"Preparing new order. symbol:{symbol}, side:{side}, quantity:{quantity}, price:{price}")
-            partner_app_id = "87654321"  # temporary solution
+                f"Preparing new order txn. symbol:{symbol}, side:{side}, quantity:{quantity}, price:{price}")
 
             if not self.mnemonic:
                 raise Exception(
@@ -164,7 +165,7 @@ class Client():
                     info["application_id"], sender_address))
 
             app_args = construct_new_order_args(
-                side, type, price, quantity, partner_app_id)
+                side, type, price, quantity, partner_app_id, direct_settle)
             asset_index = info["base_id"] if side == "S" else info["price_id"]
 
             transfer_amount = self.client.calculate_transfer_amount(
@@ -230,6 +231,7 @@ class Client():
             str: First transaction id
         """
         def sync_function():
+            print("Preparing cancel order txn")
             if not self.mnemonic:
                 raise Exception(
                     "You need to specify mnemonic or signer to execute this method")
@@ -248,6 +250,7 @@ class Client():
             return txn_logs
 
         tx_id = await asyncio.get_event_loop().run_in_executor(None, sync_function)
+        print(f"order {order_id} successfully canceled")
         return tx_id
 
     async def cancel_all_orders(self, symbol):

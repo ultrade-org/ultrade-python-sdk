@@ -20,7 +20,7 @@ client = Client(credentials, opts)
 ALGO_USDT_ORDER = {
     "symbol": "algo_usdt",
     "side": 'B',
-    "type": "0",
+    "type": "L",
     "quantity": 2000000,
     "price": 800
 }
@@ -28,7 +28,7 @@ ALGO_USDT_ORDER = {
 YLDY_STBL_ORDER = {
     "symbol": "yldy_stbl",
     "side": 'B',
-    "type": "0",
+    "type": "L",
     "quantity": 350000000,
     "price": 800
 }
@@ -36,8 +36,8 @@ YLDY_STBL_ORDER = {
 VIP_MYKE_ORDER = {
     "symbol": "vip_myke",
     "side": 'S',
-    "type": "0",
-    "quantity": 2,
+    "type": "L",
+    "quantity": L,
     "price": 800
 }
 

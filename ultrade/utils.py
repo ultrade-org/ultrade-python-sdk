@@ -22,8 +22,9 @@ def is_app_opted_in(app_id: int, app_local_state):
     return False
 
 
-def construct_new_order_args(side, type, price, quantity, partnerAppId):
-    args = [OrderType.new_order, side, price, quantity, type, partnerAppId]
+def construct_new_order_args(side, type, price, quantity, partnerAppId, direct_settle):
+    args = [OrderType.new_order, side, price,
+            quantity, type, partnerAppId, direct_settle]
     return args
 
 
