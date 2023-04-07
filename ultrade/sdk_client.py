@@ -61,8 +61,9 @@ class Client():
         validate_mnemonic(auth_credentials.get(
             "mnemonic"))
         if options["network"] == "mainnet":
-            self.algod_node = ''
-            self.api_url = ""
+            self.api_url = "https://testnet-apigw.ultradedev.net"
+            self.algod_node = 'https://node.testnet.algoexplorerapi.io'
+            self.algod_indexer = 'https://indexer.testnet.algoexplorerapi.io'
         elif options["network"] == "dev":
             self.api_url = "https://testnet-apigw.ultradedev.net"
             self.algod_node = 'https://node.testnet.algoexplorerapi.io'
