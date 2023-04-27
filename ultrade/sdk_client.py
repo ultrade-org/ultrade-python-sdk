@@ -404,13 +404,13 @@ class Client():
         balances_dict = {}
 
         balances_dict["priceCoin_locked"] = exchange_balances.get(
-            "priceCoin_locked")
+            "priceCoin_locked", 0)
         balances_dict["priceCoin_available"] = exchange_balances.get(
-            "priceCoin_available")
+            "priceCoin_available", 0)
         balances_dict["baseCoin_locked"] = exchange_balances.get(
-            "baseCoin_locked")
+            "baseCoin_locked", 0)
         balances_dict["baseCoin_available"] = exchange_balances.get(
-            "baseCoin_available")
+            "baseCoin_available", 0)
 
         for key in wallet_balances:
             if int(key) == pair_info["base_id"]:

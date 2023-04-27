@@ -151,12 +151,14 @@ class AlgodService:
         return address
 
     async def get_pair_balances(self, app_id):
-        address = self.get_account_address()
-        encoded_data = await _get_encoded_balance(address, app_id)
+        try:
+            address = self.get_account_address()
+            encoded_data = await _get_encoded_balance(address, app_id)
 
-        balance_data = unpack_data(encoded_data, BALANCE_DECODE_FORMAT)
-
-        return balance_data
+            balance_data = unpack_data(encoded_data, BALANCE_DECODE_FORMAT)
+            return balance_data
+        except:
+            return {}
 
     async def get_available_balance(self, app_id, side):
         try:
