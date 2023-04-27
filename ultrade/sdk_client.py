@@ -64,11 +64,11 @@ class Client():
             self.api_url = "https://testnet-apigw.ultradedev.net"
             self.algod_node = 'https://node.testnet.algoexplorerapi.io'
             self.algod_indexer = 'https://indexer.testnet.algoexplorerapi.io'
-        elif options["network"] == "dev":
+        elif options["network"] == "testnet":
             self.api_url = "https://testnet-apigw.ultradedev.net"
             self.algod_node = 'https://node.testnet.algoexplorerapi.io'
             self.algod_indexer = 'https://indexer.testnet.algoexplorerapi.io'
-        elif options["network"] == "testnet":
+        elif options["network"] == "dev":
             self.api_url = "https://dev-apigw.ultradedev.net"
             self.algod_node = 'https://node.testnet.algoexplorerapi.io'
             self.algod_indexer = 'https://indexer.testnet.algoexplorerapi.io'
