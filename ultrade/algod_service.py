@@ -164,6 +164,7 @@ class AlgodService:
             available_balance = pair_balances["priceCoin_available"] if side == "B" else pair_balances["baseCoin_available"]
             return available_balance
         except:
+            print("an error occurred in get_available_balance function")
             return 0
 
     def calculate_transfer_amount(self, side, quantity, price, decimal, available_balance):

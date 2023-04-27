@@ -9,7 +9,7 @@ def unpack_data(data: str, format: dict):
     index = 0
     for name, type in format.items():
         if index >= len(decoded_data):
-            raise Exception('Array index out of bounds')
+            return result
 
         if type["type"] == 'address':
             result[name] = encoding.encode_address(
