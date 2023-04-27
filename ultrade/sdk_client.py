@@ -116,8 +116,6 @@ class Client():
 
         """
         def sync_function():
-            print(
-                f"Preparing new order txn. symbol:{symbol}, side:{side}, quantity:{quantity}, price:{price}")
 
             if not self.mnemonic:
                 raise Exception(
@@ -174,8 +172,8 @@ class Client():
 
             if "algo" in symbol and (symbol.split("_")[0] == "algo" and side == "S" or symbol.split("_")[1] == "algo" and side == "B"):
                 self.algo_balance -= transfer_amount
-                print("algo/min_algo/t_amount",  self.algo_balance,
-                      min_algo_balance, transfer_amount)
+                # print("algo/min_algo/t_amount",  self.algo_balance,
+                #       min_algo_balance, transfer_amount)
                 if self.algo_balance < min_algo_balance:
                     self.algo_balance += transfer_amount
                     self.pending_txns[symbol][side_index] -= 1
@@ -208,7 +206,6 @@ class Client():
             pending_txn = self.client.wait_for_transaction(tx_id)
             txn_logs = decode_txn_logs(
                 pending_txn["logs"], OrderType.new_order)
-            print(f"Order created successfully, order_id: {tx_id}")
 
             self.pending_txns[symbol][side_index] -= 1
             if self.pending_txns[symbol][side_index] == 0:
@@ -232,7 +229,6 @@ class Client():
             str: First transaction id
         """
         def sync_function():
-            print("Preparing cancel order txn")
             if not self.mnemonic:
                 raise Exception(
                     "You need to specify mnemonic or signer to execute this method")
@@ -251,7 +247,6 @@ class Client():
             return txn_logs
 
         tx_id = await asyncio.get_event_loop().run_in_executor(None, sync_function)
-        print(f"order {order_id} successfully canceled")
         return tx_id
 
     async def cancel_all_orders(self, symbol):

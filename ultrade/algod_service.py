@@ -18,7 +18,6 @@ class AlgodService:
         self.mnemonic: str = mnemonic
 
     def make_app_call_txn(self, asset_index, app_args, app_id):
-        print("Preparing application call txn...")
         sender_address = self.get_account_address()
 
         suggested_params = self.get_transaction_params()
@@ -41,8 +40,6 @@ class AlgodService:
         if transfer_amount <= 0:
             return
 
-        print(f"Preparing a transfer transaction #{asset_index}...")
-
         txn = transaction.AssetTransferTxn(
             sender,
             self.get_transaction_params(),
@@ -54,8 +51,6 @@ class AlgodService:
         return txn
 
     def make_payment_txn(self, app_id, sender, transfer_amount):
-        print("Preparing a payment transaction...")
-
         rcv = get_application_address(int(app_id))
         receiver = rcv[0] if isinstance(rcv, list) else rcv
 
@@ -141,7 +136,6 @@ class AlgodService:
         return signed_txns
 
     def send_transaction_grp(self, signed_group) -> str:
-        print("Sending Transaction grp...")
         txid = self.client.send_transactions(signed_group)
         return txid
 
@@ -166,7 +160,7 @@ class AlgodService:
             available_balance = pair_balances["priceCoin_available"] if side == "B" else pair_balances["baseCoin_available"]
             return available_balance
         except:
-            print("an error occurred in get_available_balance function")
+            print("ultrade_sdk - Error getting balances")
             return 0
 
     def calculate_transfer_amount(self, side, quantity, price, decimal, available_balance):
