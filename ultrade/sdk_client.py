@@ -65,7 +65,7 @@ class Client():
             self.algod_node = 'https://node.testnet.algoexplorerapi.io'
             self.algod_indexer = 'https://indexer.testnet.algoexplorerapi.io'
         elif options["network"] == "testnet":
-            self.api_url = "https://testnet-apigw.ultradedev.net"
+            self.api_url = "https://api.testnet.ultrade.org"
             self.algod_node = 'https://node.testnet.algoexplorerapi.io'
             self.algod_indexer = 'https://indexer.testnet.algoexplorerapi.io'
         elif options["network"] == "dev":
