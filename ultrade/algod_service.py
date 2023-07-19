@@ -177,12 +177,14 @@ class AlgodService:
 
 
     def get_app_state(self, app_id):
-        # try:
+        try:
+            print("app_id:",app_id)
             app_info = self.client.application_info(app_id)
             global_state = decode_state(app_info)
             return global_state
-        # except:
+        except:
             print("ultrade_sdk - Error getting app state")
+            return {}
 
     def get_super_app_id(self, app_id):
         state = self.get_app_state(app_id)
