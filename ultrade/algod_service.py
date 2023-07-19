@@ -9,7 +9,7 @@ from algosdk.v2client.algod import AlgodClient
 
 from .api import _get_encoded_balance
 from .constants import BALANCE_DECODE_FORMAT
-from .decode import unpack_data
+from .decode import unpack_data, decode_state
 
 
 class AlgodService:
@@ -19,12 +19,13 @@ class AlgodService:
 
     def make_app_call_txn(self, asset_index, app_args, app_id):
         sender_address = self.get_account_address()
-
+        super_app_id = self.get_super_app_id(app_id)
         suggested_params = self.get_transaction_params()
+        
         accounts = []
-        foreign_apps = []
+        foreign_apps = [super_app_id]
         foreign_assets = [asset_index]
-
+        
         txn = transaction.ApplicationNoOpTxn(sender_address,
                                              suggested_params,
                                              app_id,
@@ -173,3 +174,16 @@ class AlgodService:
             return 0
 
         return transfer_amount
+
+
+    def get_app_state(self, app_id):
+        # try:
+            app_info = self.client.application_info(app_id)
+            global_state = decode_state(app_info)
+            return global_state
+        # except:
+            print("ultrade_sdk - Error getting app state")
+
+    def get_super_app_id(self, app_id):
+        state = self.get_app_state(app_id)
+        return state.get("UL_SUPERADMIN_APP", 0)
