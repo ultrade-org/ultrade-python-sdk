@@ -81,7 +81,7 @@ class Client():
             self.api_url = options["api_url"]
 
         set_domains(self.api_url, self.algod_indexer, self.algod_node)
-
+        self.algod = options.get("algo_sdk_client", 0)
         self.socket_client = SocketClient(options.get("websocket_url", ""))
         self.client = AlgodService(options.get(
             "algo_sdk_client"), auth_credentials.get("mnemonic"))
@@ -116,6 +116,8 @@ class Client():
 
         """
         def sync_function():
+            print("new_order args:",symbol, side, type, quantity, price)
+            print("self.algod",self.algod)
 
             if not self.mnemonic:
                 raise Exception(
