@@ -8,9 +8,9 @@ from . import api
 from .socket_client import SocketClient
 from .algod_service import AlgodService
 from .utils import is_asset_opted_in, is_app_opted_in, construct_new_order_args, construct_query_string_for_api_request, decode_txn_logs, validate_mnemonic
-from .constants import OPEN_ORDER_STATUS, get_api_domain, set_domains, OrderType
+from .constants import OPEN_ORDER_STATUS, BALANCE_DECODE_FORMAT, get_api_domain, set_domains, OrderType
 from . import socket_options
-
+from .decode import unpack_data, decode_state
 
 OPTIONS = socket_options
 
@@ -61,21 +61,13 @@ class Client():
         validate_mnemonic(auth_credentials.get(
             "mnemonic"))
         if options["network"] == "mainnet":
-            self.api_url = "https://testnet-apigw.ultradedev.net"
-            self.algod_node = 'https://node.testnet.algoexplorerapi.io'
-            self.algod_indexer = 'https://indexer.testnet.algoexplorerapi.io'
+            self.api_url = "https://api.ultrade.org"
+            self.algod_node = 'https://mainnet-api.algonode.cloud'
+            self.algod_indexer = 'https://mainnet-idx.algonode.cloud'
         elif options["network"] == "testnet":
             self.api_url = "https://api.testnet.ultrade.org"
-            self.algod_node = 'https://node.testnet.algoexplorerapi.io'
-            self.algod_indexer = 'https://indexer.testnet.algoexplorerapi.io'
-        elif options["network"] == "dev":
-            self.api_url = "https://dev-apigw.ultradedev.net"
-            self.algod_node = 'https://node.testnet.algoexplorerapi.io'
-            self.algod_indexer = 'https://indexer.testnet.algoexplorerapi.io'
-        else:
-            self.api_url = "http://localhost:5001"
-            self.algod_node = 'http://localhost:4001'
-            self.algod_indexer = 'http://localhost:8980'
+            self.algod_node = 'https://testnet-api.algonode.cloud'
+            self.algod_indexer = 'https://testnet-idx.algonode.cloud'
 
         if options["api_url"] != None:
             self.api_url = options["api_url"]
@@ -116,8 +108,8 @@ class Client():
 
         """
         def sync_function():
-            print("new_order args:",symbol, side, type, quantity, price)
-            print("self.algod",self.algod)
+            print("new_order args:", symbol, side, type, quantity, price)
+            print("self.algod", self.algod)
 
             if not self.mnemonic:
                 raise Exception(
@@ -279,11 +271,12 @@ class Client():
         tx_id = self.client.send_transaction_grp(signed_txns)
         return tx_id
 
-    def _get_balance_and_state(self) -> Dict[str, int]:
+    def _get_balance_and_state(self, account_info=None) -> Dict[str, int]:
         balances: Dict[str, int] = dict()
 
-        address = self.client.get_account_address()
-        account_info = self.client.get_account_info(address)
+        if account_info is None:
+            address = self.client.get_account_address()
+            account_info = self.client.get_account_info(address)
 
         balances["0"] = account_info["amount"]
 
@@ -390,11 +383,14 @@ class Client():
                 raise Exception("Order not found")
 
     async def get_balances(self, symbol):
+        """
+        Gets balances for a specific pair
+        """
         pair_info = await api.get_exchange_info(symbol)
         wallet_balances = self._get_balance_and_state()["balances"]
         address = self.client.get_account_address()
-        min_algo = await api.get_min_algo_balance(address)
 
+        min_algo = await api.get_min_algo_balance(address)
         exchange_balances = await self.client.get_pair_balances(
             pair_info["application_id"])
 
@@ -417,3 +413,51 @@ class Client():
                 balances_dict["priceCoin"] = wallet_balances.get(
                     key) - min_algo if key == 0 else wallet_balances.get(key)
         return balances_dict
+
+    async def get_account_balances(self):
+        exchange_pair_list = await api.get_pair_list()
+        address = self.client.get_account_address()
+        acc_info = self.client.get_account_info(address)
+
+        wallet_balances = self._get_balance_and_state(acc_info)["balances"]
+
+        algo_buffer = 1000000
+        min_algo = acc_info.get("min-balance", 0) + algo_buffer
+
+        exchange_balances = await self._get_exchange_balances_from_account_info(acc_info)
+
+        result_balances = {}
+
+        for key in exchange_balances:
+            pair_info = next(
+                (info for info in exchange_pair_list if info["application_id"] == key), {})
+            base_coin_id = pair_info.get("base_id", None)
+            price_coin_id = pair_info.get("base_id", None)
+
+            result_balances[key] = {}
+            result_balances[key]["priceCoin_free"] = exchange_balances[key].get(
+                "priceCoin_available", 0) + (wallet_balances.get(price_coin_id, 0) if price_coin_id is not 0 else wallet_balances.get(price_coin_id, 0) - min_algo)
+
+            result_balances[key]["baseCoin_free"] = exchange_balances[key].get(
+                "baseCoin_available", 0) + (wallet_balances.get(base_coin_id, 0) if base_coin_id is not 0 else wallet_balances.get(base_coin_id, 0) - min_algo)
+
+            result_balances[key]["priceCoin_total"] = result_balances[key]["priceCoin_free"] + exchange_balances.get(
+                "priceCoin_locked", 0)
+            result_balances[key]["baseCoin_total"] = result_balances[key]["baseCoin_free"] + exchange_balances.get(
+                "baseCoin_locked", 0)
+
+        return result_balances
+
+    async def _get_exchange_balances_from_account_info(self, acc_info):
+        decoded_balances = {}
+        local_state = acc_info.get("apps-local-state")
+        for state in local_state:
+            try:
+                key = next((elem for elem in state["key-value"]
+                            if elem["key"] == "YWNjb3VudEluZm8="), None)
+                decoded_balances[state.get("id", "")] = unpack_data(
+                    key["value"].get("bytes"), BALANCE_DECODE_FORMAT)
+            except:
+                print("An error occurred ")
+
+        return decoded_balances

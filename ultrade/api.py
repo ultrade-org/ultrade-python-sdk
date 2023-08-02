@@ -3,23 +3,23 @@ from typing import Dict
 
 import aiohttp
 
-from .constants import get_api_domain, get_algod_indexer_domain
+from .constants import get_api_domain, get_algod_indexer_domain, get_algod_node_domain
 from .utils import construct_query_string_for_api_request
 
 
-async def get_pair_list(partner_id=None):
+async def get_pair_list(company_id=1):
     """
-    Get pair list for the specified partner_id
-    If partner_id is not specified, returns info about all existing pairs
+    Get pair list for the specified company_id
+    If company_id is not specified, returns info about all existing pairs
 
     Args:
-        partner_id (int, optional)
+        company_id (int, optional)
 
     Returns:
         dict
     """
     session = aiohttp.ClientSession()
-    query = f"?partner_id={partner_id}" if partner_id else ""
+    query = f"?company_id={company_id}"
     url = f"{get_api_domain()}/market/markets{query}"
     async with session.get(url) as resp:
         data = await resp.json()
@@ -163,6 +163,7 @@ async def get_last_trades(symbol):
 
 
 async def _get_encoded_balance(address, app_id):
+    # todo: remove
     session = aiohttp.ClientSession()
     url = f"{get_algod_indexer_domain()}/v2/accounts/{address}?include-all=true"
     async with session.get(url) as resp:
@@ -184,10 +185,11 @@ async def _get_encoded_balance(address, app_id):
 
 async def get_min_algo_balance(address):
     session = aiohttp.ClientSession()
-    url = f"{get_algod_indexer_domain()}/v2/accounts/{address}?include-all=true"
+    url = f"{get_algod_node_domain()}/v2/accounts/{address}"
     async with session.get(url) as resp:
         data = await resp.json()
         await session.close()
         algo_buffer = 1000000
-        min_balance = data.get("account", {})["min-balance"]
+        print("response", data.get("min-balance", {}))
+        min_balance = data.get("min-balance", {})
         return min_balance + algo_buffer

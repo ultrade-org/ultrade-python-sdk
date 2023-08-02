@@ -21,11 +21,11 @@ class AlgodService:
         sender_address = self.get_account_address()
         super_app_id = self.get_super_app_id(app_id)
         suggested_params = self.get_transaction_params()
-        
+
         accounts = []
         foreign_apps = [super_app_id]
         foreign_assets = [asset_index]
-        
+
         txn = transaction.ApplicationNoOpTxn(sender_address,
                                              suggested_params,
                                              app_id,
@@ -175,10 +175,8 @@ class AlgodService:
 
         return transfer_amount
 
-
     def get_app_state(self, app_id):
         try:
-            print("app_id:",app_id)
             app_info = self.client.application_info(app_id)
             global_state = decode_state(app_info)
             return global_state

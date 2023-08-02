@@ -1,7 +1,7 @@
 
-default_api_domain = "https://dev-apigw.ultradedev.net"
-algod_indexer_url = 'https://indexer.testnet.algoexplorerapi.io'
-algod_node_url = 'https://node.testnet.algoexplorerapi.io'
+default_api_domain = "https://api.testnet.ultrade.org"
+algod_indexer_url = 'https://testnet-idx.algonode.cloud'
+algod_node_url = 'https://testnet-api.algonode.cloud'
 
 
 def set_domains(api, algod_indexer, algod_node):
@@ -17,6 +17,10 @@ def get_api_domain():
 
 def get_algod_indexer_domain():
     return algod_indexer_url
+
+
+def get_algod_node_domain():
+    return algod_node_url
 
 
 OPEN_ORDER_STATUS = "1"
