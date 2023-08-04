@@ -19,7 +19,7 @@ async def get_pair_list(company_id=1):
         dict
     """
     session = aiohttp.ClientSession()
-    query = f"?company_id={company_id}"
+    query = f"?companyId={company_id}"
     url = f"{get_api_domain()}/market/markets{query}"
     async with session.get(url) as resp:
         data = await resp.json()
@@ -190,6 +190,5 @@ async def get_min_algo_balance(address):
         data = await resp.json()
         await session.close()
         algo_buffer = 1000000
-        print("response", data.get("min-balance", {}))
         min_balance = data.get("min-balance", {})
         return min_balance + algo_buffer

@@ -428,23 +428,31 @@ class Client():
 
         result_balances = {}
 
-        for key in exchange_balances:
-            pair_info = next(
-                (info for info in exchange_pair_list if info["application_id"] == key), {})
-            base_coin_id = pair_info.get("base_id", None)
-            price_coin_id = pair_info.get("base_id", None)
+        for key in wallet_balances:
 
-            result_balances[key] = {}
-            result_balances[key]["priceCoin_free"] = exchange_balances[key].get(
-                "priceCoin_available", 0) + (wallet_balances.get(price_coin_id, 0) if price_coin_id is not 0 else wallet_balances.get(price_coin_id, 0) - min_algo)
+            filtered_pairs = list(filter(lambda pair: pair.get(
+                "base_id", -1) == int(key) or pair.get("price_id", -1) == int(key), exchange_pair_list))
 
-            result_balances[key]["baseCoin_free"] = exchange_balances[key].get(
-                "baseCoin_available", 0) + (wallet_balances.get(base_coin_id, 0) if base_coin_id is not 0 else wallet_balances.get(base_coin_id, 0) - min_algo)
+            total_asset_balance_from_pairs = 0
+            for pair in filtered_pairs:
+                pair_app_id = pair.get("application_id")
 
-            result_balances[key]["priceCoin_total"] = result_balances[key]["priceCoin_free"] + exchange_balances.get(
-                "priceCoin_locked", 0)
-            result_balances[key]["baseCoin_total"] = result_balances[key]["baseCoin_free"] + exchange_balances.get(
-                "baseCoin_locked", 0)
+                exchange_pair = exchange_balances.get(
+                    pair_app_id, {})
+
+                pair_asset_balance = exchange_pair.get(
+                    "baseCoin_available", 0) + exchange_pair.get(
+                    "baseCoin_locked", 0) if int(pair["base_id"]) == int(key) else exchange_pair.get("priceCoin_available", 0) + exchange_pair.get("priceCoin_locked", 0)
+
+                total_asset_balance_from_pairs = total_asset_balance_from_pairs + pair_asset_balance
+
+            additional_fee = 0
+
+            if key is "0":
+                additional_fee = min_algo
+
+            result_balances[key] = {"free_balance": wallet_balances[key] - additional_fee,
+                                    "total_balance": total_asset_balance_from_pairs + wallet_balances[key] - additional_fee}
 
         return result_balances
 
