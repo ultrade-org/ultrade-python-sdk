@@ -210,7 +210,7 @@ class Client():
         txn_logs = await asyncio.get_event_loop().run_in_executor(None, sync_function)
         return txn_logs
 
-    async def cancel_order(self, symbol: str, order_id: int, slot: int):
+    async def cancel_order(self, symbol: str, order_id: int, slot: int, fee=None):
         """
         Cancel the order matching the id and symbol arguments
 
@@ -231,7 +231,7 @@ class Client():
 
             app_args = [OrderType.cancel_order, order_id, slot]
             unsigned_txn = self.client.make_app_call_txn(
-                exchange_info["price_id"], app_args, exchange_info["application_id"])
+                exchange_info["price_id"], app_args, exchange_info["application_id"], fee)
 
             signed_txn = self.client.sign_transaction_grp(unsigned_txn)
             tx_id = self.client.send_transaction_grp(signed_txn)
@@ -243,7 +243,7 @@ class Client():
         tx_id = await asyncio.get_event_loop().run_in_executor(None, sync_function)
         return tx_id
 
-    async def cancel_all_orders(self, symbol):
+    async def cancel_all_orders(self, symbol, fee=None):
         """
         Perform cancellation of all existing orders for wallet specified in algod client
 
@@ -261,7 +261,7 @@ class Client():
             app_args = [OrderType.cancel_order,
                         order["orders_id"], order["slot"]]
             unsigned_txn = self.client.make_app_call_txn(
-                exchange_info["price_id"], app_args, order["pair_id"])
+                exchange_info["price_id"], app_args, order["pair_id"], fee)
             unsigned_txns.append(unsigned_txn)
 
         if len(unsigned_txns) == 0:

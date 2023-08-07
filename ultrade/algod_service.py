@@ -17,10 +17,13 @@ class AlgodService:
         self.client: AlgodClient = client
         self.mnemonic: str = mnemonic
 
-    def make_app_call_txn(self, asset_index, app_args, app_id):
+    def make_app_call_txn(self, asset_index, app_args, app_id, fee=None):
         sender_address = self.get_account_address()
         super_app_id = self.get_super_app_id(app_id)
         suggested_params = self.get_transaction_params()
+        if fee:
+            suggested_params.fee = fee
+            suggested_params.flat_fee = True
 
         accounts = []
         foreign_apps = [super_app_id]
