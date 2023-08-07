@@ -10,7 +10,7 @@ from .algod_service import AlgodService
 from .utils import is_asset_opted_in, is_app_opted_in, construct_new_order_args, construct_query_string_for_api_request, decode_txn_logs, validate_mnemonic
 from .constants import OPEN_ORDER_STATUS, BALANCE_DECODE_FORMAT, get_api_domain, set_domains, OrderType
 from . import socket_options
-from .decode import unpack_data, decode_state
+from .decode import unpack_data
 
 OPTIONS = socket_options
 
@@ -429,7 +429,7 @@ class Client():
         result_balances = {}
 
         for key in wallet_balances:
-
+            asset_name = None
             filtered_pairs = list(filter(lambda pair: pair.get(
                 "base_id", -1) == int(key) or pair.get("price_id", -1) == int(key), exchange_pair_list))
 
@@ -440,9 +440,16 @@ class Client():
                 exchange_pair = exchange_balances.get(
                     pair_app_id, {})
 
+                is_asset_base_coin = int(pair["base_id"]) == int(key)
+
+                if asset_name is None:
+                    pair_name = pair.get("pair_name")
+                    asset_name = pair_name.split(
+                        "_")[0] if is_asset_base_coin else pair_name.split("_")[1]
+
                 pair_asset_balance = exchange_pair.get(
                     "baseCoin_available", 0) + exchange_pair.get(
-                    "baseCoin_locked", 0) if int(pair["base_id"]) == int(key) else exchange_pair.get("priceCoin_available", 0) + exchange_pair.get("priceCoin_locked", 0)
+                    "baseCoin_locked", 0) if is_asset_base_coin else exchange_pair.get("priceCoin_available", 0) + exchange_pair.get("priceCoin_locked", 0)
 
                 total_asset_balance_from_pairs = total_asset_balance_from_pairs + pair_asset_balance
 
@@ -451,8 +458,8 @@ class Client():
             if key is "0":
                 additional_fee = min_algo
 
-            result_balances[key] = {"free_balance": wallet_balances[key] - additional_fee,
-                                    "total_balance": total_asset_balance_from_pairs + wallet_balances[key] - additional_fee}
+            result_balances[key] = {"free": wallet_balances[key] - additional_fee,
+                                    "total": total_asset_balance_from_pairs + wallet_balances[key] - additional_fee, "asset": asset_name}
 
         return result_balances
 
