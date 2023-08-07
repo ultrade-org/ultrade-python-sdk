@@ -109,7 +109,6 @@ class Client():
         """
         def sync_function():
             print("new_order args:", symbol, side, type, quantity, price)
-            print("self.algod", self.algod)
 
             if not self.mnemonic:
                 raise Exception(
