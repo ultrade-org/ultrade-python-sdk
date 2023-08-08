@@ -64,17 +64,21 @@ class Client():
             self.api_url = "https://api.ultrade.org"
             self.algod_node = 'https://mainnet-api.algonode.cloud'
             self.algod_indexer = 'https://mainnet-idx.algonode.cloud'
+            self.websocket_url = "wss://ws.mainnet.ultrade.org"
         elif options["network"] == "testnet":
             self.api_url = "https://api.testnet.ultrade.org"
             self.algod_node = 'https://testnet-api.algonode.cloud'
             self.algod_indexer = 'https://testnet-idx.algonode.cloud'
+            self.websocket_url = "wss://ws.testnet.ultrade.org"
+        else:
+            raise Exception("Network could be either testnet or mainnet ")
 
         if options["api_url"] != None:
             self.api_url = options["api_url"]
 
         set_domains(self.api_url, self.algod_indexer, self.algod_node)
         self.algod = options.get("algo_sdk_client", 0)
-        self.socket_client = SocketClient(options.get("websocket_url", ""))
+        self.socket_client = SocketClient(self.websocket_url)
         self.client = AlgodService(options.get(
             "algo_sdk_client"), auth_credentials.get("mnemonic"))
 
