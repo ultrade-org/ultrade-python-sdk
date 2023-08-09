@@ -112,8 +112,6 @@ class Client():
 
         """
         def sync_function():
-            print("new_order args:", symbol, side, type, quantity, price)
-
             if not self.mnemonic:
                 raise Exception(
                     "You need to specify mnemonic or signer to execute this method")
