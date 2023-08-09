@@ -230,11 +230,20 @@ class Client():
                 raise Exception(
                     "You need to specify mnemonic or signer to execute this method")
 
+            user_trade_orders = asyncio.run(
+                self.get_orders(symbol, OPEN_ORDER_STATUS))  # temporary solution, this function should use different order_id
+            try:
+                correct_order = [
+                    order for order in user_trade_orders if order["orders_id"] == order_id][0]
+            except:
+                raise Exception("Order not found")
+
             exchange_info = asyncio.run(api.get_exchange_info(symbol))
 
+            foreign_asset_id = exchange_info["base_id"] if correct_order["order_side"] == 1 else exchange_info["price_id"]
             app_args = [OrderType.cancel_order, order_id, slot]
             unsigned_txn = self.client.make_app_call_txn(
-                exchange_info["price_id"], app_args, exchange_info["application_id"], fee)
+                foreign_asset_id, app_args, exchange_info["application_id"], fee)
 
             signed_txn = self.client.sign_transaction_grp(unsigned_txn)
             tx_id = self.client.send_transaction_grp(signed_txn)
@@ -261,10 +270,12 @@ class Client():
 
         unsigned_txns = []
         for order in user_trade_orders:
+            foreign_asset_id = exchange_info["base_id"] if order["order_side"] == 1 else exchange_info["price_id"]
+
             app_args = [OrderType.cancel_order,
                         order["orders_id"], order["slot"]]
             unsigned_txn = self.client.make_app_call_txn(
-                exchange_info["price_id"], app_args, order["pair_id"], fee)
+                foreign_asset_id, app_args, order["pair_id"], fee)
             unsigned_txns.append(unsigned_txn)
 
         if len(unsigned_txns) == 0:
