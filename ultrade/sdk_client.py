@@ -234,6 +234,7 @@ class Client():
                 correct_order = [
                     order for order in user_trade_orders if order["orders_id"] == order_id][0]
             except:
+                # Ultrade connector in the hummingbot handles this exception
                 raise Exception("Order not found")
 
             exchange_info = asyncio.run(api.get_exchange_info(symbol))
@@ -264,10 +265,17 @@ class Client():
             str: First transaction id
         """
         user_trade_orders = await self.get_orders(symbol, OPEN_ORDER_STATUS)
+        unique_ids = set()
+        filtered_orders = []
+        for order in user_trade_orders:
+            if order['id'] not in unique_ids:
+                unique_ids.add(order['id'])
+                filtered_orders.append(order)
+
         exchange_info = await api.get_exchange_info(symbol)
 
         unsigned_txns = []
-        for order in user_trade_orders:
+        for order in filtered_orders:
             foreign_asset_id = exchange_info["base_id"] if order["order_side"] == 1 else exchange_info["price_id"]
 
             app_args = [OrderType.cancel_order,
