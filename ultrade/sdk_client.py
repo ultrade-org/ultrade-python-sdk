@@ -434,8 +434,10 @@ class Client():
                     key) - min_algo if key == 0 else wallet_balances.get(key)
         return balances_dict
 
-    async def get_account_balances(self):
-        exchange_pair_list = await api.get_pair_list()
+    async def get_account_balances(self, exchange_pair_list=None):
+        if exchange_pair_list is None:
+            exchange_pair_list = await api.get_pair_list()
+
         address = self.client.get_account_address()
         acc_info = self.client.get_account_info(address)
 
