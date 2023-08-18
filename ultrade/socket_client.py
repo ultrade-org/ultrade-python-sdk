@@ -64,7 +64,6 @@ class SocketClient():
         self.socket.on("reconnect", reconnect_handler)
 
         async def connect_handler():
-            print('ws connection established')
             await self.socket.emit("subscribe", self.get_sub_options())
         self.socket.on("connect", connect_handler)
 

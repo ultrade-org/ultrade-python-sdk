@@ -13,7 +13,6 @@ async def get_symbol_of_open_order(client):
         return None
 
     pair_info = await api._get_exchange_info_old(order["pair_id"])
-    print("pair key:", pair_info["pair_key"])
     return pair_info["pair_key"]
 
 

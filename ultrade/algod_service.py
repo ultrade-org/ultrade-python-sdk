@@ -164,7 +164,6 @@ class AlgodService:
             available_balance = pair_balances["priceCoin_available"] if side == "B" else pair_balances["baseCoin_available"]
             return available_balance
         except:
-            print("ultrade_sdk - Error getting balances")
             return 0
 
     def calculate_transfer_amount(self, side, quantity, price, decimal, available_balance):
@@ -184,7 +183,6 @@ class AlgodService:
             global_state = decode_state(app_info)
             return global_state
         except:
-            print("ultrade_sdk - Error getting app state")
             return {}
 
     def get_super_app_id(self, app_id):

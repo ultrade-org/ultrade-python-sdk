@@ -167,8 +167,7 @@ class Client():
 
             if "algo" in symbol and (symbol.split("_")[0] == "algo" and side == "S" or symbol.split("_")[1] == "algo" and side == "B"):
                 self.algo_balance -= transfer_amount
-                # print("algo/min_algo/t_amount",  self.algo_balance,
-                #       min_algo_balance, transfer_amount)
+
                 if self.algo_balance < min_algo_balance:
                     self.algo_balance += transfer_amount
                     self.pending_txns[symbol][side_index] -= 1
@@ -495,6 +494,6 @@ class Client():
                 decoded_balances[state.get("id", "")] = unpack_data(
                     key["value"].get("bytes"), BALANCE_DECODE_FORMAT)
             except:
-                print("An error occurred ")
+                pass
 
         return decoded_balances
