@@ -193,6 +193,7 @@ async def get_min_algo_balance(address):
 
     Args:
         address (str)
+
     Returns:
         int: sum of minimum algo for the current wallet and additional algo buffer set by SDK.
     """

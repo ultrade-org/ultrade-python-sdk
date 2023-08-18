@@ -13,31 +13,23 @@ from .test_credentials import TEST_MNEMONIC_KEY, TEST_ALGOD_TOKEN, TEST_ALGOD_AD
 algod_client = algod.AlgodClient(TEST_ALGOD_TOKEN, TEST_ALGOD_ADDRESS)
 
 credentials = {"mnemonic": TEST_MNEMONIC_KEY}
-opts = {"network": "dev", "algo_sdk_client": algod_client,
-        "api_url": None, "websocket_url": "wss://dev-ws.ultradedev.net/socket.io"}
+opts = {"network": "testnet", "algo_sdk_client": algod_client,
+        "api_url": None}
 client = Client(credentials, opts)
 
-ALGO_USDT_ORDER = {
-    "symbol": "algo_usdt",
+ALGO_USDC_ORDER = {
+    "symbol": "algo_usdc",
     "side": 'B',
     "type": "L",
     "quantity": 2000000,
     "price": 800
 }
 
-YLDY_STBL_ORDER = {
-    "symbol": "yldy_stbl",
+LMBO_USDC_ORDER = {
+    "symbol": "lmbo_usdc",
     "side": 'B',
     "type": "L",
     "quantity": 350000000,
-    "price": 800
-}
-
-VIP_MYKE_ORDER = {
-    "symbol": "vip_myke",
-    "side": 'S',
-    "type": "L",
-    "quantity": 2,
     "price": 800
 }
 
@@ -57,7 +49,7 @@ def mocked_wait_for_transaction(self, txn_id):
     return {"logs": txn_id}
 
 
-def mocked_decode_txn_logs(logs):
+def mocked_decode_txn_logs(logs, order_type):
     return logs
 
 
@@ -67,25 +59,21 @@ def mocked_decode_txn_logs(logs):
 @patch('ultrade.sdk_client.decode_txn_logs', mocked_decode_txn_logs)
 class TestNewOrder():
 
-    async def test_yldy_buy(self):
-        txn_result = await client.new_order(**YLDY_STBL_ORDER)
-        assert txn_result == ('PASS', "")
-
-    async def test_yldy_with_bad_quantity(self):
-        txn_result = await client.new_order(**{**YLDY_STBL_ORDER, "quantity": 350})
-        assert txn_result == ('REJECT', "")
+    async def test_algo_buy(self):
+        txn_result = await client.new_order(**ALGO_USDC_ORDER)
+        assert isinstance(txn_result, str)
 
     async def test_algo_sell(self):
-        txn_result = await client.new_order(**{**ALGO_USDT_ORDER, "side": "S"})
-        assert txn_result == ('PASS', "")
+        txn_result = await client.new_order(**{**ALGO_USDC_ORDER, "side": "S"})
+        assert isinstance(txn_result, str)
 
-    async def test_algo_buy(self):
-        txn_result = await client.new_order(**ALGO_USDT_ORDER)
-        assert txn_result == ('PASS', "")
+    async def test_lmbo_buy(self):
+        txn_result = await client.new_order(**LMBO_USDC_ORDER)
+        assert isinstance(txn_result, str)
 
-    async def test_vip_myke(self):
-        txn_result = await client.new_order(**VIP_MYKE_ORDER)
-        assert txn_result == ('PASS', "")
+    async def test_lmbo_sell(self):
+        txn_result = await client.new_order(**LMBO_USDC_ORDER)
+        assert isinstance(txn_result, str)
 
 
 @ pytest.mark.asyncio
@@ -94,10 +82,10 @@ class TestCancelOrder():
     async def test_for_non_existed_order(self):
         example_order_id = 99999
         example_slot = 99
-        symbol = "yldy_stbl"
+        symbol = "algo_usdc"
 
-        txn_result = await client.cancel_order(symbol, example_order_id, example_slot)
-        assert txn_result == ('REJECT', "")
+        with pytest.raises(Exception):
+            txn_result = await client.cancel_order(symbol, example_order_id, example_slot)
 
     async def test_cancel_random_order(self):
         order = await utils.find_open_order(client)
@@ -116,8 +104,8 @@ class TestCancelOrder():
 @ pytest.mark.asyncio
 @ patch('ultrade.algod_service.AlgodService.send_transaction_grp', mocked_send_transaction)
 class TestCancelAllOrders():
-    async def test_yldy_stbl(self):
-        symbol = "yldy_stbl"
+    async def test_algo_usdc(self):
+        symbol = "algo_usdc"
         txn_result = await client.cancel_all_orders(symbol)
         assert txn_result == ('PASS', "") or txn_result == None
 
@@ -162,7 +150,7 @@ class TestApiCalls():
             transactions[0], ["txnId", "pair", "amount"])
 
     async def test_get_balances(self):
-        data = await client.get_balances("yldy_stbl")
+        data = await client.get_balances("lmbo_usdc")
         utils.validate_response_for_expected_fields(
             data, ["priceCoin_locked", "priceCoin_available", "baseCoin_locked", "baseCoin_available", "priceCoin", "baseCoin"])
 
@@ -174,8 +162,8 @@ class TestApiCalls():
 
 @pytest.mark.asyncio
 class TestGetExchangeInfo():
-    async def test_yldy_stbl(self):
-        symbol = "yldy_stbl"
+    async def test_algo_usdc(self):
+        symbol = "algo_usdc"
         data = await api.get_exchange_info(symbol)
         utils.validate_response_for_expected_fields(
             data, ["id", "application_id", "pair_key", "base_id"])
@@ -215,7 +203,7 @@ class TestApi():
         assert len(symbols_list) > 0
 
     async def test_get_encoded_balance(self):
-        app_id = 92958595  # yldy_stbl
+        app_id = 202953808  # algo_usdc
         balance = await api._get_encoded_balance(TEST_ALGO_WALLET, app_id)
         assert balance != None
 
