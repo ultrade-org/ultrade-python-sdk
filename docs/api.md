@@ -15,7 +15,8 @@ Get info about specified pair
 
 **Args**
 
-symbol
+* **symbol** (str) : symbol represents existing pair, example: 'algo_usdt'
+
 
 **Returns**
 
@@ -25,7 +26,7 @@ dict
 
 
 ### ping
-[source](https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/ultrade/api.py/#L67)
+[source](https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/ultrade/api.py/#L68)
 ```python
 .ping()
 ```
@@ -43,7 +44,7 @@ Check connection with server
 
 
 ### get_price
-[source](https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/ultrade/api.py/#L84)
+[source](https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/ultrade/api.py/#L85)
 ```python
 .get_price(
    symbol
@@ -51,7 +52,12 @@ Check connection with server
 ```
 
 ---
-Get prices for the specified pair from the server
+Get prices for the specified pair
+
+
+**Args**
+
+* **symbol** (str) : symbol represents existing pair, example: 'algo_usdt'
 
 
 **Returns**
@@ -62,7 +68,7 @@ dict
 
 
 ### get_depth
-[source](https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/ultrade/api.py/#L99)
+[source](https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/ultrade/api.py/#L103)
 ```python
 .get_depth(
    symbol, depth = 100
@@ -75,8 +81,8 @@ Get depth for specified symbol from the Ultrade exchange
 
 **Args**
 
-* **symbol** (str) : symbol represent existing pair, for example: 'algo_usdt'
-* **depth** (int) : depth for specific pair, max_value=100
+* **symbol** (str) : symbol represents existing pair, example: 'algo_usdt'
+depth (int, default=100, max_value=100)
 
 
 **Returns**
@@ -88,7 +94,7 @@ Get depth for specified symbol from the Ultrade exchange
 
 
 ### get_symbols
-[source](https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/ultrade/api.py/#L118)
+[source](https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/ultrade/api.py/#L122)
 ```python
 .get_symbols(
    mask
@@ -96,7 +102,7 @@ Get depth for specified symbol from the Ultrade exchange
 ```
 
 ---
-Return example: For mask="algo_u" -> [{'pairKey': 'algo_usdt'}]
+Return example: For mask="algo_usdt" -> [{'pairKey': 'algo_usdt'}]
 
 
 **Returns**
@@ -107,7 +113,7 @@ list
 
 
 ### get_history
-[source](https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/ultrade/api.py/#L133)
+[source](https://github.com/ultrade-org/ultrade-python-sdk/blob/develop/ultrade/api.py/#L137)
 ```python
 .get_history(
    symbol, interval = None, start_time = None, end_time = None, limit = None, page = None

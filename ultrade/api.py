@@ -49,7 +49,8 @@ async def get_exchange_info(symbol):
     Get info about specified pair
 
     Args:
-        symbol (str, example: "algo_usdc")
+        symbol (str): symbol represents existing pair, example: 'algo_usdt'
+
     Returns:
         dict
     """
@@ -86,7 +87,8 @@ async def get_price(symbol):
     Get prices for the specified pair
 
     Args:
-        symbol (str, example: "algo_usdc")
+        symbol (str): symbol represents existing pair, example: 'algo_usdt'
+
     Returns:
         dict
     """
@@ -103,7 +105,7 @@ async def get_depth(symbol, depth=100):
     Get depth for specified symbol from the Ultrade exchange
 
     Args:
-        symbol (str, example: "algo_usdc")
+        symbol (str): symbol represents existing pair, example: 'algo_usdt'
         depth (int, default=100, max_value=100)
 
     Returns:
@@ -151,7 +153,7 @@ async def get_last_trades(symbol):
     Get last trades for the specified symbol
 
     Args:
-        symbol (str, example: "algo_usdc")
+        symbol (str): symbol represents existing pair, example: 'algo_usdt'
 
     Returns:
         list
@@ -192,7 +194,7 @@ async def get_min_algo_balance(address):
     Args:
         address (str)
     Returns:
-        Int: Sum of min algo for current wallet and additional algo buffer set by SDK 
+        int: sum of minimum algo for the current wallet and additional algo buffer set by SDK.
     """
     session = aiohttp.ClientSession()
     url = f"{get_algod_node_domain()}/v2/accounts/{address}"
