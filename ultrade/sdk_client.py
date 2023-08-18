@@ -218,7 +218,7 @@ class Client():
             symbol (str): symbol represent existing pair, example: 'algo_usdt'
             order_id (int): id of the order to cancel, can be provided by Ultrade API
             slot (int): order position in the smart contract
-
+            fee (int, default=None): fee is needed for canceling an order with direct settlement option enabled
         Returns:
             str: First transaction id
         """
@@ -259,7 +259,7 @@ class Client():
 
         Args:
             symbol (str): symbol represent existing pair, example: 'algo_usdt'
-
+            fee (int, default=None): fee is needed for canceling orders with direct settlement option enabled
         Returns:
             str: First transaction id
         """
@@ -382,7 +382,7 @@ class Client():
 
     async def get_order_by_id(self, symbol, order_id):
         """
-        Get order with specific id and symbol
+        Get order by specified id and symbol
 
         Returns:
             dict
@@ -403,7 +403,20 @@ class Client():
 
     async def get_balances(self, symbol):
         """
-        Gets balances for a specific pair
+        Gets balances for a pair
+
+        Args:
+             symbol (str): symbol represents existing pair, example: 'algo_usdt'
+
+        Returns dict:
+                {
+                    priceCoin_locked: amount of price asset locked in current pair,
+                    priceCoin_available: amount of price asset stored in current pair and available for usage,
+                    baseCoin_locked: amount of base asset locked in current pair,
+                    baseCoin_available: amount of base asset stored in current pair and available for usage,
+                    baseCoin: amount of base asset stored in the wallet,
+                    priceCoin: amount of price asset stored in the wallet
+                }
         """
         pair_info = await api.get_exchange_info(symbol)
         wallet_balances = self._get_balance_and_state()["balances"]
@@ -434,6 +447,22 @@ class Client():
         return balances_dict
 
     async def get_account_balances(self, exchange_pair_list=None):
+        """
+        Gets balances for list of pairs
+
+        Args:
+            exchange_pair_list (dict[], default=None): list of pairs to get balances for,
+                if not provided, would return balance for all currently available pairs.
+                To get pairs that you want, use function "api.get_pair_list()".
+
+        Returns:
+            list of asset balances:
+                [{
+                    free: amount of the asset stored in the wallet
+                    total: amount of the asset stored in the wallet plus amount of the asset stored in exchange pairs as available/locked balance
+                    asset: represents asset name
+                }]
+        """
         if exchange_pair_list is None:
             exchange_pair_list = await api.get_pair_list()
 

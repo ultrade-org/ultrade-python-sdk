@@ -10,16 +10,16 @@ from .utils import construct_query_string_for_api_request
 async def get_pair_list(company_id=1):
     """
     Get pair list for the specified company_id
-    If company_id is not specified, returns info about all existing pairs
+    If company_id is None, returns info about all existing pairs
 
     Args:
-        company_id (int, optional)
+        company_id (int, default=1)
 
     Returns:
         dict
     """
     session = aiohttp.ClientSession()
-    query = f"?companyId={company_id}"
+    query = "" if company_id is None else f"?companyId={company_id}"
     url = f"{get_api_domain()}/market/markets{query}"
     async with session.get(url) as resp:
         data = await resp.json()
@@ -49,7 +49,7 @@ async def get_exchange_info(symbol):
     Get info about specified pair
 
     Args:
-        symbol
+        symbol (str, example: "algo_usdc")
     Returns:
         dict
     """
@@ -83,8 +83,10 @@ async def ping():
 
 async def get_price(symbol):
     """
-    Get prices for the specified pair from the server
+    Get prices for the specified pair
 
+    Args:
+        symbol (str, example: "algo_usdc")
     Returns:
         dict
     """
@@ -101,8 +103,8 @@ async def get_depth(symbol, depth=100):
     Get depth for specified symbol from the Ultrade exchange
 
     Args:
-        symbol (str): symbol represent existing pair, for example: 'algo_usdt'
-        depth (int): depth for specific pair, max_value=100
+        symbol (str, example: "algo_usdc")
+        depth (int, default=100, max_value=100)
 
     Returns:
         dict: order book for the specified pair
@@ -117,7 +119,7 @@ async def get_depth(symbol, depth=100):
 
 async def get_symbols(mask) -> Dict[str, str]:
     """
-    Return example: For mask="algo_u" -> [{'pairKey': 'algo_usdt'}]
+    Return example: For mask="algo_usdt" -> [{'pairKey': 'algo_usdt'}]
 
     Returns:
         list
@@ -149,7 +151,7 @@ async def get_last_trades(symbol):
     Get last trades for the specified symbol
 
     Args:
-        symbol (str): symbol represents existing pair, example: 'algo_usdt'
+        symbol (str, example: "algo_usdc")
 
     Returns:
         list
@@ -184,11 +186,19 @@ async def _get_encoded_balance(address, app_id):
 
 
 async def get_min_algo_balance(address):
+    """
+    Get min algo balance of the wallet
+
+    Args:
+        address (str)
+    Returns:
+        Int: Sum of min algo for current wallet and additional algo buffer set by SDK 
+    """
     session = aiohttp.ClientSession()
     url = f"{get_algod_node_domain()}/v2/accounts/{address}"
     async with session.get(url) as resp:
+        algo_buffer = 1000000
         data = await resp.json()
         await session.close()
-        algo_buffer = 1000000
         min_balance = data.get("min-balance", {})
         return min_balance + algo_buffer
