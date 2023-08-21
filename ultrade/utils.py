@@ -29,7 +29,7 @@ def construct_query_string_for_api_request(args: List):
     for key in args:
         if key == "self":
             pass
-        elif args[key] != None:
+        elif args[key] is not None:
             query_result = query_result + f"{key}={args[key]}&"
 
     return query_result

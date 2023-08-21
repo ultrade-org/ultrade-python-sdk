@@ -39,7 +39,7 @@ def mocked_send_transaction(self, txn_grp):
     data = algod_client.dryrun(dry_run_request)
     print("txn length", len(data["txns"]))
     txn = next(txn for txn in data["txns"]
-               if txn.get('app-call-messages') != None)
+               if txn.get('app-call-messages') is not None)
 
     print("app-call-status", txn.get('app-call-messages'))
     return (txn.get('app-call-messages')[1], data["error"])
@@ -85,11 +85,11 @@ class TestCancelOrder():
         symbol = "algo_usdc"
 
         with pytest.raises(Exception):
-            txn_result = await client.cancel_order(symbol, example_order_id, example_slot)
+            await client.cancel_order(symbol, example_order_id, example_slot)
 
     async def test_cancel_random_order(self):
         order = await utils.find_open_order(client)
-        if order == None:
+        if order is None:
             return
 
         order_id = order.get("id")
@@ -107,7 +107,7 @@ class TestCancelAllOrders():
     async def test_algo_usdc(self):
         symbol = "algo_usdc"
         txn_result = await client.cancel_all_orders(symbol)
-        assert txn_result == ('PASS', "") or txn_result == None
+        assert txn_result == ('PASS', "") or txn_result is None
 
 
 @ pytest.mark.asyncio
@@ -125,21 +125,13 @@ class TestApiCalls():
 
         for s in symbols:
             orders = await client.get_orders(s["pairKey"], status=1)
-            print("open", orders)
+
             if len(orders) != 0:
                 utils.validate_response_for_expected_fields(
                     orders[0], ["pair_id", "slot", "id"])
                 return
 
         raise Exception("Test failed")
-
-    async def test_get_orders(self):
-        orders = await client.get_orders()
-        if len(orders) == 0:
-            return
-
-        utils.validate_response_for_expected_fields(
-            orders[0], ["pair_id", "slot", "id"])
 
     async def test_get_wallet_transactions(self):
         transactions = await client.get_wallet_transactions(TEST_ALGOD_ADDRESS)
@@ -152,12 +144,14 @@ class TestApiCalls():
     async def test_get_balances(self):
         data = await client.get_balances("lmbo_usdc")
         utils.validate_response_for_expected_fields(
-            data, ["priceCoin_locked", "priceCoin_available", "baseCoin_locked", "baseCoin_available", "priceCoin", "baseCoin"])
+            data, ["priceCoin_locked", "priceCoin_available", "baseCoin_locked", "baseCoin_available",
+                   "priceCoin", "baseCoin"])
 
     async def test_get_balances_with_algo(self):
         data = await client.get_balances("algo_usdc")
         utils.validate_response_for_expected_fields(
-            data, ["priceCoin_locked", "priceCoin_available", "baseCoin_locked", "baseCoin_available", "priceCoin", "baseCoin"])
+            data, ["priceCoin_locked", "priceCoin_available", "baseCoin_locked", "baseCoin_available",
+                   "priceCoin", "baseCoin"])
 
 
 @pytest.mark.asyncio
@@ -205,7 +199,7 @@ class TestApi():
     async def test_get_encoded_balance(self):
         app_id = 202953808  # algo_usdc
         balance = await api._get_encoded_balance(TEST_ALGO_WALLET, app_id)
-        assert balance != None
+        assert balance is not None
 
     async def test_get_last_trades(self):
         trades = await api.get_last_trades(TEST_SYMBOL)

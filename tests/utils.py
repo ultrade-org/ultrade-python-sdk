@@ -25,6 +25,6 @@ def validate_response_for_expected_fields(res_data: dict, fields_to_check=[]):
         for f in fields_to_check:
             field = f
             res_data[f]
-    except:
+    except Exception:
         raise Exception(
             f"Error: field '{field}' doesn't exist in response data")

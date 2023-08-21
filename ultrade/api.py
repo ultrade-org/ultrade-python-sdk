@@ -174,7 +174,7 @@ async def _get_encoded_balance(address, app_id):
         data = await resp.json()
         await session.close()
         state = next((state for state in data["account"].get(
-            'apps-local-state') if state["id"] == app_id and state["deleted"] == False), None)
+            'apps-local-state') if state["id"] == app_id and state["deleted"] is False), None)
         if not state:
             return None
 

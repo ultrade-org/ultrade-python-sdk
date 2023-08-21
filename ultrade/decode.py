@@ -26,12 +26,13 @@ def unpack_data(data: str, format: dict):
 
     return result
 
+
 def decode_state(app_info):
     state = {}
     gl_state = app_info['params']["global-state"]
     for i in range(len(gl_state)):
         key = base64.b64decode(gl_state[i]["key"]).decode()
-        
+
         value = gl_state[i]["value"]
         value_type = value["type"]
 
@@ -41,7 +42,7 @@ def decode_state(app_info):
         if value_type == 1:
             try:
                 value = value["bytes"].decode()
-            except:
+            except Exception:
                 value = value["bytes"]
 
         if key == "gov":

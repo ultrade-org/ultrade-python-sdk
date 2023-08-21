@@ -100,7 +100,7 @@ class AlgodService:
         try:
             key = mnemonic.to_private_key(self.mnemonic)
             return key
-        except:
+        except Exception:
             raise Exception(
                 "An error occurred when trying to get private key from mnemonic")
 
@@ -155,15 +155,17 @@ class AlgodService:
 
             balance_data = unpack_data(encoded_data, BALANCE_DECODE_FORMAT)
             return balance_data
-        except:
+        except Exception:
             return {}
 
     async def get_available_balance(self, app_id, side):
         try:
             pair_balances = await self.get_pair_balances(app_id)
-            available_balance = pair_balances["priceCoin_available"] if side == "B" else pair_balances["baseCoin_available"]
+            available_balance = pair_balances["priceCoin_available"] if side == "B" \
+                else pair_balances["baseCoin_available"]
+
             return available_balance
-        except:
+        except Exception:
             return 0
 
     def calculate_transfer_amount(self, side, quantity, price, decimal, available_balance):
@@ -182,7 +184,7 @@ class AlgodService:
             app_info = self.client.application_info(app_id)
             global_state = decode_state(app_info)
             return global_state
-        except:
+        except Exception:
             return {}
 
     def get_super_app_id(self, app_id):

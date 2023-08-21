@@ -7,7 +7,8 @@ import time
 from . import api
 from .socket_client import SocketClient
 from .algod_service import AlgodService
-from .utils import is_asset_opted_in, is_app_opted_in, construct_new_order_args, construct_query_string_for_api_request, decode_txn_logs, validate_mnemonic
+from .utils import is_asset_opted_in, is_app_opted_in, construct_new_order_args, \
+    construct_query_string_for_api_request, decode_txn_logs, validate_mnemonic
 from .constants import OPEN_ORDER_STATUS, BALANCE_DECODE_FORMAT, get_api_domain, set_domains, OrderType
 from . import socket_options
 from .decode import unpack_data
@@ -47,7 +48,8 @@ class ClientOptions(TypedDict):
 
 class Client():
     """
-    UltradeSdk client. Provides methods for creating and canceling orders on Ultrade exchange. Also can be used for subscribing to Ultrade data streams
+    UltradeSdk client. Provides methods for creating and canceling orders on Ultrade exchange.
+    Also can be used for subscribing to Ultrade data streams
 
     Args:
         auth_credentials (dict): credentials as a mnemonic or a private key
@@ -73,7 +75,7 @@ class Client():
         else:
             raise Exception("Network could be either testnet or mainnet ")
 
-        if options["api_url"] != None:
+        if options["api_url"] is not None:
             self.api_url = options["api_url"]
 
         set_domains(self.api_url, self.algod_indexer, self.algod_node)
@@ -100,7 +102,8 @@ class Client():
         Args:
             - symbol (str): The symbol representing an existing pair, for example: 'algo_usdt'
             - side (str): Represents either a 'S' or 'B' order (SELL or BUY).
-            - type (str): Can be one of the following four order types: 'L', 'P', 'I', or 'M', which represent LIMIT, POST, IOC, and MARKET orders respectively.
+            - type (str): Can be one of the following four order types: 'L', 'P', 'I', or 'M', which represent LIMIT,
+              POST, IOC, and MARKET orders respectively.
             - quantity (decimal): The quantity of the base coin.
             - price (decimal): The quantity of the price coin.
             - partner_app_id (int, default=0): The ID of the partner to use in transactions.
@@ -120,22 +123,22 @@ class Client():
             info = asyncio.run(api.get_exchange_info(symbol))
             account_info = self._get_balance_and_state()
 
-            if self.pending_txns.get(symbol) == None:
+            if self.pending_txns.get(symbol) is None:
                 self.pending_txns[symbol] = {}
 
             self.pending_txns[symbol][side_index] = self.pending_txns[symbol].get(
                 side_index, 0) + 1
-            if self.available_balance.get(symbol) == None:
+            if self.available_balance.get(symbol) is None:
                 self.available_balance[symbol] = [None, None]
 
             if self.pending_txns[symbol][side_index] == 1:
                 self.algo_balance = account_info.get("balances", {"0": 0})["0"]
                 self.available_balance[symbol][side_index] = asyncio.run(
                     self.client.get_available_balance(info["application_id"], side))
-            elif self.available_balance[symbol][side_index] == None:
+            elif self.available_balance[symbol][side_index] is None:
                 wait_count = 0
                 while (True):
-                    if self.available_balance[symbol][side_index] != None:
+                    if self.available_balance[symbol][side_index] is not None:
                         break
                     if wait_count > 8:
                         raise Exception("Available_balance is None")
@@ -166,7 +169,8 @@ class Client():
             transfer_amount = self.client.calculate_transfer_amount(
                 side, quantity, price, info["base_decimal"], self.available_balance[symbol][side_index])
 
-            if "algo" in symbol and (symbol.split("_")[0] == "algo" and side == "S" or symbol.split("_")[1] == "algo" and side == "B"):
+            if "algo" in symbol and (symbol.split("_")[0] == "algo"
+                                     and side == "S" or symbol.split("_")[1] == "algo" and side == "B"):
                 self.algo_balance -= transfer_amount
 
                 if self.algo_balance < min_algo_balance:
@@ -179,7 +183,8 @@ class Client():
 
             updatedQuantity = (
                 quantity / 10**info["base_decimal"]) * price if side == "B" else quantity
-            self.available_balance[symbol][side_index] = 0 if transfer_amount > 0 else self.available_balance[symbol][side_index] - updatedQuantity
+            self.available_balance[symbol][side_index] = 0 if transfer_amount > 0 \
+                else self.available_balance[symbol][side_index] - updatedQuantity
 
             if not transfer_amount:
                 pass
@@ -230,17 +235,18 @@ class Client():
                     "You need to specify mnemonic or signer to execute this method")
 
             user_trade_orders = asyncio.run(
-                self.get_orders(symbol, OPEN_ORDER_STATUS))  # temporary solution, this function should use different order_id
+                self.get_orders(symbol, OPEN_ORDER_STATUS))  # temporary, this function should use different order_id
             try:
                 correct_order = [
                     order for order in user_trade_orders if order["orders_id"] == order_id][0]
-            except:
+            except Exception:
                 # Ultrade connector in the hummingbot handles this exception
                 raise Exception("Order not found")
 
             exchange_info = asyncio.run(api.get_exchange_info(symbol))
 
-            foreign_asset_id = exchange_info["base_id"] if correct_order["order_side"] == 1 else exchange_info["price_id"]
+            foreign_asset_id = exchange_info["base_id"] if correct_order["order_side"] == 1 \
+                else exchange_info["price_id"]
             app_args = [OrderType.cancel_order, order_id, slot]
             unsigned_txn = self.client.make_app_call_txn(
                 foreign_asset_id, app_args, exchange_info["application_id"], fee)
@@ -321,12 +327,13 @@ class Client():
                     'streams': [OPTIONS.ORDERS, OPTIONS.TRADES],
                     'options': {"address": "your wallet address here"}
                 }
-            callback (function): A synchronous function that will be called on any occurred websocket event and should accept 'event' and 'args' parameters.
+            callback (function): A synchronous function that will be called on any occurred websocket event and should
+            accept 'event' and 'args' parameters.
 
         Returns:
             str: The ID of the established connection.
         """
-        if options.get("address") == None:
+        if options.get("address") is None:
             options["address"] = self.client.get_account_address()
         return await self.socket_client.subscribe(options, callback)
 
@@ -406,7 +413,8 @@ class Client():
 
     async def get_balances(self, symbol):
         """
-        Returns a dictionary containing information about the assets stored in the wallet and exchange pair for a specified symbol. Return value contains the following keys:
+        Returns a dictionary containing information about the assets stored in the wallet and exchange pair for
+        a specified symbol. Return value contains the following keys:
             - 'priceCoin_available': The amount of price asset stored in the current pair and available for usage
             - 'baseCoin_locked': The amount of base asset locked in the current pair
             - 'baseCoin_available': The amount of base asset stored in the current pair and available for usage
@@ -450,9 +458,11 @@ class Client():
 
     async def get_account_balances(self, exchange_pair_list=None):
         """
-        Returns a list of dictionaries containing information about the assets stored in the wallet and exchange pairs. Each dictionary includes the following keys:
+        Returns a list of dictionaries containing information about the assets stored in the wallet and exchange pairs.
+        Each dictionary includes the following keys:
             - 'free': the amount of the asset stored in the wallet.
-            - 'total': the total amount of the asset, including any amounts stored in exchange pairs as available or locked balance.
+            - 'total': the total amount of the asset, including any amounts stored in
+            exchange pairs as available or locked balance.
             - 'asset': the name of the asset.
         The list contains one dictionary for each asset.
 
@@ -500,17 +510,19 @@ class Client():
 
                 pair_asset_balance = exchange_pair.get(
                     "baseCoin_available", 0) + exchange_pair.get(
-                    "baseCoin_locked", 0) if is_asset_base_coin else exchange_pair.get("priceCoin_available", 0) + exchange_pair.get("priceCoin_locked", 0)
+                    "baseCoin_locked", 0) if is_asset_base_coin else exchange_pair.get("priceCoin_available", 0) \
+                    + exchange_pair.get("priceCoin_locked", 0)
 
                 total_asset_balance_from_pairs = total_asset_balance_from_pairs + pair_asset_balance
 
             additional_fee = 0
 
-            if key is "0":
+            if key == "0":
                 additional_fee = min_algo
 
             result_balances[key] = {"free": wallet_balances[key] - additional_fee,
-                                    "total": total_asset_balance_from_pairs + wallet_balances[key] - additional_fee, "asset": asset_name}
+                                    "total": total_asset_balance_from_pairs + wallet_balances[key] - additional_fee,
+                                    "asset": asset_name}
 
         return result_balances
 
@@ -523,7 +535,7 @@ class Client():
                             if elem["key"] == "YWNjb3VudEluZm8="), None)
                 decoded_balances[state.get("id", "")] = unpack_data(
                     key["value"].get("bytes"), BALANCE_DECODE_FORMAT)
-            except:
+            except Exception:
                 pass
 
         return decoded_balances
