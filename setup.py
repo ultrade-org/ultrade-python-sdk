@@ -5,7 +5,7 @@ this_directory = Path(__file__).parent
 long_description = (this_directory / "README.md").read_text()
 
 required_packages = (this_directory / "requirements.txt").read_text().splitlines()
-print("required_packages:", required_packages)
+
 setuptools.setup(
     name="ultrade-sdk",
     version='0.1.1',
