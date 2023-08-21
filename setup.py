@@ -1,17 +1,20 @@
 import setuptools
 
+from pathlib import Path
+this_directory = Path(__file__).parent
+long_description = (this_directory / "README.md").read_text()
+
+required_packages = (this_directory / "requirements.txt").read_text().splitlines()
+print("required_packages:", required_packages)
 setuptools.setup(
-    name="ultrade",
+    name="ultrade-sdk",
     version='0.1.1',
-    description="",
+    license='MIT',
+    description="This SDK provides interface that helps making trading operations within the Ultrade network easier",
+    long_description=long_description,
+    long_description_content_type='text/markdown',
     author="Ultrade",
     url="https://github.com/ultrade-org/ultrade-python-sdk",
-    packages=setuptools.find_packages(),
-    install_requires=[
-        "py-algorand-sdk",
-        "python-socketio",
-        "asyncio",
-        "aiohttp",
-        "bip-utils"
-    ]
+    packages=setuptools.find_packages(exclude=('tests', 'docs')),
+    install_requires=required_packages
 )

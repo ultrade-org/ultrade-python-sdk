@@ -6,4 +6,4 @@ tests/test_credentials.py
 .vscode
 build
 dist
-ultrade.egg-info
+ultrade_sdk.egg-info
