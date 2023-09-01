@@ -109,7 +109,7 @@ class SocketController():
 
         return streams_to_delete
 
-    async def callback_handler(self, event, args):
+    async def callback_handler(self, event, args, id=None):
         coros = [self.make_async(callback_tuple[0], event, args)
                  for callback_tuple in self.callbacks_pool[event]]
 
