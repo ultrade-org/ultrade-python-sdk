@@ -94,6 +94,7 @@ class Client():
         self.available_balance = {}
         self.pending_txns = {}
         self.algo_balance = None
+        self.maintenance_mode_status = 0
 
     async def new_order(self, symbol, side, type, quantity, price, partner_app_id=0, direct_settle="N"):
         """
@@ -116,6 +117,7 @@ class Client():
 
         """
         def sync_function():
+            self._check_maintenance_mode()
             if not self.mnemonic:
                 raise Exception(
                     "You need to specify mnemonic or signer to execute this method")
@@ -230,6 +232,7 @@ class Client():
             The first transaction ID.
         """
         def sync_function():
+            self._check_maintenance_mode()
             if not self.mnemonic:
                 raise Exception(
                     "You need to specify mnemonic or signer to execute this method")
@@ -272,6 +275,7 @@ class Client():
         Returns:
             The first transaction ID.
         """
+        self._check_maintenance_mode()
         user_trade_orders = await self.get_orders(symbol, OPEN_ORDER_STATUS)
         unique_ids = set()
         filtered_orders = []
@@ -333,9 +337,21 @@ class Client():
         Returns:
             str: The ID of the established connection.
         """
+
+        def socket_callback(event, args):
+            if event != "mode":
+                return callback(event, args)
+
+            if args != self.maintenance_mode_status:
+                self.maintenance_mode_status = args
+
         if options.get("address") is None:
             options["address"] = self.client.get_account_address()
-        return await self.socket_client.subscribe(options, callback)
+
+        if OPTIONS.MAINTENANCE not in options["streams"]:
+            options["streams"].append(OPTIONS.MAINTENANCE)
+
+        return await self.socket_client.subscribe(options, socket_callback)
 
     async def unsubscribe(self, connection_id):
         """
@@ -539,3 +555,8 @@ class Client():
                 pass
 
         return decoded_balances
+
+    def _check_maintenance_mode(self):
+        if self.maintenance_mode_status != 0:
+            raise Exception(
+                "ULTRADE APPLICATION IS CURRENTLY IN MAINTENANCE MODE. PLACING AND CANCELING ORDERS IS TEMPORARY DISABLED")
