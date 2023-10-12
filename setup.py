@@ -16,5 +16,8 @@ setuptools.setup(
     author="Ultrade",
     url="https://github.com/ultrade-org/ultrade-python-sdk",
     packages=setuptools.find_packages(exclude=('tests', 'docs')),
-    install_requires=required_packages
+    install_requires=required_packages,
+    extras_require={
+        "dev": ["pytest>=7.0", "twine>=4.0.2"],
+    },
 )
