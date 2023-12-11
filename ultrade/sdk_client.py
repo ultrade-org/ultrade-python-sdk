@@ -45,6 +45,11 @@ class ClientOptions(TypedDict):
     api_url: str
     websocket_url: str
 
+class Wallet(TypedDict):
+    address: str
+    provider: str
+    token: str
+    chain: str
 
 class Client():
     """
@@ -95,6 +100,38 @@ class Client():
         self.pending_txns = {}
         self.algo_balance = None
         self.maintenance_mode_status = 0
+        self.wallet: Optional[Wallet] = None
+        
+    def is_logged(self):
+        return self.wallet is not None
+    
+    def get_wallet(self):
+        return self.wallet
+    
+    def set_wallet(self, wallet: Wallet):
+        self.wallet = wallet
+
+    def sign_bytes(self, bytes_to_sign):
+        """
+        Sign bytes with the private key
+
+        Args:
+            bytes_to_sign (bytes): bytes to sign
+
+        Returns:
+            bytes: signature
+        """
+        return self.client.sign_bytes(bytes_to_sign)
+
+    # def login(self, address, provider, chain, sign_and_send):
+    #     data = {
+    #         "address": address,
+    #         "provider": provider,
+    #     }
+    #     async def handle_response(signature):
+    #         response = 
+
+        
 
     async def new_order(self, symbol, side, type, quantity, price, partner_app_id=0, direct_settle="N"):
         """

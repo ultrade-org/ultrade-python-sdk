@@ -205,3 +205,120 @@ async def get_min_algo_balance(address):
         await session.close()
         min_balance = data.get("min-balance", {})
         return min_balance + algo_buffer
+
+async def get_orders_with_trades(address, symbol=None, status="OPEN_ORDER"):
+    """
+    Get orders with trades for the specified address
+
+    Args:
+        address (str)
+        symbol (str, optional)
+        status (str, default="OPEN_ORDER")
+
+    Returns:
+        list
+    """
+    session = aiohttp.ClientSession()
+    url = f"{get_api_domain()}/market/orders-with-trades?address={address}&status={status}"
+    if symbol:
+        url += f"&symbol={symbol}"
+    async with session.get(url) as resp:
+        data = await resp.json()
+        await session.close()
+        return data
+    
+async def get_orders(symbol=None, status=1, start_time=None, end_time=None, limit=500):
+    """
+    Get orders for the specified symbol
+
+    Args:
+        symbol (str, optional)
+        status (int, default=1)
+        start_time (int, optional)
+        end_time (int, optional)
+        limit (int, default=500)
+
+    Returns:
+        list
+    """
+    session = aiohttp.ClientSession()
+    url = f"{get_api_domain()}/market/orders?status={status}&limit={limit}"
+    if symbol:
+        url += f"&symbol={symbol}"
+    if start_time:
+        url += f"&startTime={start_time}"
+    if end_time:
+        url += f"&endTime={end_time}"
+    async with session.get(url) as resp:
+        data = await resp.json()
+        await session.close()
+        return data
+
+async def get_wallet_transactions(address, symbol=None):
+    """
+    Get wallet transactions for the specified address
+
+    Args:
+        address (str)
+        symbol (str, optional)
+
+    Returns:
+        list
+    """
+    session = aiohttp.ClientSession()
+    url = f"{get_api_domain()}/market/wallet-transactions?address={address}"
+    if symbol:
+        url += f"&symbol={symbol}"
+    async with session.get(url) as resp:
+        data = await resp.json()
+        await session.close()
+        return data
+
+async def get_order_by_id(order_id):
+    """
+    Get order by id
+
+    Args:
+        order_id (int)
+
+    Returns:
+        dict
+    """
+    session = aiohttp.ClientSession()
+    url = f"{get_api_domain()}/market/getOrderById?orderId={order_id}"
+    async with session.get(url) as resp:
+        data = await resp.json()
+        await session.close()
+        return data
+
+async def get_balances():
+    """
+    Get balances of the wallet
+    
+    Returns:
+        dict: balances of the wallet
+    """
+    session = aiohttp.ClientSession()
+    url = f"{get_api_domain()}/market/balances"
+    async with session.get(url) as resp:
+        data = await resp.json()
+        await session.close()
+        return data
+    
+async def sign_in(data, signature):
+    """
+    Sign in to start trading
+
+    Args:
+        data (dict): data for sign in
+        signature (str): signature of the data
+
+    Returns:
+        token: (str)
+    """
+    session = aiohttp.ClientSession()
+    url = f"{get_api_domain()}/wallet/signin"
+    async with session.put(url, json={"data": data, "signature": signature}) as resp:
+        token = await resp.text()
+        await session.close()
+        return token
