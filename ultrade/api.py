@@ -305,20 +305,4 @@ async def get_balances():
         await session.close()
         return data
     
-async def sign_in(data, signature):
-    """
-    Sign in to start trading
 
-    Args:
-        data (dict): data for sign in
-        signature (str): signature of the data
-
-    Returns:
-        token: (str)
-    """
-    session = aiohttp.ClientSession()
-    url = f"{get_api_domain()}/wallet/signin"
-    async with session.put(url, json={"data": data, "signature": signature}) as resp:
-        token = await resp.text()
-        await session.close()
-        return token

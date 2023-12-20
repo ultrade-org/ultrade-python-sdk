@@ -1,3 +1,4 @@
+import json
 from typing import Any, Dict, List, Optional, TypedDict
 import asyncio
 import aiohttp
@@ -12,333 +13,347 @@ from .utils import is_asset_opted_in, is_app_opted_in, construct_new_order_args,
 from .constants import OPEN_ORDER_STATUS, BALANCE_DECODE_FORMAT, get_api_domain, set_domains, OrderType
 from . import socket_options
 from .decode import unpack_data
+from .types import ClientOptions, Network, CreateOrder
+from .signers.main import Signer
+from .encode import make_create_order_msg
+
 
 OPTIONS = socket_options
 
-
-class Order(TypedDict):
-    id: str
-    symbol: str
-    side: str
-    type: str
-    time_force: str
-    quantity: int
-    price: int
-    status: int
-
-
-class NewOrderOptions(TypedDict):
-    symbol: str
-    side: str
-    type: str
-    quantity: int
-    price: int
-
-
-class AccountCredentials(TypedDict):
-    mnemonic: str
-
-
-class ClientOptions(TypedDict):
-    network: str
-    algo_sdk_client: AlgodClient
-    api_url: str
-    websocket_url: str
-
-class Wallet(TypedDict):
-    address: str
-    provider: str
-    token: str
-    chain: str
-
 class Client():
     """
-    UltradeSdk client. Provides methods for creating and canceling orders on Ultrade exchange.
-    Also can be used for subscribing to Ultrade data streams
-
-    Args:
-        auth_credentials (dict): credentials as a mnemonic or a private key
-        options (dict): options allows to change default URLs for the API calls, also options should have algod client
+    UltradeSdk client. Provides methods for creating and canceling orders on Ultrade exchange and subscribing to Ultrade data streams.
     """
 
-    def __init__(self,
-                 auth_credentials: AccountCredentials,
-                 options: ClientOptions
-                 ):
-        validate_mnemonic(auth_credentials.get(
-            "mnemonic"))
-        if options["network"] == "mainnet":
-            self.api_url = "https://api.ultrade.org"
-            self.algod_node = 'https://mainnet-api.algonode.cloud'
-            self.algod_indexer = 'https://mainnet-idx.algonode.cloud'
-            self.websocket_url = "wss://ws.mainnet.ultrade.org"
-        elif options["network"] == "testnet":
-            self.api_url = "https://api.testnet.ultrade.org"
-            self.algod_node = 'https://testnet-api.algonode.cloud'
-            self.algod_indexer = 'https://testnet-idx.algonode.cloud'
-            self.websocket_url = "wss://ws.testnet.ultrade.org"
-        else:
-            raise Exception("Network could be either testnet or mainnet ")
+    def __init__(self, options: ClientOptions):
+        self._configure_network(options)
+        self._configure_additional_options(options)
+        self._configure_algo_client(options)
 
-        if options["api_url"] is not None:
-            self.api_url = options["api_url"]
+    def _configure_network(self, options: ClientOptions):
+        network = options.get("network")
+        if Network.is_valid_value(network) is False:
+            raise ValueError("Network should be either mainnet or testnet")
+        
+        self._set_network_urls(network)
+
+    def _set_network_urls(self, network: Network):
+        base_url = "https://api.{}.ultrade.org"
+        algod_base_url = "https://{}-api.algonode.cloud"
+        indexer_base_url = "https://{}-idx.algonode.cloud"
+        ws_base_url = "wss://ws.{}.ultrade.org"
+
+        self.api_url = base_url.format(network)
+        self.algod_node = algod_base_url.format(network)
+        self.algod_indexer = indexer_base_url.format(network)
+        self.websocket_url = ws_base_url.format(network)
 
         set_domains(self.api_url, self.algod_indexer, self.algod_node)
-        self.algod = options.get("algo_sdk_client", 0)
+
+    def _configure_additional_options(self, options: ClientOptions):
+        self.algod = options.get("algo_sdk_client", None)
         self.socket_client = SocketClient(self.websocket_url)
-        self.client = AlgodService(options.get(
-            "algo_sdk_client"), auth_credentials.get("mnemonic"))
 
-        self.mnemonic: Optional[str] = auth_credentials.get(
-            "mnemonic")  # todo remove creds from here
-        self.signer: Optional[Dict] = auth_credentials.get("signer")
-        self.client_secret: Optional[str] = auth_credentials.get(
-            "client_secret")
-        self.company: Optional[str] = auth_credentials.get("company")
-        self.client_id: Optional[str] = auth_credentials.get("client_id")
-        self.available_balance = {}
-        self.pending_txns = {}
-        self.algo_balance = None
-        self.maintenance_mode_status = 0
-        self.wallet: Optional[Wallet] = None
+    def _configure_algo_client(self, options: ClientOptions):
+        if options.get("algo_sdk_client") is None:
+            algod_client = AlgodClient("", self.algod_node)
+            self.client = AlgodService(algod_client)
+        else:
+            algod_client = options.get("algo_sdk_client")
+            client_network = algod_client.genesis().get("network")
+            if client_network != options.get("network"):
+                raise ValueError("Network of the AlgodClient should be the same as the network specified in the options")
+            self.client = AlgodService(algod_client)
+
+    def _validate_signer(self, signer: Signer):
+        if not isinstance(signer, Signer):
+            raise ValueError("parameter signer should be instance of Signer")
+
+    async def set_login_user(self, signer: Signer):
+            """
+            Sets the login user for the SDK client.
+
+            Args:
+                signer (Signer): The signer object representing the user.
+
+            Raises:
+                Exception: If there is an error in the response from the server.
+
+            """
+            self._validate_signer(signer)
+
+            data = {
+                "address": signer.get_address(),
+                "provider": signer.get_provider_name(),
+            }
+            message = json.dumps(data, separators=(',', ':'))
+            message_bytes = message.encode('utf-8')
+            signature = signer.sign_data(message_bytes)
+            signature_hex = signature.hex() if isinstance(signature, bytes) else signature
+
+            async with aiohttp.ClientSession() as session:
+                url = f"{get_api_domain()}/wallet/signin"
+                async with session.put(url, json={"data": data, "signature": signature_hex}) as resp:
+                    response = await resp.text()
+                    if "error" in response:
+                        raise Exception(response["error"])
+                    if response:
+                        self.token = response
+                        self.login_user = signer
+            
+
+    def is_logged_in(self):
+        """
+        Returns True if the client is logged in, otherwise returns False.
+        """
+        return self.login_user is not None
+
+    async def create_order(self, order: CreateOrder):
+        signer = self.login_user
+        data = order.data
+        encoding = 'hex'
+        message_bytes = make_create_order_msg(data)
+        message = message_bytes.decode(encoding)
+        signature = signer.sign_data(message_bytes)
+        signature_hex = signature.hex() if isinstance(signature, bytes) else signature
+        url = f"{get_api_domain()}/market/order"
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json={"data": data, "encoding": encoding, "message": message, "signature": signature_hex}) as resp:
+                response = await resp.json()
+                if "error" in response:
+                    raise Exception(response["error"])
+                if response:
+                    return response
+
+    async def cancelOrder(self, order_id):
+        signer = self.login_user
+        data = {
+            "orderId": order_id,
+            "address": signer.get_address(),
+        }
+        message = json.dumps(data, separators=(',', ':'))
+        message_bytes = message.encode('utf-8')
+        signature = signer.sign_data(message_bytes)
+        signature_hex = signature.hex() if isinstance(signature, bytes) else signature
+        url = f"{get_api_domain()}/market/order"
+        async with aiohttp.ClientSession() as session:
+            async with session.delete(url, json={"data": { "data": data, "signature": signature_hex }}) as resp:
+                response = await resp.json()
+                if "error" in response:
+                    raise Exception(response["error"])
+                if response:
+                    return response
         
-    def is_logged(self):
-        return self.wallet is not None
-    
-    def get_wallet(self):
-        return self.wallet
-    
-    def set_wallet(self, wallet: Wallet):
-        self.wallet = wallet
 
-    def sign_bytes(self, bytes_to_sign):
-        """
-        Sign bytes with the private key
 
-        Args:
-            bytes_to_sign (bytes): bytes to sign
+    # async def new_order(self, symbol, side, type, quantity, price, partner_app_id=0, direct_settle="N"):
+    #     """
+    #     Create new order on the Ultrade exchange by sending group transaction to algorand API
 
-        Returns:
-            bytes: signature
-        """
-        return self.client.sign_bytes(bytes_to_sign)
+    #     Args:
+    #         - symbol (str): The symbol representing an existing pair, for example: 'algo_usdt'
+    #         - side (str): Represents either a 'S' or 'B' order (SELL or BUY).
+    #         - type (str): Can be one of the following four order types: 'L', 'P', 'I', or 'M', which represent LIMIT,
+    #           POST, IOC, and MARKET orders respectively.
+    #         - quantity (decimal): The quantity of the base coin.
+    #         - price (decimal): The quantity of the price coin.
+    #         - partner_app_id (int, default=0): The ID of the partner to use in transactions.
+    #         - direct_settle (str): Can be either "N" or "Y".
 
-    # def login(self, address, provider, chain, sign_and_send):
-    #     data = {
-    #         "address": address,
-    #         "provider": provider,
-    #     }
-    #     async def handle_response(signature):
-    #         response = 
+    #     Returns:
+    #         A dictionary with the following keys:
+    #         - 'order_id': The ID of the created order.
+    #         - 'slot': The slot data of the created order.
 
-        
+    #     """
+    #     def sync_function():
+    #         self._check_maintenance_mode()
+    #         if not self.mnemonic:
+    #             raise Exception(
+    #                 "You need to specify mnemonic or signer to execute this method")
+    #         side_index = 0 if side == "B" else 1
+    #         info = asyncio.run(api.get_exchange_info(symbol))
+    #         account_info = self._get_balance_and_state()
 
-    async def new_order(self, symbol, side, type, quantity, price, partner_app_id=0, direct_settle="N"):
-        """
-        Create new order on the Ultrade exchange by sending group transaction to algorand API
+    #         if self.pending_txns.get(symbol) is None:
+    #             self.pending_txns[symbol] = {}
 
-        Args:
-            - symbol (str): The symbol representing an existing pair, for example: 'algo_usdt'
-            - side (str): Represents either a 'S' or 'B' order (SELL or BUY).
-            - type (str): Can be one of the following four order types: 'L', 'P', 'I', or 'M', which represent LIMIT,
-              POST, IOC, and MARKET orders respectively.
-            - quantity (decimal): The quantity of the base coin.
-            - price (decimal): The quantity of the price coin.
-            - partner_app_id (int, default=0): The ID of the partner to use in transactions.
-            - direct_settle (str): Can be either "N" or "Y".
+    #         self.pending_txns[symbol][side_index] = self.pending_txns[symbol].get(
+    #             side_index, 0) + 1
+    #         if self.available_balance.get(symbol) is None:
+    #             self.available_balance[symbol] = [None, None]
 
-        Returns:
-            A dictionary with the following keys:
-            - 'order_id': The ID of the created order.
-            - 'slot': The slot data of the created order.
+    #         if self.pending_txns[symbol][side_index] == 1:
+    #             self.algo_balance = account_info.get("balances", {"0": 0})["0"]
+    #             self.available_balance[symbol][side_index] = asyncio.run(
+    #                 self.client.get_available_balance(info["application_id"], side))
+    #         elif self.available_balance[symbol][side_index] is None:
+    #             wait_count = 0
+    #             while (True):
+    #                 if self.available_balance[symbol][side_index] is not None:
+    #                     break
+    #                 if wait_count > 8:
+    #                     raise Exception("Available_balance is None")
+    #                 time.sleep(0.5)
+    #                 wait_count += 0.5
 
-        """
-        def sync_function():
-            self._check_maintenance_mode()
-            if not self.mnemonic:
-                raise Exception(
-                    "You need to specify mnemonic or signer to execute this method")
-            side_index = 0 if side == "B" else 1
-            info = asyncio.run(api.get_exchange_info(symbol))
-            account_info = self._get_balance_and_state()
+    #         sender_address = self.client.get_account_address()
+    #         min_algo_balance = asyncio.run(
+    #             api.get_min_algo_balance(sender_address))
+    #         unsigned_txns = []
 
-            if self.pending_txns.get(symbol) is None:
-                self.pending_txns[symbol] = {}
+    #         if is_asset_opted_in(account_info.get("balances"), info["base_id"]) is False:
+    #             unsigned_txns.append(self.client.opt_in_asset(
+    #                 sender_address, info["base_id"]))
 
-            self.pending_txns[symbol][side_index] = self.pending_txns[symbol].get(
-                side_index, 0) + 1
-            if self.available_balance.get(symbol) is None:
-                self.available_balance[symbol] = [None, None]
+    #         if is_asset_opted_in(account_info.get("balances"), info["price_id"]) is False:
+    #             unsigned_txns.append(self.client.opt_in_asset(
+    #                 sender_address, info["price_id"]))
 
-            if self.pending_txns[symbol][side_index] == 1:
-                self.algo_balance = account_info.get("balances", {"0": 0})["0"]
-                self.available_balance[symbol][side_index] = asyncio.run(
-                    self.client.get_available_balance(info["application_id"], side))
-            elif self.available_balance[symbol][side_index] is None:
-                wait_count = 0
-                while (True):
-                    if self.available_balance[symbol][side_index] is not None:
-                        break
-                    if wait_count > 8:
-                        raise Exception("Available_balance is None")
-                    time.sleep(0.5)
-                    wait_count += 0.5
+    #         if is_app_opted_in(info["application_id"], account_info.get("local_state")) is False:
+    #             unsigned_txns.append(self.client.opt_in_app(
+    #                 info["application_id"], sender_address))
 
-            sender_address = self.client.get_account_address()
-            min_algo_balance = asyncio.run(
-                api.get_min_algo_balance(sender_address))
-            unsigned_txns = []
+    #         app_args = construct_new_order_args(
+    #             side, type, price, quantity, partner_app_id, direct_settle)
+    #         asset_index = info["base_id"] if side == "S" else info["price_id"]
 
-            if is_asset_opted_in(account_info.get("balances"), info["base_id"]) is False:
-                unsigned_txns.append(self.client.opt_in_asset(
-                    sender_address, info["base_id"]))
+    #         transfer_amount = self.client.calculate_transfer_amount(
+    #             side, quantity, price, info["base_decimal"], self.available_balance[symbol][side_index])
 
-            if is_asset_opted_in(account_info.get("balances"), info["price_id"]) is False:
-                unsigned_txns.append(self.client.opt_in_asset(
-                    sender_address, info["price_id"]))
+    #         if "algo" in symbol and (symbol.split("_")[0] == "algo"
+    #                                  and side == "S" or symbol.split("_")[1] == "algo" and side == "B"):
+    #             self.algo_balance -= transfer_amount
 
-            if is_app_opted_in(info["application_id"], account_info.get("local_state")) is False:
-                unsigned_txns.append(self.client.opt_in_app(
-                    info["application_id"], sender_address))
+    #             if self.algo_balance < min_algo_balance:
+    #                 self.algo_balance += transfer_amount
+    #                 self.pending_txns[symbol][side_index] -= 1
+    #                 if self.pending_txns[symbol][side_index] == 0:
+    #                     self.available_balance[symbol][side_index] = None
 
-            app_args = construct_new_order_args(
-                side, type, price, quantity, partner_app_id, direct_settle)
-            asset_index = info["base_id"] if side == "S" else info["price_id"]
+    #                 raise Exception("Not enough algo for transfer")
 
-            transfer_amount = self.client.calculate_transfer_amount(
-                side, quantity, price, info["base_decimal"], self.available_balance[symbol][side_index])
+    #         updatedQuantity = (
+    #             quantity / 10**info["base_decimal"]) * price if side == "B" else quantity
+    #         self.available_balance[symbol][side_index] = 0 if transfer_amount > 0 \
+    #             else self.available_balance[symbol][side_index] - updatedQuantity
 
-            if "algo" in symbol and (symbol.split("_")[0] == "algo"
-                                     and side == "S" or symbol.split("_")[1] == "algo" and side == "B"):
-                self.algo_balance -= transfer_amount
+    #         if not transfer_amount:
+    #             pass
+    #         elif asset_index == 0:
+    #             unsigned_txns.append(self.client.make_payment_txn(
+    #                 info["application_id"], sender_address, transfer_amount))
+    #         else:
+    #             unsigned_txns.append(self.client.make_transfer_txn(
+    #                 asset_index, info["application_id"], sender_address, transfer_amount))
 
-                if self.algo_balance < min_algo_balance:
-                    self.algo_balance += transfer_amount
-                    self.pending_txns[symbol][side_index] -= 1
-                    if self.pending_txns[symbol][side_index] == 0:
-                        self.available_balance[symbol][side_index] = None
+    #         unsigned_txns.append(self.client.make_app_call_txn(
+    #             asset_index, app_args, info["application_id"]))
 
-                    raise Exception("Not enough algo for transfer")
+    #         signed_txns = self.client.sign_transaction_grp(unsigned_txns)
+    #         signed_app_call = signed_txns[-1]
+    #         tx_id = signed_app_call.get_txid()
+    #         self.client.send_transaction_grp(signed_txns)
 
-            updatedQuantity = (
-                quantity / 10**info["base_decimal"]) * price if side == "B" else quantity
-            self.available_balance[symbol][side_index] = 0 if transfer_amount > 0 \
-                else self.available_balance[symbol][side_index] - updatedQuantity
+    #         pending_txn = self.client.wait_for_transaction(tx_id)
+    #         txn_logs = decode_txn_logs(
+    #             pending_txn["logs"], OrderType.new_order)
 
-            if not transfer_amount:
-                pass
-            elif asset_index == 0:
-                unsigned_txns.append(self.client.make_payment_txn(
-                    info["application_id"], sender_address, transfer_amount))
-            else:
-                unsigned_txns.append(self.client.make_transfer_txn(
-                    asset_index, info["application_id"], sender_address, transfer_amount))
+    #         self.pending_txns[symbol][side_index] -= 1
+    #         if self.pending_txns[symbol][side_index] == 0:
+    #             self.available_balance[symbol][side_index] = None
 
-            unsigned_txns.append(self.client.make_app_call_txn(
-                asset_index, app_args, info["application_id"]))
+    #         return txn_logs
 
-            signed_txns = self.client.sign_transaction_grp(unsigned_txns)
-            signed_app_call = signed_txns[-1]
-            tx_id = signed_app_call.get_txid()
-            self.client.send_transaction_grp(signed_txns)
+    #     txn_logs = await asyncio.get_event_loop().run_in_executor(None, sync_function)
+    #     return txn_logs
 
-            pending_txn = self.client.wait_for_transaction(tx_id)
-            txn_logs = decode_txn_logs(
-                pending_txn["logs"], OrderType.new_order)
+    # async def cancel_order(self, symbol: str, order_id: int, slot: int, fee=None):
+    #     """
+    #     Cancel the order matching the ID and symbol arguments.
 
-            self.pending_txns[symbol][side_index] -= 1
-            if self.pending_txns[symbol][side_index] == 0:
-                self.available_balance[symbol][side_index] = None
+    #     Args:
+    #         - symbol (str): The symbol representing an existing pair, for example: 'algo_usdt'.
+    #         - order_id (int): The ID of the order to cancel, which can be provided by the Ultrade API.
+    #         - slot (int): The order position in the smart contract.
+    #         - fee (int, default=None): The fee needed for canceling an order with direct settlement option enabled.
 
-            return txn_logs
+    #     Returns:
+    #         The first transaction ID.
+    #     """
+    #     def sync_function():
+    #         self._check_maintenance_mode()
+    #         if not self.mnemonic:
+    #             raise Exception(
+    #                 "You need to specify mnemonic or signer to execute this method")
 
-        txn_logs = await asyncio.get_event_loop().run_in_executor(None, sync_function)
-        return txn_logs
+    #         user_trade_orders = asyncio.run(
+    #             self.get_orders(symbol, OPEN_ORDER_STATUS))  # temporary, this function should use different order_id
+    #         try:
+    #             correct_order = [
+    #                 order for order in user_trade_orders if order["orders_id"] == order_id][0]
+    #         except Exception:
+    #             # Ultrade connector in the hummingbot handles this exception
+    #             raise Exception("Order not found")
 
-    async def cancel_order(self, symbol: str, order_id: int, slot: int, fee=None):
-        """
-        Cancel the order matching the ID and symbol arguments.
+    #         exchange_info = asyncio.run(api.get_exchange_info(symbol))
 
-        Args:
-            - symbol (str): The symbol representing an existing pair, for example: 'algo_usdt'.
-            - order_id (int): The ID of the order to cancel, which can be provided by the Ultrade API.
-            - slot (int): The order position in the smart contract.
-            - fee (int, default=None): The fee needed for canceling an order with direct settlement option enabled.
+    #         foreign_asset_id = exchange_info["base_id"] if correct_order["order_side"] == 1 \
+    #             else exchange_info["price_id"]
+    #         app_args = [OrderType.cancel_order, order_id, slot]
+    #         unsigned_txn = self.client.make_app_call_txn(
+    #             foreign_asset_id, app_args, exchange_info["application_id"], fee)
 
-        Returns:
-            The first transaction ID.
-        """
-        def sync_function():
-            self._check_maintenance_mode()
-            if not self.mnemonic:
-                raise Exception(
-                    "You need to specify mnemonic or signer to execute this method")
+    #         signed_txn = self.client.sign_transaction_grp(unsigned_txn)
+    #         tx_id = self.client.send_transaction_grp(signed_txn)
+    #         pending_txn = self.client.wait_for_transaction(tx_id)
+    #         txn_logs = decode_txn_logs(
+    #             pending_txn["logs"], OrderType.cancel_order)
+    #         return txn_logs
 
-            user_trade_orders = asyncio.run(
-                self.get_orders(symbol, OPEN_ORDER_STATUS))  # temporary, this function should use different order_id
-            try:
-                correct_order = [
-                    order for order in user_trade_orders if order["orders_id"] == order_id][0]
-            except Exception:
-                # Ultrade connector in the hummingbot handles this exception
-                raise Exception("Order not found")
+    #     tx_id = await asyncio.get_event_loop().run_in_executor(None, sync_function)
+    #     return tx_id
 
-            exchange_info = asyncio.run(api.get_exchange_info(symbol))
+    # async def cancel_all_orders(self, symbol, fee=None):
+    #     """
+    #     Perform cancellation of all existing orders for the wallet specified in the Algod client.
 
-            foreign_asset_id = exchange_info["base_id"] if correct_order["order_side"] == 1 \
-                else exchange_info["price_id"]
-            app_args = [OrderType.cancel_order, order_id, slot]
-            unsigned_txn = self.client.make_app_call_txn(
-                foreign_asset_id, app_args, exchange_info["application_id"], fee)
+    #     Args:
+    #         - symbol (str): The symbol representing an existing pair, for example: 'algo_usdt'.
+    #         - fee (int, default=None): The fee needed for canceling orders with direct settlement option enabled.
 
-            signed_txn = self.client.sign_transaction_grp(unsigned_txn)
-            tx_id = self.client.send_transaction_grp(signed_txn)
-            pending_txn = self.client.wait_for_transaction(tx_id)
-            txn_logs = decode_txn_logs(
-                pending_txn["logs"], OrderType.cancel_order)
-            return txn_logs
+    #     Returns:
+    #         The first transaction ID.
+    #     """
+    #     self._check_maintenance_mode()
+    #     user_trade_orders = await self.get_orders(symbol, OPEN_ORDER_STATUS)
+    #     unique_ids = set()
+    #     filtered_orders = []
+    #     for order in user_trade_orders:
+    #         if order['id'] not in unique_ids:
+    #             unique_ids.add(order['id'])
+    #             filtered_orders.append(order)
 
-        tx_id = await asyncio.get_event_loop().run_in_executor(None, sync_function)
-        return tx_id
+    #     exchange_info = await api.get_exchange_info(symbol)
 
-    async def cancel_all_orders(self, symbol, fee=None):
-        """
-        Perform cancellation of all existing orders for the wallet specified in the Algod client.
+    #     unsigned_txns = []
+    #     for order in filtered_orders:
+    #         foreign_asset_id = exchange_info["base_id"] if order["order_side"] == 1 else exchange_info["price_id"]
 
-        Args:
-            - symbol (str): The symbol representing an existing pair, for example: 'algo_usdt'.
-            - fee (int, default=None): The fee needed for canceling orders with direct settlement option enabled.
+    #         app_args = [OrderType.cancel_order,
+    #                     order["orders_id"], order["slot"]]
+    #         unsigned_txn = self.client.make_app_call_txn(
+    #             foreign_asset_id, app_args, order["pair_id"], fee)
+    #         unsigned_txns.append(unsigned_txn)
 
-        Returns:
-            The first transaction ID.
-        """
-        self._check_maintenance_mode()
-        user_trade_orders = await self.get_orders(symbol, OPEN_ORDER_STATUS)
-        unique_ids = set()
-        filtered_orders = []
-        for order in user_trade_orders:
-            if order['id'] not in unique_ids:
-                unique_ids.add(order['id'])
-                filtered_orders.append(order)
+    #     if len(unsigned_txns) == 0:
+    #         return None
 
-        exchange_info = await api.get_exchange_info(symbol)
+    #     signed_txns = self.client.sign_transaction_grp(unsigned_txns)
+    #     tx_id = self.client.send_transaction_grp(signed_txns)
+    #     return tx_id
 
-        unsigned_txns = []
-        for order in filtered_orders:
-            foreign_asset_id = exchange_info["base_id"] if order["order_side"] == 1 else exchange_info["price_id"]
 
-            app_args = [OrderType.cancel_order,
-                        order["orders_id"], order["slot"]]
-            unsigned_txn = self.client.make_app_call_txn(
-                foreign_asset_id, app_args, order["pair_id"], fee)
-            unsigned_txns.append(unsigned_txn)
-
-        if len(unsigned_txns) == 0:
-            return None
-
-        signed_txns = self.client.sign_transaction_grp(unsigned_txns)
-        tx_id = self.client.send_transaction_grp(signed_txns)
-        return tx_id
 
     def _get_balance_and_state(self, account_info=None) -> Dict[str, int]:
         balances: Dict[str, int] = dict()
@@ -597,3 +612,4 @@ class Client():
         if self.maintenance_mode_status != 0:
             raise Exception(
                 "ULTRADE APPLICATION IS CURRENTLY IN MAINTENANCE MODE. PLACING AND CANCELING ORDERS IS TEMPORARY DISABLED")
+
