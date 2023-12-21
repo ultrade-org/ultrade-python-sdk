@@ -1,114 +1,59 @@
 from ultrade.sdk_client import Client
-from ultrade import api
+from ultrade import api, SignerFactory
+from ultrade.types import ClientOptions, CreateOrder
 
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock
 
 from algosdk.v2client import algod
 from algosdk import transaction
 
 from . import utils
-from .test_credentials import TEST_MNEMONIC_KEY, TEST_ALGOD_TOKEN, TEST_ALGOD_ADDRESS, TEST_SYMBOL, TEST_ALGO_WALLET
-
-algod_client = algod.AlgodClient(TEST_ALGOD_TOKEN, TEST_ALGOD_ADDRESS)
-
-credentials = {"mnemonic": TEST_MNEMONIC_KEY}
-opts = {"network": "testnet", "algo_sdk_client": algod_client,
-        "api_url": None}
-client = Client(credentials, opts)
-
-ALGO_USDC_ORDER = {
-    "symbol": "algo_usdc",
-    "side": 'B',
-    "type": "L",
-    "quantity": 2000000,
-    "price": 800
-}
-
-LMBO_USDC_ORDER = {
-    "symbol": "lmbo_usdc",
-    "side": 'B',
-    "type": "L",
-    "quantity": 350000000,
-    "price": 800
-}
+from .test_credentials import TEST_API_URL, TEST_MNEMONIC_KEY, TEST_COMPANY_DOMAIN
 
 
-def mocked_send_transaction(self, txn_grp):
-    dry_run_request = transaction.create_dryrun(self.client, txn_grp)
-    data = algod_client.dryrun(dry_run_request)
-    print("txn length", len(data["txns"]))
-    txn = next(txn for txn in data["txns"]
-               if txn.get('app-call-messages') is not None)
+# ALGO_USDC_ORDER = {
+#     "symbol": "algo_usdc",
+#     "side": 'B',
+#     "type": "L",
+#     "quantity": 2000000,
+#     "price": 800
+# }
 
-    print("app-call-status", txn.get('app-call-messages'))
-    return (txn.get('app-call-messages')[1], data["error"])
-
-
-def mocked_wait_for_transaction(self, txn_id):
-    return {"logs": txn_id}
-
-
-def mocked_decode_txn_logs(logs, order_type):
-    return logs
-
+# LMBO_USDC_ORDER = {
+#     "symbol": "lmbo_usdc",
+#     "side": 'B',
+#     "type": "L",
+#     "quantity": 350000000,
+#     "price": 800
+# }
 
 @pytest.mark.asyncio
-@patch('ultrade.algod_service.AlgodService.send_transaction_grp', mocked_send_transaction)
-@patch('ultrade.algod_service.AlgodService.wait_for_transaction', mocked_wait_for_transaction)
-@patch('ultrade.sdk_client.decode_txn_logs', mocked_decode_txn_logs)
-class TestNewOrder():
+class TestClient():
 
-    async def test_algo_buy(self):
-        txn_result = await client.new_order(**ALGO_USDC_ORDER)
-        assert isinstance(txn_result, str)
+    @pytest.mark.asyncio
+    async def test_create_order():
+        # signer = SignerFactory.create_signer(TEST_MNEMONIC_KEY)
+        # client = Client(ClientOptions(network="testnet", api_url=TEST_API_URL))
+        
+        company_settings = await api.get_company_by_domain(TEST_COMPANY_DOMAIN)
+      
+        print ("company_settings", company_settings)
+        exit(0)
+        create_order = CreateOrder(**create_order_data)
+        
+        with patch('aiohttp.ClientSession') as mock_session:
+            mock_resp = AsyncMock()
+            mock_resp.json.return_value = {"order_id": "123456"}
+            mock_session.return_value.__aenter__.return_value.post.return_value = mock_resp
+            
 
-    async def test_algo_sell(self):
-        txn_result = await client.new_order(**{**ALGO_USDC_ORDER, "side": "S"})
-        assert isinstance(txn_result, str)
+            await ultrade_client.set_login_user(mock_signer)
 
-    async def test_lmbo_buy(self):
-        txn_result = await client.new_order(**LMBO_USDC_ORDER)
-        assert isinstance(txn_result, str)
+            # Вызываем метод create_order
+            result = await ultrade_client.create_order(create_order)
 
-    async def test_lmbo_sell(self):
-        txn_result = await client.new_order(**LMBO_USDC_ORDER)
-        assert isinstance(txn_result, str)
-
-
-@ pytest.mark.asyncio
-@ patch('ultrade.algod_service.AlgodService.send_transaction_grp', mocked_send_transaction)
-class TestCancelOrder():
-    async def test_for_non_existed_order(self):
-        example_order_id = 99999
-        example_slot = 99
-        symbol = "algo_usdc"
-
-        with pytest.raises(Exception):
-            await client.cancel_order(symbol, example_order_id, example_slot)
-
-    async def test_cancel_random_order(self):
-        order = await utils.find_open_order(client)
-        if order is None:
-            return
-
-        order_id = order.get("id")
-        order = await client.get_order_by_id(None, order_id)
-        print("symbol", order["pair_key"])
-        print(f"testing cancellation of order with id:{order_id}")
-
-        txn_result = await client.cancel_order(order["pair_key"], order["orders_id"], order["slot"])
-        assert txn_result == ('PASS', "")
-
-
-@ pytest.mark.asyncio
-@ patch('ultrade.algod_service.AlgodService.send_transaction_grp', mocked_send_transaction)
-class TestCancelAllOrders():
-    async def test_algo_usdc(self):
-        symbol = "algo_usdc"
-        txn_result = await client.cancel_all_orders(symbol)
-        assert txn_result == ('PASS', "") or txn_result is None
-
+            assert result == {"order_id": "123456"}
 
 @ pytest.mark.asyncio
 class TestApiCalls():

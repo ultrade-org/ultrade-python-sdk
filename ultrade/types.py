@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import TypedDict, Optional, Literal
+from typing import TypedDict, Optional
 from algosdk.v2client.algod import AlgodClient
 import time
 
@@ -40,10 +40,9 @@ class NewOrderOptions(TypedDict):
     price: int
 
 class ClientOptions(TypedDict, total=False):
-    network: Literal[Network.MAINNET, Network.TESTNET]
-    algo_sdk_client: Optional[AlgodClient]
-    api_url: Optional[str]
-    websocket_url: Optional[str]
+    algo_sdk_client: AlgodClient
+    api_url: str
+    websocket_url: str
  
 class WormholeChains(BaseEnum):
     UNSET = 0
@@ -126,5 +125,7 @@ class CreateOrder:
     def data(self):
         return self._data
 
-# class CancelOrder:
-#     # Todo
+class ApiOptions(TypedDict, total=False):
+    api_url: str
+    algod_node: str
+    algod_indexer: str

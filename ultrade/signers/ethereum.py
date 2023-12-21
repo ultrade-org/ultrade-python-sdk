@@ -13,7 +13,7 @@ class EthereumSigner(Signer):
         #TODO: add login from ETHEREUM instead of Polygon
         super().__init__(private_key, wormhole_chain_id=WormholeChains.POLYGON)
         self.eth_private_key = keys.PrivateKey(bytes.fromhex(self.private_key))
-        self.provider = Providers.METAMASK
+        self.provider_name = Providers.METAMASK.value
 
     def sign_data(self, message: bytes) -> str:
         """
