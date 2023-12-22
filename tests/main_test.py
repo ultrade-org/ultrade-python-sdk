@@ -1,6 +1,7 @@
 from ultrade.sdk_client import Client
 from ultrade import api, SignerFactory
 from ultrade.types import ClientOptions, CreateOrder
+import pprint
 
 import pytest
 from unittest.mock import patch, AsyncMock
@@ -28,17 +29,20 @@ from .test_credentials import TEST_API_URL, TEST_MNEMONIC_KEY, TEST_COMPANY_DOMA
 #     "price": 800
 # }
 
-@pytest.mark.asyncio
-class TestClient():
+
+class TestClient:
+
+    @classmethod
+    def setup_class(cls):
+        cls.client = Client(network="testnet", api_url=TEST_API_URL)
+        cls.api = cls.client.create_api()
 
     @pytest.mark.asyncio
-    async def test_create_order():
-        # signer = SignerFactory.create_signer(TEST_MNEMONIC_KEY)
-        # client = Client(ClientOptions(network="testnet", api_url=TEST_API_URL))
-        
-        company_settings = await api.get_company_by_domain(TEST_COMPANY_DOMAIN)
-      
-        print ("company_settings", company_settings)
+    async def test_create_order(self):
+        company = await self.api.get_company_by_domain(TEST_COMPANY_DOMAIN)
+        pairs = await self.api.get_pair_list(company["company_id"])
+        print(company)
+        print(pairs)
         exit(0)
         create_order = CreateOrder(**create_order_data)
         
@@ -55,7 +59,7 @@ class TestClient():
 
             assert result == {"order_id": "123456"}
 
-@ pytest.mark.asyncio
+@pytest.mark.asyncio
 class TestApiCalls():
     async def test_get_order_by_id(self):
         order = await utils.find_open_order(client)

@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import TypedDict, Optional
+from typing import TypedDict, Optional, List
 from algosdk.v2client.algod import AlgodClient
 import time
 
@@ -125,7 +125,34 @@ class CreateOrder:
     def data(self):
         return self._data
 
-class ApiOptions(TypedDict, total=False):
-    api_url: str
-    algod_node: str
-    algod_indexer: str
+class PairSettings(TypedDict, total=False):
+    mft_audioLink: Optional[str]
+    view_baseCoinIconLink: Optional[str]
+    mft_title: Optional[str]
+
+class TradingPair(TypedDict):
+    base_chain_id: int
+    base_currency: str
+    base_decimal: int
+    base_id: str
+    created_at: str
+    id: int
+    is_active: bool
+    is_verified: int
+    min_order_size: str
+    min_price_increment: str
+    min_size_increment: str
+    pair_key: str
+    pair_name: str
+    pairId: int
+    price_chain_id: int
+    price_currency: str
+    price_decimal: int
+    price_id: str
+    trade_fee_buy: int
+    trade_fee_sell: int
+    updated_at: str
+    inuseWithPartners: List[int]
+    restrictedCountries: List[str]
+    pairSettings: PairSettings
+    partner_id: int

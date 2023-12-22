@@ -1,54 +1,54 @@
 import time
-from typing import Dict
+from typing import Dict, List
+from .types import TradingPair
 
 import aiohttp
-
 from .utils import construct_query_string_for_api_request
-from .types import Network, ApiOptions
-from typing import Optional
+
+class CompanyNotEnabledException(Exception):
+    pass
 
 class Api:
-    """
-    Ultrade API client. Provides methods for getting data from Ultrade exchange.
-    """
 
-    def __init__(self, network: Network, **kwargs: Optional[ApiOptions]):
-        options: ApiOptions = kwargs
-        self.__set_network_urls(network, options)
+    def __init__(self, api_url: str, algod_node: str, algod_indexer: str):
+            """
+            Initializes the API object.
 
-    def __set_network_urls(self, network: Network, options: ApiOptions):
-        base_url = f"https://api.{network}.ultrade.org"
-        algod_base_url = f"https://{network}-api.algonode.cloud"
-        indexer_base_url = f"https://{network}-idx.algonode.cloud"
+            Args:
+                api_url (str): The URL of the API.
+                algod_node (str): The URL of the Algod node.
+                algod_indexer (str): The URL of the Algod indexer.
+            """
+            self.api_url = api_url
+            self.algod_node = algod_node
+            self.algod_indexer = algod_indexer
 
-        self.api_url = options.get('api_url', base_url)
-        self.algod_node = options.get('algod_node', algod_base_url)
-        self.algod_indexer = options.get('algod_indexer', indexer_base_url)
+    async def get_pair_list(self, company_id=1) -> List[TradingPair]:
+            """
+            Retrieves a list of trading pairs from the API.
+
+            Args:
+                company_id (int, optional): The ID of the company. Defaults to 1.
+
+            Returns:
+                List[TradingPair]: A list of trading pair data, where each trading pair is a dictionary 
+                                with specific attributes (as defined in TradingPair TypedDict).
+
+            Raises:
+                aiohttp.ClientError: If there is an error with the HTTP request.
+            """
+            session = aiohttp.ClientSession()
+            query = "" if company_id is None else f"?companyId={company_id}"
+            url = f"{self.api_url}/market/markets{query}"
+            async with session.get(url) as resp:
+                data = await resp.json()
+                await session.close()
+
+                return data
 
 
-    async def get_pair_list(company_id=1):
-        """
-        Get pair list for the specified company_id
-        If company_id is None, returns info about all existing pairs
-
-        Args:
-            company_id (int, default=1)
-
-        Returns:
-            dict
-        """
-        session = aiohttp.ClientSession()
-        query = "" if company_id is None else f"?companyId={company_id}"
-        url = f"{get_api_domain()}/market/markets{query}"
-        async with session.get(url) as resp:
-            data = await resp.json()
-            await session.close()
-
-            return data
-
-
-    async def _get_exchange_info_old(identifier):
-        data = await get_pair_list()
+    async def _get_exchange_info_old(self, identifier):
+        data = await self.get_pair_list()
 
         try:
             identifier = int(identifier)
@@ -63,7 +63,7 @@ class Api:
         raise Exception("Can't find exchange info for the specified symbol")
 
 
-    async def get_exchange_info(symbol):
+    async def get_exchange_info(self, symbol):
         """
         Get info about specified pair
 
@@ -75,7 +75,7 @@ class Api:
         """
 
         session = aiohttp.ClientSession()
-        url = f"{get_api_domain()}/market/market?symbol={symbol}"
+        url = f"{self.api_url}/market/market?symbol={symbol}"
         async with session.get(url) as resp:
             resp.raise_for_status()
             data = await resp.json()
@@ -84,7 +84,7 @@ class Api:
         return data
 
 
-    async def ping():
+    async def ping(self):
         """
         Check connection with server
 
@@ -92,7 +92,7 @@ class Api:
             int: latency of the sent request in ms
         """
         session = aiohttp.ClientSession()
-        url = f"{get_api_domain()}/system/time"
+        url = f"{self.api_url}/system/time"
         async with session.get(url) as resp:
             resp.raise_for_status()
             data = await resp.json()
@@ -101,7 +101,7 @@ class Api:
             return round(time.time() * 1000) - data['currentTime']
 
 
-    async def get_price(symbol):
+    async def get_price(self, symbol):
         """
         Get prices for the specified pair
 
@@ -112,14 +112,14 @@ class Api:
             dict
         """
         session = aiohttp.ClientSession()
-        url = f"{get_api_domain()}/market/price?symbol={symbol}"
+        url = f"{self.api_url}/market/price?symbol={symbol}"
         async with session.get(url) as resp:
             data = await resp.json()
             await session.close()
             return data
 
 
-    async def get_depth(symbol, depth=100):
+    async def get_depth(self, symbol, depth=100):
         """
         Get depth for specified symbol from the Ultrade exchange
 
@@ -131,14 +131,14 @@ class Api:
             dict: order book for the specified pair
         """
         session = aiohttp.ClientSession()
-        url = f"{get_api_domain()}/market/depth?symbol={symbol}&depth={depth}"
+        url = f"{self.api_url}/market/depth?symbol={symbol}&depth={depth}"
         async with session.get(url) as resp:
             data = await resp.json()
             await session.close()
             return data
 
 
-    async def get_symbols(mask) -> Dict[str, str]:
+    async def get_symbols(self, mask) -> Dict[str, str]:
         """
         Return example: For mask="algo_usdt" -> [{'pairKey': 'algo_usdt'}]
 
@@ -146,28 +146,28 @@ class Api:
             list
         """
         session = aiohttp.ClientSession()
-        url = f"{get_api_domain()}/market/symbols?mask={mask}"
+        url = f"{self.api_url}/market/symbols?mask={mask}"
         async with session.get(url) as resp:
             data = await resp.json()
             await session.close()
             return data
 
 
-    async def get_history(symbol, interval=None, start_time=None, end_time=None, limit=None, page=None):
+    async def get_history(self, symbol, interval=None, start_time=None, end_time=None, limit=None, page=None):
         """
         Returns:
             dict
         """
         query_string = construct_query_string_for_api_request(locals())
         session = aiohttp.ClientSession()
-        url = f"{get_api_domain()}/market/history{query_string}"
+        url = f"{self.api_url}/market/history{query_string}"
         async with session.get(url) as resp:
             data = await resp.json()
             await session.close()
             return data
 
 
-    async def get_last_trades(symbol):
+    async def get_last_trades(self, symbol):
         """
         Get last trades for the specified symbol
 
@@ -178,17 +178,17 @@ class Api:
             list
         """
         session = aiohttp.ClientSession()
-        url = f"{get_api_domain()}/market/last-trades?symbol={symbol}"
+        url = f"{self.api_url}/market/last-trades?symbol={symbol}"
         async with session.get(url) as resp:
             data = await resp.json()
             await session.close()
             return data
 
 
-    async def _get_encoded_balance(address, app_id):
+    async def _get_encoded_balance(self, address, app_id):
         # todo: remove
         session = aiohttp.ClientSession()
-        url = f"{get_algod_indexer_domain()}/v2/accounts/{address}?include-all=true"
+        url = f"{self.algod_indexer}/v2/accounts/{address}?include-all=true"
         async with session.get(url) as resp:
             data = await resp.json()
             await session.close()
@@ -206,7 +206,7 @@ class Api:
             return key["value"].get("bytes")
 
 
-    async def get_min_algo_balance(address):
+    async def get_min_algo_balance(self, address):
         """
         Get min algo balance of the wallet
 
@@ -217,7 +217,7 @@ class Api:
             int: sum of minimum algo for the current wallet and additional algo buffer set by SDK.
         """
         session = aiohttp.ClientSession()
-        url = f"{get_algod_node_domain()}/v2/accounts/{address}"
+        url = f"{self.algod_node}/v2/accounts/{address}"
         async with session.get(url) as resp:
             algo_buffer = 1000000
             data = await resp.json()
@@ -225,7 +225,7 @@ class Api:
             min_balance = data.get("min-balance", {})
             return min_balance + algo_buffer
 
-    async def get_orders_with_trades(address, symbol=None, status="OPEN_ORDER"):
+    async def get_orders_with_trades(self, address, symbol=None, status="OPEN_ORDER"):
         """
         Get orders with trades for the specified address
 
@@ -238,7 +238,7 @@ class Api:
             list
         """
         session = aiohttp.ClientSession()
-        url = f"{get_api_domain()}/market/orders-with-trades?address={address}&status={status}"
+        url = f"{self.api_url}/market/orders-with-trades?address={address}&status={status}"
         if symbol:
             url += f"&symbol={symbol}"
         async with session.get(url) as resp:
@@ -246,7 +246,7 @@ class Api:
             await session.close()
             return data
         
-    async def get_orders(symbol=None, status=1, start_time=None, end_time=None, limit=500):
+    async def get_orders(self, symbol=None, status=1, start_time=None, end_time=None, limit=500):
         """
         Get orders for the specified symbol
 
@@ -261,7 +261,7 @@ class Api:
             list
         """
         session = aiohttp.ClientSession()
-        url = f"{get_api_domain()}/market/orders?status={status}&limit={limit}"
+        url = f"{self.api_url}/market/orders?status={status}&limit={limit}"
         if symbol:
             url += f"&symbol={symbol}"
         if start_time:
@@ -273,7 +273,7 @@ class Api:
             await session.close()
             return data
 
-    async def get_wallet_transactions(address, symbol=None):
+    async def get_wallet_transactions(self, address, symbol=None):
         """
         Get wallet transactions for the specified address
 
@@ -285,7 +285,7 @@ class Api:
             list
         """
         session = aiohttp.ClientSession()
-        url = f"{get_api_domain()}/market/wallet-transactions?address={address}"
+        url = f"{self.api_url}/market/wallet-transactions?address={address}"
         if symbol:
             url += f"&symbol={symbol}"
         async with session.get(url) as resp:
@@ -293,7 +293,7 @@ class Api:
             await session.close()
             return data
 
-    async def get_order_by_id(order_id):
+    async def get_order_by_id(self, order_id):
         """
         Get order by id
 
@@ -304,13 +304,13 @@ class Api:
             dict
         """
         session = aiohttp.ClientSession()
-        url = f"{get_api_domain()}/market/getOrderById?orderId={order_id}"
+        url = f"{self.api_url}/market/getOrderById?orderId={order_id}"
         async with session.get(url) as resp:
             data = await resp.json()
             await session.close()
             return data
 
-    async def get_balances():
+    async def get_balances(self):
         """
         Get balances of the wallet
         
@@ -318,28 +318,35 @@ class Api:
             dict: balances of the wallet
         """
         session = aiohttp.ClientSession()
-        url = f"{get_api_domain()}/market/balances"
+        url = f"{self.api_url}/market/balances"
         async with session.get(url) as resp:
             data = await resp.json()
             await session.close()
             return data
         
-    async def get_company_by_domain(domain):
-        """
-        Get company by domain without https:// or / at the end
-        
-        Args:
-            domain (str): Example: "app.ultrade.org"
-        
-        Returns:
-            dict: company info
-        """
-        print("get_company_by_domain", domain)
-        headers = {"wl-domain": domain}
-        url = f"{get_api_domain()}/market/settings"
-        print("url", url)
-        session = aiohttp.ClientSession()
-        async with session.get(url, headers=headers) as resp:
-            data = await resp.json()
-            await session.close()
-            return data
+    async def get_company_by_domain(self, domain: str) -> int:
+            """
+            Get company settings by domain.
+
+            Args:
+                domain (str): The domain of the company'. 
+                            Example: "app.ultrade.org" or "https://app.ultrade.org/"
+            
+            Returns:
+                int: The company ID.
+            
+            Raises:
+                CompanyNotEnabledException: If the company is not enabled or 
+                                            if an error occurs during the API request.
+            """
+            domain = domain.replace('https://', '').replace('http://', '').rstrip('/')
+            headers = {"wl-domain": domain}
+            url = f"{self.api_url}/market/settings"
+            session = aiohttp.ClientSession()
+            async with session.get(url, headers=headers) as resp:
+                data = await resp.json()
+                await session.close()
+                is_enabled = bool(int(data["company.enabled"]))
+                if not is_enabled:
+                    raise CompanyNotEnabledException(f"Company with {domain} domain is not enabled")
+                return data["companyId"]

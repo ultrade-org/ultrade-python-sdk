@@ -10,6 +10,7 @@ from .types import ClientOptions, Network, CreateOrder
 from .signers.main import Signer
 from .encode import make_create_order_msg
 from typing import Literal, Optional
+from .api import Api
 
 OPTIONS = socket_options
 
@@ -37,10 +38,10 @@ class Client:
         ws_base_url = network_constants["websocket_url"]
         base_url = network_constants["api_url"]
         
-        self.api_url = self.options.get('api_url', base_url)
-        self.algod_node = self.options.get('algod_node', algod_base_url)
-        self.algod_indexer = self.options.get('algod_indexer', indexer_base_url)
-        self.websocket_url = self.options.get('websocket_url', ws_base_url)
+        self.api_url = self.options.get('api_url', base_url).rstrip('/')
+        self.algod_node = self.options.get('algod_node', algod_base_url).rstrip('/')
+        self.algod_indexer = self.options.get('algod_indexer', indexer_base_url).rstrip('/')
+        self.websocket_url = self.options.get('websocket_url', ws_base_url).rstrip('/')
 
         self.algod_client = self.options.get('algo_sdk_client', AlgodClient("", self.algod_node))
         if self.algod_client.genesis().get("network") != self.network:
@@ -51,16 +52,6 @@ class Client:
         if not isinstance(signer, Signer):
             raise ValueError("parameter signer should be instance of Signer")
 
-    def get_url_options(self) -> dict:
-        """
-        Returns the API and websocket URLs that client is using.
-        """
-        return {
-            "api_url": self.api_url,
-            "websocket_url": self.websocket_url,
-            "algod_node": self.algod_node,
-            "algod_indexer": self.algod_indexer
-        }
 
     async def set_login_user(self, signer: Signer):
             """
@@ -206,6 +197,14 @@ class Client:
         """
         await self.socket_client.unsubscribe(connection_id)
 
+    def create_api(self):
+            """
+            Creates an instance of the API using the specified API URL, Algod node, and Algod indexer.
+
+            Returns:
+                Api: An instance of the API.
+            """
+            return Api(self.api_url, self.algod_node, self.algod_indexer)
 
     def __check_maintenance_mode(self):
         if self.maintenance_mode_status != 0:
