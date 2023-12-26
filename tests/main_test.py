@@ -1,5 +1,5 @@
 from ultrade.sdk_client import Client
-from ultrade import api, SignerFactory
+from ultrade import api, Signer
 from ultrade.types import ClientOptions, CreateOrder
 import pprint
 
@@ -39,10 +39,25 @@ class TestClient:
 
     @pytest.mark.asyncio
     async def test_create_order(self):
-        company = await self.api.get_company_by_domain(TEST_COMPANY_DOMAIN)
-        pairs = await self.api.get_pair_list(company["company_id"])
-        print(company)
-        print(pairs)
+        company_id = await self.api.get_company_by_domain(TEST_COMPANY_DOMAIN)
+        pairs = await self.api.get_pair_list(company_id)
+        pair = pairs[0]
+        print("PAIR", pair)
+        login_user = Signer.create_signer(TEST_MNEMONIC_KEY)
+        await self.client.set_login_user(login_user)
+        response = await self.client.create_order(
+            pair_id=pair["id"],
+            company_id=company_id,
+            order_side="B",
+            order_type="L",
+            amount=350000000,
+            price=1000,
+            base_token_address=pair["base_id"],
+            base_token_chain_id=pair["base_chain_id"],
+            price_token_address=pair["price_id"],
+            price_token_chain_id=pair["price_chain_id"],
+        )
+        print("response", response)
         exit(0)
         create_order = CreateOrder(**create_order_data)
         

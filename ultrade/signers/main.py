@@ -6,44 +6,11 @@ class Signer(ABC):
   """
   Abstract base class for signers.
   """
-  def __init__(self, private_key, wormhole_chain_id: int = WormholeChains.UNSET):
-    self.private_key = private_key
-    self.wormhole_chain_id = wormhole_chain_id
-
-  @abstractmethod
-  def sign_data(self, message: bytes) -> str:
-    pass
-
-  @abstractmethod
-  def get_address(self) -> str:
-    pass
+  def __init__(self, wormhole_chain_id: int = WormholeChains.UNSET):
+    self._wormhole_chain_id = wormhole_chain_id
   
-  def get_provider_name(self) -> str:
-    if self.get_provider_name is None:
-      raise Exception("Provider name is not set.")
-    return self.provider_name
-
-  def get_wormhole_chain_id(self) -> WormholeChains:
-    """
-    Get the wormhole chain id.
-
-    Args:
-      chain_id (int): The chain id.
-
-    Returns:
-      int: The chain id.
-    """
-    if self.wormhole_chain_id == WormholeChains.UNSET:
-      raise Exception("Chain id is not set.")
-    return self.wormhole_chain_id
-
-class SignerFactory:
-  """
-  Factory class for creating signers based on the private key type.
-  """
-
-  @staticmethod
-  def create_signer(private_key: str) -> Signer:
+  @classmethod
+  def create_signer(cls, private_key: str) -> 'Signer':
     """
     Creates a signer based on the private key type.
 
@@ -58,14 +25,43 @@ class SignerFactory:
       Exception: If the private key or mnemonic is invalid.
     """
 
-    _private_key = PrivateKey(private_key)
+    key = PrivateKey(private_key)
 
-    if _private_key.key_type == KeyType.ALGORAND:
+    if key.key_type == KeyType.ALGORAND:
       from .algorand import AlgorandSigner
       return AlgorandSigner(private_key)
-    elif _private_key.key_type == KeyType.ETH:
+    elif key.key_type == KeyType.ETH:
       from .ethereum import EthereumSigner
       return EthereumSigner(private_key)
     else:
       raise Exception("Invalid private key or mnemonic.")
-    
+
+  @abstractmethod
+  def sign_data(self, message: bytes) -> str:
+    raise NotImplementedError("This method should be implemented by subclasses.")
+  
+  @property
+  @abstractmethod
+  def address(self) -> str:
+    raise NotImplementedError("This method should be implemented by subclasses.")
+  
+  @property
+  def provider_name(self) -> str:
+    if self._provider_name is None:
+      raise Exception("Provider name is not set.")
+    return self._provider_name
+
+  @property
+  def wormhole_chain_id(self) -> WormholeChains:
+    """
+    Get the wormhole chain id.
+
+    Args:
+      chain_id (int): The chain id.
+
+    Returns:
+      int: The chain id.
+    """
+    if self._wormhole_chain_id == WormholeChains.UNSET:
+      raise Exception("Chain id is not set.")
+    return self._wormhole_chain_id.value

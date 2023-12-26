@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 from requests import patch
 from ultrade.sdk_client import Client
-from ultrade.signers.main import SignerFactory
+from ultrade.signers.main import Signer
 from ultrade.types import ClientOptions
 from .test_credentials import TEST_MNEMONIC_KEY, TEST_MAINNET_ALGOD_ADDRESS, TEST_ALGOD_TOKEN, TEST_ETH_PRIVATE_KEY
 from algosdk.v2client import algod
@@ -14,8 +14,8 @@ class TestClient(unittest.TestCase):
 
     def setUp(self):
         self.algod_client = algod.AlgodClient(TEST_ALGOD_TOKEN, TEST_MAINNET_ALGOD_ADDRESS)
-        self.algo_signer = SignerFactory.create_signer(TEST_MNEMONIC_KEY)
-        self.eth_signer = SignerFactory.create_signer(TEST_ETH_PRIVATE_KEY)
+        self.algo_signer = Signer.create_signer(TEST_MNEMONIC_KEY)
+        self.eth_signer = Signer.create_signer(TEST_ETH_PRIVATE_KEY)
 
     def test_configure_with_invalid_network(self):
         options: ClientOptions = {

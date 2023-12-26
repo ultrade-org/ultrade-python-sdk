@@ -1,6 +1,7 @@
 .env
 env
 venv_*
+venv
 tests/test_credentials.py
 .vscode
 build

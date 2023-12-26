@@ -3,6 +3,7 @@ from typing import TypedDict, Optional, List
 from algosdk.v2client.algod import AlgodClient
 import time
 
+
 class BaseEnum(Enum):
     @classmethod
     def is_valid_value(cls, value):
@@ -12,14 +13,17 @@ class BaseEnum(Enum):
         except ValueError:
             return False
 
+
 class Network(BaseEnum):
-    MAINNET = 'mainnet'
-    TESTNET = 'testnet'
+    MAINNET = "mainnet"
+    TESTNET = "testnet"
+
 
 class KeyType(BaseEnum):
-    ALGORAND = 'algorand'
-    ETH = 'ethereum'
-    SOLANA = 'solana'
+    ALGORAND = "algorand"
+    ETH = "ethereum"
+    SOLANA = "solana"
+
 
 class Order(TypedDict):
     id: str
@@ -39,11 +43,13 @@ class NewOrderOptions(TypedDict):
     quantity: int
     price: int
 
+
 class ClientOptions(TypedDict, total=False):
     algo_sdk_client: AlgodClient
     api_url: str
     websocket_url: str
- 
+
+
 class WormholeChains(BaseEnum):
     UNSET = 0
     SOLANA = 1
@@ -79,22 +85,39 @@ class WormholeChains(BaseEnum):
     WORMCHAIN = 3104
     SEPOLIA = 10002
 
+
 class Providers(Enum):
     METAMASK = "METAMASK"
     MYALGO = "myalgo"
     PHANTOM = "phantom"
 
+
 class CreateOrder:
-    def __init__(self, pair_id: int, company_id: int, address: str, chain_id: int, order_side: str, order_type: str, price: int, amount: int, base_token_address: str, base_token_chain_id: int, price_token_address: str, price_token_chain_id: int, wlp_id: int = 0):
+    def __init__(
+        self,
+        pair_id: int,
+        company_id: int,
+        login_address: str,
+        login_chain_id: int,
+        order_side: str,
+        order_type: str,
+        price: int,
+        amount: int,
+        base_token_address: str,
+        base_token_chain_id: int,
+        price_token_address: str,
+        price_token_chain_id: int,
+        wlp_id: int = 0,
+    ):
         self.pair_id = pair_id
         self.company_id = company_id
-        self.address = address
-        self.chain_id = chain_id
+        self.address = login_address
+        self.chain_id = login_chain_id
         self.order_side = order_side
         self.order_type = order_type
         self.price = price
         self.amount = amount
-        self.expired_time = int(time.time()) + 30 * 24 * 60 * 60 #cur time + 30 days
+        self.expired_time = int(time.time()) + 30 * 24 * 60 * 60  # cur time + 30 days
         self.base_token_address = base_token_address
         self.base_token_chain_id = base_token_chain_id
         self.price_token_address = price_token_address
@@ -105,30 +128,32 @@ class CreateOrder:
 
     def __setup_data(self):
         return {
-            'pairId': self.pair_id,
-            'companyId': self.company_id,
-            'address': self.address,
-            'chainId': self.chain_id,
-            'orderSide': self.order_side,
-            'orderType': self.order_type,
-            'price': self.price,
-            'amount': self.amount,
-            'expiredTime': self.expired_time,
-            'baseTokenAddress': self.base_token_address,
-            'baseTokenChainId': self.base_token_chain_id,
-            'priceTokenAddress': self.price_token_address,
-            'priceTokenChainId': self.price_token_chain_id,
-            'wlpId': self.wlp_id
+            "pairId": self.pair_id,
+            "companyId": self.company_id,
+            "address": self.address,
+            "chainId": self.chain_id,
+            "orderSide": self.order_side,
+            "orderType": self.order_type,
+            "price": self.price,
+            "amount": self.amount,
+            "expiredTime": self.expired_time,
+            "baseTokenAddress": self.base_token_address,
+            "baseTokenChainId": self.base_token_chain_id,
+            "priceTokenAddress": self.price_token_address,
+            "priceTokenChainId": self.price_token_chain_id,
+            "wlpId": self.wlp_id,
         }
 
     @property
     def data(self):
         return self._data
 
+
 class PairSettings(TypedDict, total=False):
     mft_audioLink: Optional[str]
     view_baseCoinIconLink: Optional[str]
     mft_title: Optional[str]
+
 
 class TradingPair(TypedDict):
     base_chain_id: int

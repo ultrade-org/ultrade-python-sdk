@@ -1,5 +1,5 @@
 import unittest
-from ultrade.signers.main import SignerFactory
+from ultrade.signers.main import Signer
 from ultrade.signers.algorand import AlgorandSigner
 from ultrade.signers.ethereum import EthereumSigner
 from tests.test_credentials import TEST_MNEMONIC_KEY, TEST_ETH_PRIVATE_KEY, TEST_MESSAGE_TO_SIGN
@@ -12,23 +12,23 @@ from algosdk import mnemonic, account
 class TestCreateSigner(unittest.TestCase):
     def test_create_algorand_signer(self):
         private_key = TEST_MNEMONIC_KEY
-        signer = SignerFactory.create_signer(private_key)
+        signer = Signer.create_signer(private_key)
         self.assertIsInstance(signer, AlgorandSigner)
 
     def test_create_ethereum_signer(self):
         private_key = TEST_ETH_PRIVATE_KEY
-        signer = SignerFactory.create_signer(private_key)
+        signer = Signer.create_signer(private_key)
         self.assertIsInstance(signer, EthereumSigner)
 
     def test_invalid_private_key(self):
         private_key = "INVALID_PRIVATE_KEY"
         with self.assertRaises(Exception):
-            SignerFactory.create_signer(private_key)
+            Signer.create_signer(private_key)
 
 class TestSignMessage(unittest.TestCase):
     def setUp(self):
-        self.ethereum_signer = SignerFactory.create_signer(TEST_ETH_PRIVATE_KEY)
-        self.algorand_signer = SignerFactory.create_signer(TEST_MNEMONIC_KEY)
+        self.ethereum_signer = Signer.create_signer(TEST_ETH_PRIVATE_KEY)
+        self.algorand_signer = Signer.create_signer(TEST_MNEMONIC_KEY)
 
     def test_eth_sign_data(self):
         message = bytes(TEST_MESSAGE_TO_SIGN, 'utf-8')
@@ -43,7 +43,7 @@ class TestSignMessage(unittest.TestCase):
 
         self.assertEqual(recovered_address, expected_address)
         self.assertEqual(signature, expected_signature)
-        self.assertEqual(expected_address, self.ethereum_signer.get_address())
+        self.assertEqual(expected_address, self.ethereum_signer.address)
 
     def test_algorand_sign_data(self):
         message = bytes(TEST_MESSAGE_TO_SIGN, 'utf-8')
@@ -57,7 +57,7 @@ class TestSignMessage(unittest.TestCase):
         
         self.assertTrue(is_valid)
         self.assertEqual(signature, expected_signature)
-        self.assertEqual(public_key, self.algorand_signer.get_address())
+        self.assertEqual(public_key, self.algorand_signer.address)
 
 
 if __name__ == '__main__':
