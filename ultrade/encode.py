@@ -60,3 +60,55 @@ def get_order_bytes(
     order.extend(data["priceTokenChainId"].to_bytes(8, "big"))
     order.extend(data["wlpId"].to_bytes(8, "big"))
     return bytes(order)
+
+
+def make_withdraw_msg(
+    login_address: str,
+    login_chain_id: int,
+    recipient: str,
+    recipient_chain_id: int,
+    token_amount: int,
+    token_address: str,
+    token_chain_id: int,
+) -> bytes:
+    msg = bytearray()
+    token_amount_bytes = token_amount.to_bytes(32, "big")
+    sender_bytes = normalize_address(
+        recipient, determine_address_type(recipient_chain_id, False)
+    )
+    recipient_chain_id_bytes = recipient_chain_id.to_bytes(8, "big")
+
+    box_name_bytes = get_account_balance_box_name(
+        login_address, login_chain_id, token_address, token_chain_id
+    )
+    msg.extend(box_name_bytes)
+    msg.extend(sender_bytes)
+    msg.extend(recipient_chain_id_bytes)
+    msg.extend(token_amount_bytes)
+
+    message_bytes = bytes(msg)
+
+    return message_bytes
+
+
+def get_account_balance_box_name(
+    login_address: str,
+    login_chain_id: int,
+    token_address: Union[str, int],
+    token_chain_id: int,
+) -> bytes:
+    box_bytes = bytearray()
+    address_bytes = normalize_address(
+        login_address, determine_address_type(login_chain_id, False)
+    )
+    chain_id_bytes = login_chain_id.to_bytes(8, "big")
+    token_chain_id_bytes = token_chain_id.to_bytes(8, "big")
+    token_bytes = normalize_address(
+        token_address, determine_address_type(token_chain_id, True)
+    )
+    box_bytes.extend(address_bytes)
+    box_bytes.extend(chain_id_bytes)
+    box_bytes.extend(token_bytes)
+    box_bytes.extend(token_chain_id_bytes)
+    box_name = bytes(box_bytes)
+    return box_name

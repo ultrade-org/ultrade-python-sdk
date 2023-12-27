@@ -42,37 +42,43 @@ class TestClient:
         company_id = await self.api.get_company_by_domain(TEST_COMPANY_DOMAIN)
         pairs = await self.api.get_pair_list(company_id)
         pair = pairs[0]
-        print("PAIR", pair)
         login_user = Signer.create_signer(TEST_MNEMONIC_KEY)
         await self.client.set_login_user(login_user)
-        response = await self.client.create_order(
-            pair_id=pair["id"],
-            company_id=company_id,
-            order_side="B",
-            order_type="L",
-            amount=350000000,
-            price=1000,
-            base_token_address=pair["base_id"],
-            base_token_chain_id=pair["base_chain_id"],
-            price_token_address=pair["price_id"],
-            price_token_chain_id=pair["price_chain_id"],
-        )
-        print("response", response)
+        # await self.client.create_order(
+        #     pair_id=pair["id"],
+        #     company_id=company_id,
+        #     order_side="B",
+        #     order_type="L",
+        #     amount=350000000,
+        #     price=1000,
+        #     base_token_address=pair["base_id"],
+        #     base_token_chain_id=pair["base_chain_id"],
+        #     price_token_address=pair["price_id"],
+        #     price_token_chain_id=pair["price_chain_id"],
+        # )
+        balances = await self.client.get_balances()
+        from ultrade.types import OrderStatus, WormholeChains
+        order_with_trades = await self.client.get_orders_with_trades(status=OrderStatus.OPEN_ORDER)
+        # get_wallet_transactions = await self.client.get_transactions()
+        print("get_wallet_transactions", balances)
+        balance = balances[0]
+        # resp = await self.client.withdraw(
+        #     amount=100000000000,
+        #     token_chain_id=balance["tokenChainId"],
+        #     token_address=balance["tokenId"],
+        #     recipient="0x7084946BDeD4a2Dc85F6Fd09d11Aa026904F62bD",
+        #     recipient_chain_id=WormholeChains.POLYGON.value,
+        # )
+        # print("resp", resp)
+        import json
+        print(json.dumps(order_with_trades, indent=2), "ORDERS")
+        res = await self.client.cancel_order(order_with_trades[0]["id"])
+        print("res", res)
         exit(0)
-        create_order = CreateOrder(**create_order_data)
-        
-        with patch('aiohttp.ClientSession') as mock_session:
-            mock_resp = AsyncMock()
-            mock_resp.json.return_value = {"order_id": "123456"}
-            mock_session.return_value.__aenter__.return_value.post.return_value = mock_resp
-            
 
-            await ultrade_client.set_login_user(mock_signer)
-
-            # Вызываем метод create_order
-            result = await ultrade_client.create_order(create_order)
-
-            assert result == {"order_id": "123456"}
+    # @pytest.mark.asyncio
+    # async def test_cancel_order(self):
+    #     pass
 
 @pytest.mark.asyncio
 class TestApiCalls():

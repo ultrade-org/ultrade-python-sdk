@@ -1,6 +1,7 @@
 from enum import Enum
 from typing import TypedDict, Optional, List
 from algosdk.v2client.algod import AlgodClient
+from datetime import datetime
 import time
 
 
@@ -23,25 +24,6 @@ class KeyType(BaseEnum):
     ALGORAND = "algorand"
     ETH = "ethereum"
     SOLANA = "solana"
-
-
-class Order(TypedDict):
-    id: str
-    symbol: str
-    side: str
-    type: str
-    time_force: str
-    quantity: int
-    price: int
-    status: int
-
-
-class NewOrderOptions(TypedDict):
-    symbol: str
-    side: str
-    type: str
-    quantity: int
-    price: int
 
 
 class ClientOptions(TypedDict, total=False):
@@ -181,3 +163,76 @@ class TradingPair(TypedDict):
     restrictedCountries: List[str]
     pairSettings: PairSettings
     partner_id: int
+
+
+class Balance(TypedDict):
+    hash: str
+    loginAddress: str
+    loginChainId: int
+    tokenId: str
+    tokenChainId: int
+    amount: int
+    lockedAmount: int
+
+
+# class export enum ORDER_STATUS {
+class OrderStatus(Enum):
+    OPEN_ORDER = 1
+    CANCELLED = 2
+    MATCHED = 3
+    SELF_MATCHED = 4
+
+
+class Trade(TypedDict, total=False):
+    trades_id: int
+    trade_price: Optional[str]
+    trade_amount: Optional[str]
+    trade_fee: Optional[str]
+    trade_rebate: Optional[str]
+    trade_created_at: Optional[datetime]
+
+
+class OrderWithTrade(TypedDict, total=False):
+    id: int
+    pair_id: int
+    order_side: int
+    order_type: int
+    partner_id: Optional[int]
+    direct_settle: int
+    order_price: str
+    order_executed_price: str
+    order_amount: str
+    order_filled_amount: str
+    order_total: str
+    order_filled_total: str
+    order_status: int
+    user_id: str
+    completed_at: Optional[datetime]
+    cancel_at: Optional[datetime]
+    created_at: datetime
+    updated_at: datetime
+    trades: Optional[List[Trade]]
+
+
+class Token(TypedDict):
+    id: int
+    address: str
+    chainId: int
+    unitName: str
+    name: str
+    decimals: int
+
+
+class WalletTransaction(TypedDict, total=False):
+    primaryId: int
+    id: Optional[str]
+    login_address: str
+    login_chain_id: int
+    action_type: str
+    status: str
+    amount: str
+    targetAddress: str
+    timestamp: datetime
+    createdAt: datetime
+    updatedAt: datetime
+    token_id: Token
