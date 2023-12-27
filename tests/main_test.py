@@ -1,180 +1,130 @@
 from ultrade.sdk_client import Client
-from ultrade import api, Signer
-from ultrade.types import ClientOptions, CreateOrder
-import pprint
-
+from ultrade.types import OrderStatus
 import pytest
-from unittest.mock import patch, AsyncMock
-
-from algosdk.v2client import algod
-from algosdk import transaction
-
-from . import utils
-from .test_credentials import TEST_API_URL, TEST_MNEMONIC_KEY, TEST_COMPANY_DOMAIN
+from .test_credentials import TEST_API_URL
 
 
-# ALGO_USDC_ORDER = {
-#     "symbol": "algo_usdc",
-#     "side": 'B',
-#     "type": "L",
-#     "quantity": 2000000,
-#     "price": 800
-# }
-
-# LMBO_USDC_ORDER = {
-#     "symbol": "lmbo_usdc",
-#     "side": 'B',
-#     "type": "L",
-#     "quantity": 350000000,
-#     "price": 800
-# }
-
-
+@pytest.mark.asyncio
 class TestClient:
 
+    @pytest.mark.asyncio
+    async def test_get_balances(self, client_class_scope):
+        print("client_class_scope", client_class_scope)
+        client_instance, api_instance = client_class_scope
+        balances = await client_instance.get_balances()
+        assert isinstance(balances, list)
+        assert all(isinstance(balance, dict) for balance in balances)
+
+    async def test_get_orders(self, client_class_scope):
+        client_instance, api_instance = client_class_scope
+        orders = await client_instance.get_orders_with_trades(
+            status=OrderStatus.OPEN_ORDER
+        )
+        assert isinstance(orders, list)
+        assert all(isinstance(order, dict) for order in orders)
+
+    async def test_create_order(self, client_class_scope):
+        client_instance, api_instance = client_class_scope
+        pairs = await api_instance.get_pair_list()
+        pair = pairs[0]
+        res = await client_instance.create_order(
+            pair_id=pair["id"],
+            company_id=1,
+            order_side="B",
+            order_type="L",
+            amount=350000000,
+            price=1000,
+            base_token_address=pair["base_id"],
+            base_token_chain_id=pair["base_chain_id"],
+            price_token_address=pair["price_id"],
+            price_token_chain_id=pair["price_chain_id"],
+        )
+        assert res == "Order created successfully"
+
+    @pytest.mark.asyncio
+    async def test_cancel_order(self, client_class_scope):
+        client_instance, api_instance = client_class_scope
+        orders = await client_instance.get_orders_with_trades(
+            status=OrderStatus.OPEN_ORDER
+        )
+        order = orders[0]
+        res = await client_instance.cancel_order(order["id"])
+        assert res == "Order cancelled successfully"
+
+
+@pytest.mark.asyncio
+class TestApiCalls:
     @classmethod
     def setup_class(cls):
         cls.client = Client(network="testnet", api_url=TEST_API_URL)
         cls.api = cls.client.create_api()
 
-    @pytest.mark.asyncio
-    async def test_create_order(self):
-        company_id = await self.api.get_company_by_domain(TEST_COMPANY_DOMAIN)
+    async def test_get_pair_list(self):
+        company_id = 1
         pairs = await self.api.get_pair_list(company_id)
-        pair = pairs[0]
-        login_user = Signer.create_signer(TEST_MNEMONIC_KEY)
-        await self.client.set_login_user(login_user)
-        # await self.client.create_order(
-        #     pair_id=pair["id"],
-        #     company_id=company_id,
-        #     order_side="B",
-        #     order_type="L",
-        #     amount=350000000,
-        #     price=1000,
-        #     base_token_address=pair["base_id"],
-        #     base_token_chain_id=pair["base_chain_id"],
-        #     price_token_address=pair["price_id"],
-        #     price_token_chain_id=pair["price_chain_id"],
-        # )
-        balances = await self.client.get_balances()
-        from ultrade.types import OrderStatus, WormholeChains
-        order_with_trades = await self.client.get_orders_with_trades(status=OrderStatus.OPEN_ORDER)
-        # get_wallet_transactions = await self.client.get_transactions()
-        print("get_wallet_transactions", balances)
-        balance = balances[0]
-        # resp = await self.client.withdraw(
-        #     amount=100000000000,
-        #     token_chain_id=balance["tokenChainId"],
-        #     token_address=balance["tokenId"],
-        #     recipient="0x7084946BDeD4a2Dc85F6Fd09d11Aa026904F62bD",
-        #     recipient_chain_id=WormholeChains.POLYGON.value,
-        # )
-        # print("resp", resp)
-        import json
-        print(json.dumps(order_with_trades, indent=2), "ORDERS")
-        res = await self.client.cancel_order(order_with_trades[0]["id"])
-        print("res", res)
-        exit(0)
+        print("pairs", pairs)
+        assert isinstance(pairs, list)
+        assert all(isinstance(pair, dict) for pair in pairs)
 
-    # @pytest.mark.asyncio
-    # async def test_cancel_order(self):
-    #     pass
-
-@pytest.mark.asyncio
-class TestApiCalls():
-    async def test_get_order_by_id(self):
-        order = await utils.find_open_order(client)
-        if not order:
-            return
-
-        order_by_id = await client.get_order_by_id(None, order["id"])
-        utils.validate_response_for_expected_fields(order_by_id, ["pair_key"])
-
-    async def test_get_orders(self):
-        symbols = await api.get_symbols("")
-
-        for s in symbols:
-            orders = await client.get_orders(s["pairKey"], status=1)
-
-            if len(orders) != 0:
-                utils.validate_response_for_expected_fields(
-                    orders[0], ["pair_id", "slot", "id"])
-                return
-
-        raise Exception("Test failed")
-
-    async def test_get_wallet_transactions(self):
-        transactions = await client.get_wallet_transactions(TEST_ALGOD_ADDRESS)
-        if len(transactions) == 0:
-            return
-
-        utils.validate_response_for_expected_fields(
-            transactions[0], ["txnId", "pair", "amount"])
-
-    async def test_get_balances(self):
-        data = await client.get_balances("lmbo_usdc")
-        utils.validate_response_for_expected_fields(
-            data, ["priceCoin_locked", "priceCoin_available", "baseCoin_locked", "baseCoin_available",
-                   "priceCoin", "baseCoin"])
-
-    async def test_get_balances_with_algo(self):
-        data = await client.get_balances("algo_usdc")
-        utils.validate_response_for_expected_fields(
-            data, ["priceCoin_locked", "priceCoin_available", "baseCoin_locked", "baseCoin_available",
-                   "priceCoin", "baseCoin"])
-
-
-@pytest.mark.asyncio
-class TestGetExchangeInfo():
-    async def test_algo_usdc(self):
+    async def test_get_exchange_info(self):
         symbol = "algo_usdc"
-        data = await api.get_exchange_info(symbol)
-        utils.validate_response_for_expected_fields(
-            data, ["id", "application_id", "pair_key", "base_id"])
+        exchange_info = await self.api.get_exchange_info(symbol)
+        print("exchange_info", exchange_info)
+        assert isinstance(exchange_info, dict)
 
-    async def test_with_wrong_symbol(self):
-        symbol = "test_test123"
-        with pytest.raises(Exception):
-            await api.get_exchange_info(symbol)
-
-
-@pytest.mark.asyncio
-class TestApi():
     async def test_ping(self):
-        latency = await api.ping()
-        assert type(latency) == int
-
-    async def test_get_history(self):
-        history = await api.get_history(TEST_SYMBOL)
-        print("history", history)
-        utils.validate_response_for_expected_fields(
-            history[0] if len(history) > 0 else [], ["v", "o", "c", "h", "l"])
+        latency = await self.api.ping()
+        assert isinstance(latency, int)
 
     async def test_get_price(self):
-        symbol = await utils.get_symbol_of_open_order(client)
-        price = await api.get_price(symbol)
-        utils.validate_response_for_expected_fields(
-            price, ["last", "bid", "ask"])
+        symbol = "algo_usdt"
+        price_info = await self.api.get_price(symbol)
+        print("price_info", price_info)
+        assert isinstance(price_info, dict)
 
     async def test_get_depth(self):
-        symbol = await utils.get_symbol_of_open_order(client)
-        depth = await api.get_depth(symbol)
-        utils.validate_response_for_expected_fields(depth, ["buy", "sell"])
+        symbol = "algo_usdt"
+        depth = 100
+        depth_info = await self.api.get_depth(symbol, depth)
+        print("depth_info", depth_info)
+        assert isinstance(depth_info, dict)
 
     async def test_get_symbols(self):
         mask = "algo"
-        symbols_list = await api.get_symbols(mask)
-        assert len(symbols_list) > 0
+        symbols = await self.api.get_symbols(mask)
+        print("Symbols:", symbols)
+        assert isinstance(symbols, list)
+        assert all(isinstance(symbol, dict) for symbol in symbols)
+        assert all(mask in symbol["pairKey"] for symbol in symbols)
 
-    async def test_get_encoded_balance(self):
-        app_id = 202953808  # algo_usdc
-        balance = await api._get_encoded_balance(TEST_ALGO_WALLET, app_id)
-        assert balance is not None
+    async def test_get_history(self):
+        symbol = "moon_algo"
+        interval = "1h"
+        history = await self.api.get_history(symbol, interval)
+        print(
+            "History for symbol:",
+            symbol,
+            "Interval:",
+            interval,
+            "History Data:",
+            history,
+        )
+        assert isinstance(history, dict)
 
     async def test_get_last_trades(self):
-        trades = await api.get_last_trades(TEST_SYMBOL)
-        if len(trades) == 0:
-            return
+        symbol = "moon_algo"
+        last_trades = await self.api.get_last_trades(symbol)
+        print("Last trades for symbol:", symbol, "Trades Data:", last_trades)
+        assert isinstance(last_trades, list)
 
-        utils.validate_response_for_expected_fields(
-            trades[0], ["price", "amount", "buy_user_id", "sell_user_id"])
+    # async def test_get_orders(self):
+    #     status = 1  # Open orders
+    #     orders = await self.api.get_orders(status, address="")
+    #     print("Orders Data:", orders)
+    #     assert isinstance(orders, list)
+
+    async def test_get_order_by_id(self):
+        order_id = 1
+        order_data = await self.api.get_order_by_id(order_id)
+        print("Order data for order_id:", order_id, "Order Data:", order_data)
+        assert isinstance(order_data, dict)
