@@ -4,7 +4,6 @@ from ultrade.types import OrderStatus
 import pytest
 from .test_credentials import TEST_API_URL, TEST_WALLET_ADDRESS
 
-
 @pytest.mark.asyncio
 class TestClient:
 
