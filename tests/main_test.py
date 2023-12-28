@@ -1,7 +1,8 @@
+import asyncio
 from ultrade.sdk_client import Client
 from ultrade.types import OrderStatus
 import pytest
-from .test_credentials import TEST_API_URL
+from .test_credentials import TEST_API_URL, TEST_WALLET_ADDRESS
 
 
 @pytest.mark.asyncio
@@ -128,3 +129,32 @@ class TestApiCalls:
         order_data = await self.api.get_order_by_id(order_id)
         print("Order data for order_id:", order_id, "Order Data:", order_data)
         assert isinstance(order_data, dict)
+
+@pytest.mark.asyncio
+class TestSocket:
+    async def test_socket(self, client_class_scope):
+        client_instance, api_instance = client_class_scope
+        received_event = asyncio.Event()
+        received_data = None
+        subscribe_options = {
+            "symbol": "",
+            "streams": [1, 2, 3, 5, 6, 7, 8, 9, 10, 11],
+            "options": {
+                "address": TEST_WALLET_ADDRESS
+            }
+        }
+        def callback(event, data):
+            nonlocal received_data
+            print("event", event)
+            print("data", data)
+            received_data = data
+            received_event.set()
+        
+        sub_id = await client_instance.subscribe(subscribe_options, callback)
+        print("sub_id", sub_id)
+
+        await received_event.wait()
+        assert received_data is not None
+        assert isinstance(received_data, list)
+        assert all(isinstance(data, dict) for data in received_data)
+        await client_instance.unsubscribe(sub_id)

@@ -69,6 +69,7 @@ class Client:
                 "Network of the AlgodClient should be the same as the network specified in the options"
             )
         self._client = AlgodService(self.__algod_client)
+        self._websocket_client = SocketClient(self.__websocket_url)
 
     def __validate_signer(self, signer: Signer):
         if not isinstance(signer, Signer):
@@ -378,12 +379,12 @@ class Client:
                 self.maintenance_mode_status = args
 
         if options.get("address") is None:
-            options["address"] = self._client.get_account_address()
+            options["address"] = self._login_user.address
 
         if OPTIONS.MAINTENANCE not in options["streams"]:
             options["streams"].append(OPTIONS.MAINTENANCE)
 
-        return await self.socket_client.subscribe(options, socket_callback)
+        return await self._websocket_client.subscribe(options, socket_callback)
 
     async def unsubscribe(self, connection_id):
         """
@@ -392,7 +393,7 @@ class Client:
         Args:
             connection_id (str): The ID of the connection to unsubscribe from.
         """
-        await self.socket_client.unsubscribe(connection_id)
+        await self._websocket_client.unsubscribe(connection_id)
 
     def create_api(self):
         """
