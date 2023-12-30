@@ -6,11 +6,10 @@ import pytest_asyncio
 
 
 @pytest_asyncio.fixture
-async def client_class_scope():
+async def client():
     login_user = Signer.create_signer(TEST_MNEMONIC_KEY)
     client_instance = Client(network="testnet", api_url=TEST_API_URL, websocket_url=TEST_SOCKET_URL)
     await client_instance.set_login_user(login_user)
-    api_instance = client_instance.create_api()
-    return client_instance, api_instance
+    return client_instance
 
    

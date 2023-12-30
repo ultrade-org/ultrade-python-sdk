@@ -1,31 +1,16 @@
 # Ultrade
 
 ## Table of Contents
+
 1. [Introduction](#introduction)
 2. [Installation](#installation)
-3. [Usage](#usage)
+3. [Quick start](#quick-start)
+   - [Structure](#structure)
    - [Creating a Client](#creating-a-client)
    - [Creating a Signer](#creating-a-signer)
    - [Logging In](#logging-in)
-   - [Creating an API Instance](#creating-an-api-instance)
-   - [Getting Balances](#getting-balances)
-   - [Getting Orders](#getting-orders)
-   - [Getting Transactions](#getting-transactions)
-   - [Getting the Pair List](#getting-the-pair-list)
-   - [Creating an Order](#creating-an-order)
-   - [Cancelling an Order](#cancelling-an-order)
-   - [Withdrawing Tokens](#withdrawing-tokens)
-   - [Subscribe to Websocket Streams](#subscribe-to-websocket-streams)
-   - [Unsubscribe from Websocket Streams](#unsubscribe-from-websocket-streams)
-   - [Get Exchange Information](#get-exchange-information)
-   - [Ping](#ping)
-   - [Get Price](#get-price)
-   - [Get Depth](#get-depth)
-   - [Get Symbols](#get-symbols)
-   - [Get Trading History](#get-trading-history)
-   - [Get Last Trades](#get-last-trades)
-   - [Get Order by ID](#get-order-by-id)
-   - [Get Company by Domain](#get-company-by-domain)
+4. [Public methods](#public-methods)
+5. [Required login methods](#required-login-methods)
 
 ## Introduction
 
@@ -34,268 +19,182 @@ The `ultrade` package is a Python SDK for interacting with the Ultrade DeFi. It 
 ## Installation
 
 To install the `ultrade` package, you can use pip:
-  
-  ```bash
-  pip install ultrade
-  ```
-## Usage
+
+```bash
+pip install ultrade
+```
+
+## Quick start
+
+### Structure
+
+| Import                   | Description                                                                                                                                       |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ultrade.Client`         | The core class encompassing essential methods for working with Ultrade DeFi, including functionalities secured by user login.                     |
+| `ultrade.Signer`         | A class designed for generating signers based on the provided private key. It can be used for user login as well as signing deposit transactions. |
+| `ultrade.types`          | A module containing data type definitions used throughout the SDK.                                                                                |
+| `ultrade.socket_options` | Options related to WebSocket connections.                                                                                                         |
 
 ### Creating a client
 
-To create a client, you need to provide the network. The network can be either `mainnet` or `testnet`. You can also provide aditional options discribet in the table below.
+To create a client, you must specify the `network`, which can be either `mainnet` or `testnet`. Depending on the selected network, optional parameters are set by default. These parameters are primarily intended for testing purposes and can be manually configured if necessary. A detailed description of these optional parameters is provided in the table below.
 
-| Option | Description | Default value |
-| --- | --- | --- |
-| api_url | The URL of the Ultrade API. | https://api.ultrade.io |
-| websocket_url | The URL of the Ultrade WebSocket API. | wss://ws.ultrade.io |
-| algo_sdk_client | The Algorand SDK client. | Public client |
-
+| Option          | Description                           | Default value                                                                  |
+| --------------- | ------------------------------------- | ------------------------------------------------------------------------------ |
+| api_url         | The URL of the Ultrade API.           | **Testnet**: _api.testnet.ultrade.org_<br>**Mainnet**: _api.ultrade.org_       |
+| websocket_url   | The URL of the Ultrade WebSocket API. | **Testnet**: _ws.testnet.ultrade.org_<br>**Mainnet**: _ws.mainnet.ultrade.org_ |
+| algo_sdk_client | The Algorand SDK client.              | Public client                                                                  |
 
 ```python
-from ultrade.sdk_client import Client
+from ultrade import Client
 
 client = Client(network="testnet")
 ```
 
 ### Creating a signer
 
-To create a signer, you need to provide the mnemonic key. The mnemonic key is a 25-word phrase for Algorand or EVM private key.  
-Signer can be used to login, deposit, withdraw and signing transactions.
-  
-  ```python
-  from ultrade import Signer
-  #algorand
-  mnemonic_key = "lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod ..."
-  #EVM
-  mnemonic_key = "e421abcdb55899d7bc2be1652a64a63fffc3cf654e989ebcce45k121d6a34a"
-  signer = Signer.create_signer(mnemonic_key)
-  ```
+To create a signer, you must provide a mnemonic key. This key is a 25-word phrase used for Algorand or an EVM private key. The signer is utilized for various functions such as logging in, depositing, withdrawing, and signing transactions.
+
+```python
+from ultrade import Signer
+
+#algorand
+mnemonic_key = "lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod ..."
+signer = Signer.create_signer(mnemonic_key)
+
+#EVM
+private_key = "e421abcdb55899d7bc2be1652a64a63fffc3cf654e989ebcce45k121d6a34a"
+signer = Signer.create_signer(private_key)
+```
 
 ### Logging in
 
-To log in, you need to call the `set_login_user` method on the client instance. The `set_login_user` method takes a signer as an argument.
+To initiate a login, invoke the `set_login_user` method on the client instance, passing a `signer` instance as its argument. This login process generates a special token that grants access to the SDK's protected methods, which require authentication. These methods, offering enhanced security and functionality, are detailed in the "Private Methods" table. This token ensures secure interaction with the SDK's privileged features.
 
 ```python
+from ultrade import Signer, Client
+
+private_key = #your EVM private key or Algorand mnemonic
+client = Client(private_key)
+signer = Signer.create_signer(mnemonic_key)
 await client.set_login_user(signer)
 
-isLogged = client.is_logged_in()
+isLogged = client.is_logged_in() #returns True or False
 ```
 
-### Creating an API Instance
+## Public methods
 
-The `create_api` method is designed to create an instance of the public API. This instance provides access to various functionalities of the Ultrade platform that do not require user authentication.
+Below are methods that do not require the [login function](#logging-in) to be executed
+| Method | Description |
+| ------ | ----------- |
+| [get_pair_list](#get_pair_list) | Retrieves a list of trading pairs available on the exchange. |
+| [get_pair_info](#get_pair_info) | Retrieves detailed information about a specific trading pair. |
+| [ping](#ping) | Checks the latency between the client and the server. |
+| [get_price](#get_price) | Retrieves the current market price for a specified trading pair. |
+| [get_depth](#get_depth) | Retrieves the order book depth for a specified trading pair. |
+| [get_symbols](#get_symbols) | Retrieves a list of trading pairs that match a given pattern. |
+| [get_last_trades](#get_last_trades) | Retrieves the most recent trades for a specified trading pair. |
+| [get_order_by_id](#get_order_by_id) | Retrieves detailed information about an order by its ID. |
+| [get_company_by_domain](#get_company_by_domain) | Retrieves the company ID based on the domain name. |
+
+### get_pair_list
+
+To get the listed pair list, you need to call the `get_pair_list` method on the API instance. The `get_pair_list` method takes an optional `company_id` argument. If the `company_id` argument is not provided, all pairs are returned.
 
 ```python
-api = client.create_api()
+pairs = await client.get_pair_list()
 ```
 
-### Getting balances
+**Returns:**
+`List[TradingPair]` from `ultrade.types`
 
-The `get_balances` method retrieves the current balance information for the logged-in user on the Ultrade platform. It returns a list of balance details for each token associated with the user's account.  
+<details>
+<summary><strong>TradingPair</strong></summary>
 
-```python
-balances = await client.get_balances()
-```
-The method returns a list of dictionaries with the following key-value pairs:
+| Field                 | Type           | Description                                         |
+| --------------------- | -------------- | --------------------------------------------------- |
+| `base_chain_id`       | `int`          | Blockchain ID of the base currency.                 |
+| `base_currency`       | `str`          | Base currency code.                                 |
+| `base_decimal`        | `int`          | Decimal precision of the base currency.             |
+| `base_id`             | `str`          | Unique identifier of the base currency.             |
+| `created_at`          | `str`          | Timestamp of creation.                              |
+| `id`                  | `int`          | Unique identifier of the trading pair.              |
+| `is_active`           | `bool`         | Indicates if the trading pair is active.            |
+| `is_verified`         | `int` (0 or 1) | Indicates if the trading pair is verified.          |
+| `min_order_size`      | `str`          | Minimum order size.                                 |
+| `min_price_increment` | `str`          | Minimum price increment in atomic units.            |
+| `min_size_increment`  | `str`          | Minimum size increment for orders in atomic units.  |
+| `pair_key`            | `str`          | Unique key of the trading pair.                     |
+| `pair_name`           | `str`          | Display name of the trading pair.                   |
+| `pairId`              | `int`          | Alternate identifier for the trading pair.          |
+| `price_chain_id`      | `int`          | Blockchain ID of the price currency.                |
+| `price_currency`      | `str`          | Price currency code.                                |
+| `price_decimal`       | `int`          | Decimal precision of the price currency.            |
+| `price_id`            | `str`          | Unique identifier of the price currency.            |
+| `trade_fee_buy`       | `int`          | Trading fee for buying in atomic units.             |
+| `trade_fee_sell`      | `int`          | Trading fee for selling in atomic units.            |
+| `updated_at`          | `str`          | Timestamp of the last update.                       |
+| `inuseWithPartners`   | `List[int]`    | List of partner IDs using this pair.                |
+| `restrictedCountries` | `List[str]`    | List of countries where the pair is restricted.     |
+| `pairSettings`        | `PairSettings` | Additional settings for the pair.                   |
+| `partner_id`          | `int`          | Identifier of the partner associated with the pair. |
 
-| Key            | Type         | Description                               |
-|----------------|--------------|-------------------------------------------|
-| `loginAddress` | `str`        | The blockchain address of the logged user.|
-| `loginChainId` | `int`        | The chain ID associated with the user's login address. |
-| `tokenId`      | `int` or `str` | The identifier of the token.          |
-| `tokenChainId` | `int`        | The chain ID of the token.                |
-| `amount`       | `int`        | The total amount of the token.            |
-| `lockedAmount` | `int`        | The amount of the token that is locked.   |
+</details>
 
+<details>
+<summary><strong>PairSettings</strong></summary>
 
-### Getting orders
+| Field                   | Type            | Description                            |
+| ----------------------- | --------------- | -------------------------------------- |
+| `mft_audioLink`         | `Optional[str]` | MFT audio link.                        |
+| `view_baseCoinIconLink` | `Optional[str]` | Link to the icon of the base currency. |
+| `mft_title`             | `Optional[str]` | MFT title                              |
 
-The `get_orders_with_trades` method retrieves a list of orders along with their trade details for the logged-in user on the Ultrade platform. It allows filtering orders based on a specific trading pair symbol and order status.  
-| Parameter | Type          | Optional | Description                                  |
-|-----------|---------------|----------|----------------------------------------------|
-| `symbol`  | `str`         | Yes      | The symbol of the trading pair.              |
-| `status`  | `OrderStatus` | Yes      | The status of the orders. Defaults to `OrderStatus.OPEN_ORDER`. |
+</details>
 
-```python
-from ultrade.types import OrderStatus
+### get_pair_info
 
-orders = await client.get_orders_with_trades(symbol="algo_usdc", status=OrderStatus.OPEN_ORDER)
-```
+The `get_pair_info` method retrieves detailed information about a specific trading pair on the Ultrade platform. It provides key data such as current price and trading volume.
 
-### Getting Transactions
-
-The `get_transactions` method fetches the transaction history for the logged-in user on the Ultrade platform. It optionally allows filtering the transactions by a specific trading pair symbol.
-
-| Parameter | Type    | Optional | Description                               |
-|-----------|---------|----------|-------------------------------------------|
-| `symbol`  | `str`   | Yes      | The symbol of the trading pair to filter transactions. If not provided, transactions for all pairs are returned. |
-
-The method returns a list of `WalletTransaction` dictionaries, each representing a transaction.
-
-```python
-transactions = await client.get_transactions(symbol="algo_usdc")
-for transaction in transactions:
-    print(f"Transaction ID: {transaction['id']}, Amount: {transaction['amount']}")
-```
-
-### Getting the pair list
-
-To get the pair list, you need to call the `get_pair_list` method on the API instance. The `get_pair_list` method takes an optional `company_id` argument. If the `company_id` argument is not provided, all pairs are returned. If the `company_id` argument is provided, only pairs with the provided company ID are returned.
-
-```python
-pairs = await api.get_pair_list()
-```
-
-### Creating an Order
-
-The `create_order` method is used to create a new order on the Ultrade platform. This method allows you to specify various parameters for the order, including the type, side, amount, and price.
-
-
-| Parameter             | Type   | Description                                      |
-|-----------------------|--------|--------------------------------------------------|
-| `pair_id`             | `int`  | The ID of the trading pair.                      |
-| `company_id`          | `int`  | The ID of the company associated with the order. |
-| `order_side`          | `str`  | The side of the order, 'B' (buy) or 'S' (sell).  |
-| `order_type`          | `str`  | The type of the order, 'L' (limit) or 'M' (market). |
-| `amount`              | `int`  | The amount of tokens to buy or sell.             |
-| `price`               | `int`  | The price per token for the order.               |
-| `base_token_address`  | `str`  | The blockchain address of the base token.        |
-| `base_token_chain_id` | `int`  | The chain ID of the base token.                  |
-| `price_token_address` | `str`  | The blockchain address of the price token.       |
-| `price_token_chain_id`| `int`  | The chain ID of the price token.                 |
-
-
-To create an order, you need to provide details about the order such as the pair ID, company ID, order side and type, amount, price, and the addresses and chain IDs of the tokens involved. The method is asynchronous and must be awaited.
-
-```python
-res = await client.create_order(
-    pair_id=pair["id"],
-    company_id=1,
-    order_side="B",
-    order_type="L",
-    amount=350000000,
-    price=1000,
-    base_token_address=pair["base_id"],
-    base_token_chain_id=pair["base_chain_id"],
-    price_token_address=pair["price_id"],
-    price_token_chain_id=pair["price_chain_id"],
-)
-
-if res == "Order created successfully":
-    print("Order created successfully")
-```
-
-### Cancelling an Order
-
-The `cancel_order` method is used to cancel an existing order on the Ultrade platform. This method requires the user to be logged in and have a valid order to cancel.
-
-
-| Parameter  | Type   | Description                       |
-|------------|--------|-----------------------------------|
-| `order_id` | `int`  | The ID of the order to be cancelled. |
-
-
-To cancel an order, provide the ID of the order you wish to cancel. The method checks if the user is logged in before proceeding. It is asynchronous and must be awaited.
-
-```python
-try:
-    response = await client.cancel_order(order_id)
-    if response == "Order cancelled successfully":
-        print("Order cancelled successfully")
-except Exception as error:
-    print(f"Error: {error}")
-```
-
-### Withdrawing Tokens
-
-The `withdraw` method enables the withdrawal of a specified amount of tokens to a designated recipient. This operation requires the user to be logged in and have sufficient token balance.
-
-
-| Parameter          | Type  | Description                               |
-|--------------------|-------|-------------------------------------------|
-| `amount`           | `int` | The amount of tokens to withdraw.         |
-| `token_address`    | `str` | The blockchain address of the token.      |
-| `token_chain_id`   | `int` | The chain ID of the token.                |
-| `recipient`        | `str` | The blockchain address of the recipient.  |
-| `recipient_chain_id` | `int` | The chain ID of the recipient's address. |
-
-
-To perform a withdrawal, specify the amount, token address, token chain ID, recipient address, and recipient chain ID. The method is asynchronous and must be awaited.
-
-```python
-from ultrade.types import WormholeChains
-
-try:
-    response = await client.withdraw(
-        amount=1000,
-        token_address="0xTokenAddress",
-        token_chain_id=WormholeChains.POLYGON.value,
-        recipient="0xRecipientAddress",
-        recipient_chain_id=WormholeChains.POLYGON.value
-    )
-    print(response)  # Response from the server
-except Exception as error:
-    print(f"Error: {error}")
- ```
- 
- ### Subscribe to Websocket Streams
- 
- The subscribe method subscribes the client to various websocket streams based on the provided options. This method is useful for real-time data monitoring on the Ultrade platform.
- | Parameter          | Type  | Description                               |
-|--------------------|-------|-------------------------------------------|
-| `options`           | `dict` | A dictionary containing the websocket subscription options. |
-| `callback`    | `function` | A function to be called on receiving a websocket event.      |
-
-```python
-from ultrade import socket_options
-
-options = {
-    'symbol': "yldy_stbl",
-    'streams': [socket_options.ORDERS, socket_options.TRADES],
-    'options': {"address": "your wallet address here"}
-}
-
-async def event_handler(event, data):
-    pass
-
-connection_id = await client.subscribe(options, event_handler)
-```
-
-### Unsubscribe from Websocket Streams
-
-The `unsubscribe` method is used to disconnect the client from a previously established websocket connection. This is particularly useful for stopping real-time data feeds that are no longer needed, helping to manage resource usage effectively.
-
-
-| Parameter       | Type   | Description                                       |
-|-----------------|--------|---------------------------------------------------|
-| `connection_id` | `str`  | The ID of the websocket connection to be unsubscribed from. |
-
-
-To unsubscribe from a websocket stream, you need to provide the connection ID obtained when you initially subscribed to the stream. The method is asynchronous and must be awaited.
-
-```python
-await client.unsubscribe("your_connection_id")
-```
-
-### Get Exchange Information
-
-The `get_exchange_info` method retrieves detailed information about a specific trading pair on the Ultrade platform. It provides key data such as current price and trading volume.
-
-
-| Parameter | Type  | Description                                            |
-|-----------|-------|--------------------------------------------------------|
+| Parameter | Type  | Description                                                  |
+| --------- | ----- | ------------------------------------------------------------ |
 | `symbol`  | `str` | The symbol representing the trading pair, e.g., 'algo_usdt'. |
 
-Returns:
-- `dict`: A dictionary containing detailed information about the trading pair. This includes data such as current price, trading volume, etc.
-
-
 ```python
-info = await client.get_exchange_info("algo_usdt")
-print(info)
+info = await client.get_pair_info("algo_usdt")
 ```
 
-### Ping
+**Returns**:
+`PairInfo` dict from `ultrade.types`
+
+<details>
+<summary><strong>PairInfo</strong></summary>
+
+| Field                 | Type        | Description                                        |
+| --------------------- | ----------- | -------------------------------------------------- |
+| `id`                  | `int`       | Unique identifier of the trading pair.             |
+| `pairId`              | `int`       | Alternate identifier for the trading pair.         |
+| `pair_key`            | `str`       | Unique key of the trading pair.                    |
+| `is_active`           | `bool`      | Indicates if the trading pair is active.           |
+| `is_verified`         | `int` (0/1) | Indicates if the trading pair is verified.         |
+| `base_chain_id`       | `int`       | Blockchain ID of the base currency.                |
+| `base_currency`       | `str`       | Base currency code.                                |
+| `base_decimal`        | `int`       | Decimal precision of the base currency.            |
+| `base_id`             | `str`       | Unique identifier of the base currency.            |
+| `price_chain_id`      | `int`       | Blockchain ID of the price currency.               |
+| `price_currency`      | `str`       | Price currency code.                               |
+| `price_decimal`       | `int`       | Decimal precision of the price currency.           |
+| `price_id`            | `str`       | Unique identifier of the price currency.           |
+| `pair_name`           | `str`       | Display name of the trading pair.                  |
+| `min_price_increment` | `str`       | Minimum price increment in atomic units.           |
+| `min_order_size`      | `str`       | Minimum order size in atomic units.                |
+| `min_size_increment`  | `str`       | Minimum size increment for orders in atomic units. |
+| `created_at`          | `str`       | Timestamp of creation.                             |
+| `updated_at`          | `str`       | Timestamp of the last update.                      |
+
+</details>
+
+### ping
 
 The `ping` method measures the latency between the client and the server by calculating the round-trip time of a request. It returns the latency in milliseconds. This method is useful for checking the responsiveness of the server or the network connection.
 
@@ -304,14 +203,13 @@ latency = await client.ping()
 print(f"Latency: {latency} ms")
 ```
 
-### Get Price
+### get_price
 
 The `get_price` method fetches the current market price for a specific trading pair. It provides details such as the current ask, bid, and last trade price.
 
-| Parameter | Type  | Description                                            |
-|-----------|-------|--------------------------------------------------------|
+| Parameter | Type  | Description                                                  |
+| --------- | ----- | ------------------------------------------------------------ |
 | `symbol`  | `str` | The symbol representing the trading pair, e.g., 'algo_usdt'. |
-
 
 The method returns a dictionary containing the price information.
 
@@ -319,14 +217,29 @@ The method returns a dictionary containing the price information.
 price_info = await client.get_price("algo_usdt")
 print(price_info)
 ```
-### Get Depth
+
+**Returns:**
+`Price` from `ultrade.types`
+
+<details>
+<summary><strong>Price</strong></summary>
+
+| Field  | Type          | Description                            |
+| ------ | ------------- | -------------------------------------- |
+| `last` | `str or None` | The last trade price in atomic units.  |
+| `bid`  | `str or None` | The current bid price in atomic units. |
+| `ask`  | `str or None` | The current ask price in atomic units. |
+
+</details>
+
+### get_depth
 
 The `get_depth` method retrieves the order book depth for a specified trading pair, showing the demand and supply at different price levels.
 
-| Parameter | Type  | Description                                              |
-|-----------|-------|----------------------------------------------------------|
-| `symbol`  | `str` | The symbol representing the trading pair, e.g., 'algo_usdt'. |
-| `depth`   | `int` | The depth of the order book to retrieve. Optional, defaults to 100. |
+| Parameter | Type            | Description                                                         |
+| --------- | --------------- | ------------------------------------------------------------------- |
+| `symbol`  | `str`           | The symbol representing the trading pair, e.g., 'algo_usdt'.        |
+| `depth`   | `Optional[int]` | The depth of the order book to retrieve. Optional, defaults to 100. |
 
 The method returns a dictionary representing the order book, including lists of bids and asks.
 
@@ -335,12 +248,28 @@ order_book = await client.get_depth("algo_usdt", 100)
 print(order_book)
 ```
 
-### Get Symbols
+**Returns:**
+`Depth` from `ultrade.types`
+
+<details>
+<summary><strong>Depth</strong></summary>
+
+| Field  | Type              | Description                                                                                                                                                                          |
+| ------ | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `sell` | `List[List[str]]` | List of sell orders. Each element contains price and quantity in atomic units.                                                                                                       |
+| `buy`  | `List[List[str]]` | List of buy orders. Each element contains price and quantity atomic units.                                                                                                           |
+| `ts`   | `int`             | Timestamp of data retrieval.                                                                                                                                                         |
+| `pair` | `str`             | The trading pair for which the order book depth was retrieved.                                                                                                                       |
+| `u`    | `int`             | A unique identifier for the last data update (lastUpdateId). This identifier can be used to compare with other update IDs to determine whether to apply the order book depth or not. |
+
+</details>
+
+### get_symbols
 
 The `get_symbols` method retrieves a list of trading pairs that match a given pattern or partial symbol.
 
-| Parameter | Type  | Description                                              |
-|-----------|-------|----------------------------------------------------------|
+| Parameter | Type  | Description                                                            |
+| --------- | ----- | ---------------------------------------------------------------------- |
 | `mask`    | `str` | A pattern or partial symbol to filter the trading pairs, e.g., 'algo'. |
 
 The method returns a list of dictionaries, each containing a 'pairKey' that matches the provided mask.
@@ -350,47 +279,49 @@ symbols = await client.get_symbols("algo")
 print(symbols)
 ```
 
-### Get Trading History
+**Returns:**
+List of `Symbol` from `ultrade.types`
+| Field | Type | Description |
+| -------- | ----- | ----------------------------------------------- |
+| `pairKey` | `str` | A string representing a trading pair, e.g., 'algo_usdt' for 'algo' or 'usdt'. |
 
-The `get_history` method fetches the trading history for a specific trading pair and interval.
-
-| Parameter   | Type  | Description                                              |
-|-------------|-------|----------------------------------------------------------|
-| `symbol`    | `str` | Trading pair symbol, e.g., 'algo_usdc'.                  |
-| `interval`  | `str` | Interval for the trading data, e.g., '1m', '1h'.         |
-| `start_time`| `int` | Optional. Start timestamp for the history data.          |
-| `end_time`  | `int` | Optional. End timestamp for the history data.            |
-| `limit`     | `int` | Optional. Number of records to retrieve. Defaults to 500.|
-| `page`      | `int` | Optional. Page number for pagination. Defaults to 1.     |
-
-The method returns a dictionary containing the trading history for the specified trading pair and interval.
-
-```python
-history = await client.get_history("btc_usd", "1h", start_time=1609459200, end_time=1609545600)
-print(history)
-```
-### Get Last Trades
+### get_last_trades
 
 The `get_last_trades` method retrieves the most recent trades for a specified trading pair.
 
-| Parameter | Type  | Description                                            |
-|-----------|-------|--------------------------------------------------------|
+| Parameter | Type  | Description                                                  |
+| --------- | ----- | ------------------------------------------------------------ |
 | `symbol`  | `str` | The symbol representing the trading pair, e.g., 'algo_usdt'. |
-
-The method returns a list of the most recent trades for the specified trading pair.
 
 ```python
 last_trades = await client.get_last_trades("algo_usdt")
 print(last_trades)
 ```
 
-### Get Order by ID
+**Returns:**
+List of `LastTrade` from `ultrade.types`
+
+<details>
+<summary>LastTrade</summary>
+
+| Field          | Type  | Description                                                                                                  |
+| -------------- | ----- | ------------------------------------------------------------------------------------------------------------ |
+| `price`        | `str` | The price at which the trade was executed (in atomic units).                                                 |
+| `amount`       | `str` | The amount of the asset traded (in atomic units).                                                            |
+| `created_at`   | `str` | The timestamp indicating when the trade was executed, in ISO 8601 format (e.g., '2023-12-19T16:43:40.256Z'). |
+| `buy_user_id`  | `str` | The user ID or address of the buyer in the trade.                                                            |
+| `sell_user_id` | `str` | The user ID or address of the seller in the trade.                                                           |
+| `trade_side`   | `int` | An integer indicating the trade side. A value of `0` represents a buy, and `1` represents a sell.            |
+
+</details>
+
+### get_order_by_id
 
 The `get_order_by_id` method retrieves detailed information about an order using its unique identifier.
 
-| Parameter | Type  | Description                               |
-|-----------|-------|-------------------------------------------|
-| `order_id`| `int` | The unique identifier of the order.       |
+| Parameter  | Type  | Description                         |
+| ---------- | ----- | ----------------------------------- |
+| `order_id` | `int` | The unique identifier of the order. |
 
 The method returns a dictionary containing detailed information about the specified order.
 
@@ -398,20 +329,317 @@ The method returns a dictionary containing detailed information about the specif
 order_details = await client.get_order_by_id(123456)
 print(order_details)
 ```
-### Get Company by Domain
+
+**Returns:**
+Dict: `Order`
+
+<details>
+<summary><strong>Order Details</strong></summary>
+
+| Field                 | Type            | Description                                                                                                   |
+| --------------------- | --------------- | ------------------------------------------------------------------------------------------------------------- |
+| `id`                  | `int`           | Unique identifier of the order.                                                                               |
+| `pair_id`             | `int`           | Identifier of the trading pair.                                                                               |
+| `order_side`          | `int`           | Side of the order (0 for buy, 1 for sell).                                                                    |
+| `order_type`          | `int`           | The type of the order (0 for limit order, 1 for ioc, 2 for post, 3 for market). `OrderType` enum from `types` |
+| `order_price`         | `str`           | Price at which order was placed (in atomic units).                                                            |
+| `excuted_price`       | `str`           | Price at which order was executed (in atomic units).                                                          |
+| `amount`              | `str`           | Amount of tokens in the order (in atomic units).                                                              |
+| `filled_amount`       | `str`           | Amount of the order that has been filled (in atomic units).                                                   |
+| `total`               | `str`           | Total cost of the order (in atomic units).                                                                    |
+| `filled_total`        | `str`           | Total cost of the filled amount (in atomic units).                                                            |
+| `status`              | `int`           | Status of the order. Enum `OrderStatus` values: 1 (Open), 2 (Canceled), 3 (Matched), 4 (SelfMatched).         |
+| `user_id`             | `str`           | User identifier.                                                                                              |
+| `created_at`          | `str`           | Timestamp of when the order was created.                                                                      |
+| `partner_id`          | `None` or `str` | Partner identifier (if applicable).                                                                           |
+| `direct_settle`       | `int`           | Indicates if the settlement is direct.                                                                        |
+| `pair_key`            | `str`           | Key of the trading pair.                                                                                      |
+| `base_decimal`        | `int`           | Decimal precision of the base currency.                                                                       |
+| `price_decimal`       | `int`           | Decimal precision of the price currency.                                                                      |
+| `min_size_increment`  | `str`           | Minimum size increment for orders (in atomic units).                                                          |
+| `min_price_increment` | `str`           | Minimum price increment for orders (in atomic units).                                                         |
+| `base_id`             | `str`           | Identifier of the base currency.                                                                              |
+| `price_id`            | `str`           | Identifier of the price currency.                                                                             |
+
+</details>
+
+### get_company_by_domain
 
 The `get_company_by_domain` method retrieves the company ID based on the domain name.
 
-| Parameter | Type  | Description                               |
-|-----------|-------|-------------------------------------------|
+| Parameter | Type  | Description                                                                       |
+| --------- | ----- | --------------------------------------------------------------------------------- |
 | `domain`  | `str` | The domain of the company, e.g., "app.ultrade.org" or "https://app.ultrade.org/". |
 
 The method returns an integer representing the company ID.
 
-If the specified company is not enabled, or if an error occurs during the API request, a `CompanyNotEnabledException` is raised.
-
-Example:
 ```python
 company_id = await client.get_company_by_domain("app.ultrade.org")
 print(company_id)
+```
+
+## Required login methods
+
+Below are methods that require the [login function](#logging-in) to be executed
+| Method | Description |
+| ------ | ----------- |
+| [get_balances](#get_balances) | Retrieves the current balance information for the logged-in user. |
+| [get_orders_with_trades](#get_orders_with_trades) | Retrieves a list of orders along with their trade details for the logged-in user. |
+| [get_operations](#get_operations) | Returns a list of operations and it statuses (deposits/withdrawals) for the logged-in user. |
+| [create_order](#create_order) | Creates an order on the Ultrade platform. |
+| [cancel_order](#cancel_order) | Cancels an existing order on the Ultrade platform. |
+| [withdraw](#withdraw) | Withdraws a specified amount of tokens to a designated recipient. |
+| [subscribe](#subscribe) | Subscribes the client to various websocket streams. |
+| [unsubscribe](#unsubscribe) | Unsubscribes from a previously established websocket connection. |
+
+### get_balances
+
+The `get_balances` method retrieves the current balance information for the logged-in user on the Ultrade platform. It returns a list of balance details for each token associated with the user's account.
+
+```python
+balances = await client.get_balances()
+```
+
+The method returns a list of dictionaries with the following key-value pairs:
+
+| Key            | Type           | Description                                            |
+| -------------- | -------------- | ------------------------------------------------------ |
+| `loginAddress` | `str`          | The blockchain address of the logged user.             |
+| `loginChainId` | `int`          | The chain ID associated with the user's login address. |
+| `tokenId`      | `int` or `str` | The identifier of the token.                           |
+| `tokenChainId` | `int`          | The chain ID of the token.                             |
+| `amount`       | `int`          | The total amount of the token.                         |
+| `lockedAmount` | `int`          | The amount of the token that is locked.                |
+
+### get_orders_with_trades
+
+The `get_orders_with_trades` method retrieves a list of orders along with their trade details for the logged-in user on the Ultrade platform. It allows filtering orders based on a specific trading pair symbol and order status.  
+| Parameter | Type | Description |
+|-----------|---------------|----------|
+| `symbol` | `Optional[str]` | The symbol of the trading pair. |
+| `status` | `Optional[OrderStatus]` | The status of the orders. Defaults to `OrderStatus.OPEN_ORDER`. |
+
+```python
+from ultrade.types import OrderStatus
+
+orders = await client.get_orders_with_trades(symbol="algo_usdc", status=OrderStatus.OPEN_ORDER)
+```
+
+**Returns:**
+List of `OrderWithTrade` from `ultrade.types`
+
+<details>
+<summary>OrderWithTrade</summary>
+
+| Field                  | Type                    | Description                                                                 |
+| ---------------------- | ----------------------- | --------------------------------------------------------------------------- |
+| `id`                   | `int`                   | Unique identifier of the order.                                             |
+| `pair_id`              | `int`                   | Identifier of the trading pair.                                             |
+| `order_side`           | `int`                   | Side of the order (0 for buy, 1 for sell).                                  |
+| `order_type`           | `int`                   | Type of the order: M (market), L (limit), I (ioc), P (post only).           |
+| `order_price`          | `str`                   | Price at which the order was placed. Values are in atomic units.            |
+| `order_executed_price` | `str`                   | Price at which the order was executed. Values are in atomic units.          |
+| `order_amount`         | `str`                   | Amount of the order. Values are in atomic units.                            |
+| `order_filled_amount`  | `str`                   | Amount of the order that has been filled. Values are in atomic units.       |
+| `order_total`          | `str`                   | Total value of the order. Values are in atomic units.                       |
+| `order_filled_total`   | `str`                   | Total value of the filled portion of the order. Values are in atomic units. |
+| `order_status`         | `int`                   | Status of the order (1: Open, 2: Canceled, 3: Matched, 4: SelfMatched).     |
+| `user_id`              | `str`                   | Identifier of the user who placed the order.                                |
+| `completed_at`         | `Optional[datetime]`    | Timestamp when the order was completed.                                     |
+| `cancel_at`            | `Optional[datetime]`    | Timestamp when the order was cancelled, if applicable.                      |
+| `created_at`           | `datetime`              | Timestamp when the order was created.                                       |
+| `updated_at`           | `datetime`              | Timestamp of the last update to the order.                                  |
+| `trades`               | `Optional[List[Trade]]` | List of trades associated with the order, if any.                           |
+
+</details>
+
+<details>
+<summary>Trade</summary>
+
+| Field              | Type                 | Description                                             |
+| ------------------ | -------------------- | ------------------------------------------------------- |
+| `trades_id`        | `int`                | Unique identifier of the trade.                         |
+| `trade_price`      | `Optional[str]`      | Price at which the trade was executed. In atomic units. |
+| `trade_amount`     | `Optional[str]`      | Amount of tokens traded. In atomic units.               |
+| `trade_fee`        | `Optional[str]`      | Fee associated with the trade. In atomic units.         |
+| `trade_rebate`     | `Optional[str]`      | Rebate received for the trade. In atomic units.         |
+| `trade_created_at` | `Optional[datetime]` | Timestamp when the trade was created.                   |
+
+</details>
+
+### get_operations
+
+The `get_operations` method fetches the operation history for the logged-in user on the Ultrade platform (deposit/withdraw).
+
+```python
+operations = client.get_transactions()
+print(operations)
+```
+
+**Returns:** a list of `WalletOperations` dictionaries from `ultrade.types`
+
+<details>
+<summary><strong>WalletOperations</strong></summary>
+
+| Field            | Type   | Description                                                    |
+| ---------------- | ------ | -------------------------------------------------------------- |
+| `primaryId`      | `int`  | Primary identifier of the transaction.                         |
+| `id`             | `str`  | Unique transaction identifier.                                 |
+| `login_address`  | `str`  | Address of the user who initiated the transaction.             |
+| `login_chain_id` | `int`  | Chain ID associated with the user's login address.             |
+| `action_type`    | `str`  | Type of action "deposit" or "withdraw.                         |
+| `status`         | `str`  | Current status of the transaction (pending, completed, failed) |
+| `amount`         | `str`  | Amount involved in the transaction. In atomic units.           |
+| `targetAddress`  | `str`  | Target address for the transaction.                            |
+| `timestamp`      | `str`  | Timestamp when the transaction occurred.                       |
+| `createdAt`      | `str`  | Timestamp when the transaction record was created.             |
+| `updatedAt`      | `str`  | Timestamp of the last update to the transaction record.        |
+| `token_id`       | `dict` | Details about the token involved in the transaction.           |
+| `id`             | `int`  | Identifier of the token.                                       |
+| `address`        | `str`  | Blockchain address of the token.                               |
+| `chainId`        | `int`  | Chain ID of the token.                                         |
+| `unitName`       | `str`  | Unit name of the token.                                        |
+| `name`           | `str`  | Name of the token.                                             |
+| `decimals`       | `int`  | Decimal precision of the token.                                |
+
+</details>
+
+### withdraw
+
+The `withdraw` method enables the withdrawal of a specified amount of tokens to a designated recipient. To perform a withdrawal, you need to specify the recipient's wallet address where you wish to transfer the funds. This operation requires the user to be logged in and have a sufficient balance of the token they intend to withdraw.
+
+| Parameter            | Type  | Description                                      |
+| -------------------- | ----- | ------------------------------------------------ |
+| `amount`             | `int` | The amount of tokens to withdraw in atomic units |
+| `token_address`      | `str` | The blockchain address of the token.             |
+| `token_chain_id`     | `int` | The chain ID of the token.                       |
+| `recipient`          | `str` | The blockchain address of the recipient.         |
+| `recipient_chain_id` | `int` | The chain ID of the recipient's address.         |
+
+```python
+from ultrade.types import WormholeChains
+
+await client.withdraw(
+        amount=10000,
+        token_address="0xTokenAddress",
+        token_chain_id=WormholeChains.POLYGON.value,
+        recipient="0xRecipientAddress",
+        recipient_chain_id=WormholeChains.POLYGON.value
+    )
+```
+
+### create_order
+
+The `create_order` method is used to create a new order on the Ultrade platform. This method allows you to specify various parameters for the order, including the type, side, amount, and price.
+
+| Parameter    | Type            | Description                                                              |
+| ------------ | --------------- | ------------------------------------------------------------------------ |
+| `pair_id`    | `int`           | The ID of the trading pair.                                              |
+| `order_side` | `str`           | The side of the order, 'B' (buy) or 'S' (sell).                          |
+| `order_type` | `str`           | The type of the order: 'M' (market), 'L' (limit), 'I' (IOC), 'P' (post). |
+| `amount`     | `int`           | The amount of tokens to buy or sell in atomic units.                     |
+| `price`      | `int`           | The price per token for the order in atomic units.                       |
+| `company_id` | `Optional[int]` | The ID of the company associated with the order. Default Ultrade.        |
+| `wlp_id`     | `Optional[int]` | The ID of the white label partner associated with the order. (Default 0) |
+
+```python
+pair = await client.get_pair_info("algo_moon")
+
+await client.create_order(
+    pair_id=pair["id"],
+    order_side="B",
+    order_type="L",
+    amount=350000000,  # in atomic units
+    price=1000,       # in atomic units
+    company_id=1,
+)
+```
+
+This function does not return a value.  
+Raises `Exception` if the order creation fails.
+
+#### cancel_order
+
+The `cancel_order` method is used to cancel an existing order on the Ultrade platform. This method requires the user to be logged in and have a valid order to cancel.
+
+| Parameter  | Type  | Description                          |
+| ---------- | ----- | ------------------------------------ |
+| `order_id` | `int` | The ID of the order to be cancelled. |
+
+To cancel an order, provide the ID of the order you wish to cancel. The method checks if the user is logged in before proceeding. It is asynchronous and must be awaited.
+
+```python
+orders = await client.get_orders_with_trades()
+
+await client.cancel_order(order_id)
+```
+
+### subscribe
+
+The `subscribe` method subscribes the client to various WebSocket streams based on the provided options. This method is useful for real-time data monitoring on the Ultrade platform.
+
+| Parameter  | Type       | Description                                                 |
+| ---------- | ---------- | ----------------------------------------------------------- |
+| `options`  | `dict`     | A dictionary containing the WebSocket subscription options. |
+| `callback` | `function` | A function to be called on receiving a WebSocket event.     |
+
+<details>
+<summary><strong>Websocket Subscription Options</strong></summary>
+
+| Field     | Type                       | Description                                                                                                   |
+| --------- | -------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `symbol`  | `str`                      | The symbol representing the trading pair, e.g., "yldy_stbl".                                                  |
+| `streams` | `List[int]`                | Identifiers for the types of data streams to subscribe to. Each number represents a different type of stream. |
+| `options` | `Dict[str, Optional[str]]` | Additional options for the subscription.                                                                      |
+
+#### Stream Identifiers in `socket_options`:
+
+- `QUOTE`: 1 - Real-time quotes for a trading pair.
+- `LAST_PRICE`: 2 - The latest price of the trading pair.
+- `DEPTH`: 3 - The depth of the order book.
+- `LAST_CANDLESTICK`: 4 - The last candlestick data.
+- `ORDERS`: 5 - Real-time updates of orders.
+- `TRADES`: 6 - Real-time trade data.
+- `MAINTENANCE`: 7 - Notifications of maintenance events.
+- `WALLET_TRANSACTIONS`: 8 - Updates on wallet transactions.
+- `ALL_STAT`: 9 - Statistics about all trading pairs.
+- `CODEX_BALANCES`: 10 - Balance information on the Codex platform.
+- `LAST_LOOK`: 11 - Last look liquidity data.
+- `CODEX_ASSETS`: 12 - Information about assets on the Codex platform.
+
+#### `options` Parameter:
+
+- `address`: Optional. The wallet address to use for subscriptions. If the user is logged in, this is optional and will default to the logged-in user's address.
+- `companyId`: Optional. The identifier for a specific company. Used to receive data specific to that company.
+
+</details>
+
+```python
+from ultrade import socket_options
+
+options = {
+    'symbol': "yldy_stbl",
+    'streams': [socket_options.ORDERS, socket_options.TRADES],
+    'options': {"address": "your wallet address here", "companyId": "optional company ID"}
+}
+
+async def event_handler(event, data):
+    print(event)
+    print(data)
+
+connection_id = await client.subscribe(options, event_handler)
+```
+
+### unsubscribe
+
+The `unsubscribe` method is used to disconnect the client from a previously established websocket connection. This is particularly useful for stopping real-time data feeds that are no longer needed, helping to manage resource usage effectively.
+
+| Parameter       | Type  | Description                                                 |
+| --------------- | ----- | ----------------------------------------------------------- |
+| `connection_id` | `str` | The ID of the websocket connection to be unsubscribed from. |
+
+To unsubscribe from a websocket stream, you need to provide the connection ID obtained when you initially subscribed to the stream. The method is asynchronous and must be awaited.
+
+```python
+await client.unsubscribe("your_connection_id")
 ```

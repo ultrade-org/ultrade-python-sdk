@@ -8,19 +8,29 @@ from .constants import NETWORK_CONSTANTS
 from . import socket_options
 from .types import (
     ClientOptions,
+    Depth,
+    LastTrade,
     Network,
     CreateOrder,
     Balance,
     OrderStatus,
     OrderWithTrade,
-    WalletTransaction,
+    Price,
+    Symbol,
+    WalletOperations,
+    TradingPair,
+    PairInfo,
 )
 from .signers.main import Signer
 from .encode import get_order_bytes, make_withdraw_msg
-from typing import Literal, Optional, List
-from .api import Api
+from typing import Literal, Optional, List, Dict
+import time
 
 OPTIONS = socket_options
+
+
+class CompanyNotEnabledException(Exception):
+    pass
 
 
 class Client:
@@ -128,75 +138,85 @@ class Client:
             raise Exception("You need to login first")
 
     async def create_order(
-        self,
-        pair_id: int,
-        company_id: int,
-        order_side: str,
-        order_type: str,
-        amount: int,
-        price: int,
-        base_token_address: str,
-        base_token_chain_id: int,
-        price_token_address: str,
-        price_token_chain_id: int,
-        wlp_id: int = 0,
-    ):
-        """
-        Creates an order using the provided order data.
+            self,
+            pair_id: int,
+            order_side: str,
+            order_type: str,
+            amount: int,
+            price: int,
+            wlp_id: int = 0,
+            company_id: int = 1,
+        ):
+            """
+            Creates an order using the provided order data.
 
-        Args:
-            order (CreateOrder): The order data.
+            Args:
+                pair_id (int): The ID of the trading pair.
+                order_side (str): The side of the order. Must be 'B' (buy) or 'S' (sell).
+                order_type (str): The type of the order. Must be 'M' (market), 'L' (limit), 'I' (ioc), or 'P' (post only).
+                amount (int): The amount of the order.
+                price (int): The price of the order.
+                wlp_id (int, optional): The ID of the WLP. Defaults to 0.
+                company_id (int, optional): The ID of the company. Defaults to 1.
 
-        Returns:
-            dict: The response from the server.
+            Returns:
+                dict: The response from the server.
 
-        Raises:
-            Exception: If there is an error in the response.
-        """
-        self.__check_is_logged_in()
-        # self.__check_maintenance_mode()
-        signer = self._login_user
+            Raises:
+                ValueError: If the order_side or order_type is invalid.
+                Exception: If there is an error in the response.
+            """
+            self.__check_is_logged_in()
+            if order_side not in ["B", "S"]:
+                raise ValueError("order_side must be 'B' (buy) or 'S' (sell)")
 
-        order = CreateOrder(
-            pair_id=pair_id,
-            company_id=company_id,
-            login_address=signer.address,
-            login_chain_id=signer.wormhole_chain_id,
-            order_side=order_side,
-            order_type=order_type,
-            amount=amount,
-            price=price,
-            base_token_address=base_token_address,
-            base_token_chain_id=base_token_chain_id,
-            price_token_address=price_token_address,
-            price_token_chain_id=price_token_chain_id,
-            wlp_id=wlp_id,
-        )
-        data = order.data
-        encoding = "hex"
-        message_bytes = get_order_bytes(data)
-        message = message_bytes.hex()
-        signature = signer.sign_data(message_bytes)
-        signature_hex = signature.hex() if isinstance(signature, bytes) else signature
-        url = f"{self.__api_url}/market/order"
-        async with aiohttp.ClientSession(headers=self.__headers) as session:
-            async with session.post(
-                url,
-                json={
-                    "data": data,
-                    "encoding": encoding,
-                    "message": message,
-                    "signature": signature_hex,
-                },
-            ) as resp:
-                response = await resp.json(content_type=None)
-                if response is None:
-                    return "Order created successfully"
-
-                if "error" in response:
-                    raise Exception(response)
-                else:
-                    return response
+            if order_type not in ["M", "L", "I", "P"]:
+                raise ValueError(
+                    "order_type must be 'M' (market), 'L' (limit), 'I' (ioc), or 'P' (post only)"
+                )
+            # self.__check_maintenance_mode()
+            signer = self._login_user
+            pair = await self.get_pair_info(pair_id)
+            if not pair:
+                raise Exception(f"Pair with id {pair_id} not found")
+            
+            order = CreateOrder(
+                pair_id=pair_id,
+                company_id=company_id,
+                login_address=signer.address,
+                login_chain_id=signer.wormhole_chain_id,
+                order_side=order_side,
+                order_type=order_type,
+                amount=amount,
+                price=price,
+                base_token_address=pair["base_id"],
+                base_token_chain_id=pair["base_chain_id"],
+                price_token_address=pair["price_id"],
+                price_token_chain_id=pair["price_chain_id"],
+                wlp_id=wlp_id,
+            )
+            data = order.data
+            encoding = "hex"
+            message_bytes = get_order_bytes(data)
+            message = message_bytes.hex()
+            signature = signer.sign_data(message_bytes)
+            signature_hex = signature.hex() if isinstance(signature, bytes) else signature
+            url = f"{self.__api_url}/market/order"
+            async with aiohttp.ClientSession(headers=self.__headers) as session:
+                async with session.post(
+                    url,
+                    json={
+                        "data": data,
+                        "encoding": encoding,
+                        "message": message,
+                        "signature": signature_hex,
+                    },
+                ) as resp:
+                    response = await resp.json(content_type=None)
+                    if response is None:
+                        return
+                    if "error" in response:
+                        raise Exception(response)
 
     async def cancel_order(self, order_id):
         self.__check_is_logged_in()
@@ -217,8 +237,7 @@ class Client:
             async with session.delete(url, json=body) as resp:
                 response = await resp.json(content_type=None)
                 if response is None:
-                    return "Order cancelled successfully"
-
+                    return
                 if "error" in response:
                     raise Exception(response)
                 else:
@@ -271,9 +290,9 @@ class Client:
                 data = await resp.json()
                 return data
 
-    async def get_transactions(self, symbol=None) -> List[WalletTransaction]:
+    async def get_operations(self) -> List[WalletOperations]:
         """
-        Returns the transactions of the logged user.
+        Returns list of operation (deposit/witdraw) of the logged user.
 
         Args:
             symbol (str, optional): The symbol of the pair.
@@ -283,8 +302,6 @@ class Client:
         """
         self.__check_is_logged_in()
         url = f"{self.__api_url}/market/wallet-transactions?address={self._login_user.address}"
-        if symbol:
-            url += f"&symbol={symbol}"
         async with aiohttp.ClientSession(headers=self.__headers) as session:
             async with session.get(url) as resp:
                 data = await resp.json()
@@ -395,18 +412,181 @@ class Client:
         """
         await self._websocket_client.unsubscribe(connection_id)
 
-    def create_api(self):
-        """
-        Creates an instance of the public API using the specified API URL, Algod node, and Algod indexer.
-        For operations that require authentication, use methods of the Client class instead.
-
-        Returns:
-            Api: An instance of the public API.
-        """
-        return Api(self.__api_url, self.__algod_node, self.__algod_indexer)
-
     # def __check_maintenance_mode(self):
     #     if self.maintenance_mode_status != 0:
     #         raise Exception(
     #             "ULTRADE APPLICATION IS CURRENTLY IN MAINTENANCE MODE. PLACING AND CANCELING ORDERS IS TEMPORARY DISABLED"
     #         )
+    async def get_pair_list(self, company_id=None) -> List[TradingPair]:
+        """
+        Retrieves a list of trading pairs available on the exchange for a specific company.
+
+        Args:
+            company_id (int, optional): The unique identifier of the company. Defaults to None, in which case all trading pairs will be returned.
+
+        Returns:
+            List[TradingPair]: A list containing trading pair information. Each trading pair is represented as a dictionary with specific attributes like 'pairName', 'baseCurrency', etc.
+
+        Raises:
+            aiohttp.ClientError: If an error occurs during the HTTP request.
+        """
+        session = aiohttp.ClientSession()
+        query = "" if company_id is None else f"?companyId={company_id}"
+        url = f"{self.__api_url}/market/markets{query}"
+        async with session.get(url) as resp:
+            data = await resp.json()
+            await session.close()
+
+            return data
+
+    async def get_pair_info(self, symbol: str) -> PairInfo:
+        """
+        Retrieves detailed information about a specific trading pair.
+
+        Args:
+            symbol (str): The symbol representing the trading pair, e.g., 'algo_usdt'.
+
+        Returns:
+            dict: PairInfo.
+        """
+
+        session = aiohttp.ClientSession()
+        url = f"{self.__api_url}/market/market?symbol={symbol}"
+        async with session.get(url) as resp:
+            resp.raise_for_status()
+            data = await resp.json()
+
+            await session.close()
+        return data
+
+    async def ping(self):
+        """
+        Checks the latency between the client and the server by measuring the time taken for a round-trip request.
+
+        Returns:
+            int: The round-trip latency in milliseconds.
+        """
+        session = aiohttp.ClientSession()
+        url = f"{self.__api_url}/system/time"
+        async with session.get(url) as resp:
+            resp.raise_for_status()
+            data = await resp.json()
+
+            await session.close()
+            return round(time.time() * 1000) - data["currentTime"]
+
+    async def get_price(self, symbol: str) -> Price:
+        """
+        Retrieves the current market price for a specified trading pair.
+
+        Args:
+            symbol (str): The symbol representing the trading pair, e.g., 'algo_usdt'.
+
+        Returns:
+            dict: A dictionary containing price information like the current ask, bid, and last trade price.
+        """
+        session = aiohttp.ClientSession()
+        url = f"{self.__api_url}/market/price?symbol={symbol}"
+        async with session.get(url) as resp:
+            data = await resp.json()
+            await session.close()
+            return data
+
+    async def get_depth(self, symbol: str, depth: int = 100) -> Depth:
+        """
+        Retrieves the order book depth for a specified trading pair, showing the demand and supply at different price levels.
+
+        Args:
+            symbol (str): The symbol representing the trading pair, e.g., 'algo_usdt'.
+            depth (int, optional): The depth of the order book to retrieve. Defaults to 100.
+
+        Returns:
+            dict: A dictionary representing the order book with lists of bids and asks.
+        """
+        session = aiohttp.ClientSession()
+        url = f"{self.__api_url}/market/depth?symbol={symbol}&depth={depth}"
+        async with session.get(url) as resp:
+            data = await resp.json()
+            await session.close()
+            return data
+
+    async def get_symbols(self, mask) -> List[Symbol]:
+        """
+        Return example: For mask="algo" -> [{'pairKey': 'algo_usdt'}]
+
+        Args:
+            mask (str): A pattern or partial symbol to filter the trading pairs, e.g., 'algo'.
+
+        Returns:
+            list: A list of dictionaries, each containing a 'pairKey' that matches the provided mask.
+        """
+        session = aiohttp.ClientSession()
+        url = f"{self.__api_url}/market/symbols?mask={mask}"
+        async with session.get(url) as resp:
+            data = await resp.json()
+            await session.close()
+            return data
+
+    async def get_last_trades(self, symbol: str) -> List[LastTrade]:
+        """
+        Retrieves the most recent trades for a specified trading pair.
+
+        Args:
+            symbol (str): The symbol representing the trading pair, e.g., 'algo_usdt'.
+
+        Returns:
+            LastTrade
+            list: A list of the most recent trades for the specified trading pair.
+        """
+        session = aiohttp.ClientSession()
+        url = f"{self.__api_url}/market/last-trades?symbol={symbol}"
+        async with session.get(url) as resp:
+            data = await resp.json()
+            await session.close()
+            return data
+
+    async def get_order_by_id(self, order_id: int) -> OrderWithTrade:
+        """
+        Retrieves detailed information about an order based on its unique identifier.
+
+        Args:
+            order_id (int): The unique identifier of the order.
+
+        Returns:
+            dict: A dictionary containing detailed information about the specified order.
+        """
+        session = aiohttp.ClientSession()
+        url = f"{self.__api_url}/market/getOrderById?orderId={order_id}"
+        async with session.get(url) as resp:
+            data = await resp.json()
+            await session.close()
+            return data["order"][0]
+
+    async def get_company_by_domain(self, domain: str) -> int:
+        """
+        Retrieves the company ID based on the domain name.
+
+        Args:
+            domain (str): The domain of the company'.
+                        Example: "app.ultrade.org" or "https://app.ultrade.org/"
+
+        Returns:
+            int: The company ID.
+
+        Raises:
+            CompanyNotEnabledException: If the company is not enabled or
+                                        if an error occurs during the API request.
+        """
+        domain = domain.replace("https://", "").replace("http://", "").rstrip("/")
+        headers = {"wl-domain": domain}
+        url = f"{self.__api_url}/market/settings"
+        session = aiohttp.ClientSession()
+        async with session.get(url, headers=headers) as resp:
+            data = await resp.json()
+            await session.close()
+            is_enabled = bool(int(data["company.enabled"]))
+            if not is_enabled:
+                raise CompanyNotEnabledException(
+                    f"Company with {domain} domain is not enabled"
+                )
+            return data["companyId"]

@@ -145,7 +145,7 @@ class TradingPair(TypedDict):
     created_at: str
     id: int
     is_active: bool
-    is_verified: int
+    is_verified: int  # 0 or 1
     min_order_size: str
     min_price_increment: str
     min_size_increment: str
@@ -165,6 +165,29 @@ class TradingPair(TypedDict):
     partner_id: int
 
 
+{
+    "id": 47,
+    "pairId": 47,
+    "pair_key": "algo_usdc",
+    "is_active": True,
+    "is_verified": 0,
+    "base_chain_id": 8,
+    "base_currency": "algo",
+    "base_decimal": 6,
+    "base_id": "0",
+    "price_chain_id": 8,
+    "price_currency": "usdc",
+    "price_decimal": 6,
+    "price_id": "157824770",
+    "pair_name": "ALGO_USDC",
+    "min_price_increment": "100",
+    "min_order_size": "1000000",
+    "min_size_increment": "1000000",
+    "created_at": "2023-04-27T14:11:24.199Z",
+    "updated_at": "2023-05-04T16:46:05.000Z",
+}
+
+
 class Balance(TypedDict):
     hash: str
     loginAddress: str
@@ -182,6 +205,15 @@ class OrderStatus(Enum):
     MATCHED = 3
     SELF_MATCHED = 4
 
+class OrderType(Enum):
+    LIMIT = 0
+    IOC = 1
+    POST = 2
+    MARKET = 3
+
+class OrderSide(Enum):
+    BUY = 0
+    SELL = 1
 
 class Trade(TypedDict, total=False):
     trades_id: int
@@ -223,7 +255,7 @@ class Token(TypedDict):
     decimals: int
 
 
-class WalletTransaction(TypedDict, total=False):
+class WalletOperations(TypedDict, total=False):
     primaryId: int
     id: Optional[str]
     login_address: str
@@ -236,3 +268,50 @@ class WalletTransaction(TypedDict, total=False):
     createdAt: datetime
     updatedAt: datetime
     token_id: Token
+
+
+class PairInfo(TypedDict):
+    id: int
+    pairId: int
+    pair_key: str
+    is_active: bool
+    is_verified: int  # 0 or 1
+    base_chain_id: int
+    base_currency: str
+    base_decimal: int
+    base_id: str
+    price_chain_id: int
+    price_currency: str
+    price_decimal: int
+    price_id: str
+    pair_name: str
+    min_price_increment: str
+    min_order_size: str
+    min_size_increment: str
+    created_at: str
+    updated_at: str
+
+
+class Price(TypedDict, total=False):
+    last: Optional[str]
+    bid: Optional[str]
+    ask: Optional[str]
+
+
+class Depth(TypedDict, total=False):
+    sell: List[List[str]]
+    buy: List[List[str]]
+    ts: int
+    u: int #lastUpdateId
+    pair: str
+
+class Symbol(TypedDict):
+    pairKey: str
+
+class LastTrade(TypedDict):
+    price: str
+    amount: str
+    created_at: str
+    buy_user_id: str
+    sell_user_id: str
+    trade_side: int
