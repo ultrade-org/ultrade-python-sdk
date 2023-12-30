@@ -81,7 +81,7 @@ await client.set_login_user(signer)
 
 isLogged = client.is_logged_in() #returns True or False
 ```
-
+---
 ## Public methods
 
 Below are methods that do not require the [login function](#logging-in) to be executed
@@ -96,7 +96,7 @@ Below are methods that do not require the [login function](#logging-in) to be ex
 | [get_last_trades](#get_last_trades) | Retrieves the most recent trades for a specified trading pair. |
 | [get_order_by_id](#get_order_by_id) | Retrieves detailed information about an order by its ID. |
 | [get_company_by_domain](#get_company_by_domain) | Retrieves the company ID based on the domain name. |
-
+---
 ### get_pair_list
 
 To get the listed pair list, you need to call the `get_pair_list` method on the API instance. The `get_pair_list` method takes an optional `company_id` argument. If the `company_id` argument is not provided, all pairs are returned.
@@ -152,6 +152,7 @@ pairs = await client.get_pair_list()
 
 </details>
 
+---
 ### get_pair_info
 
 The `get_pair_info` method retrieves detailed information about a specific trading pair on the Ultrade platform. It provides key data such as current price and trading volume.
@@ -194,6 +195,7 @@ info = await client.get_pair_info("algo_usdt")
 
 </details>
 
+---
 ### ping
 
 The `ping` method measures the latency between the client and the server by calculating the round-trip time of a request. It returns the latency in milliseconds. This method is useful for checking the responsiveness of the server or the network connection.
@@ -202,7 +204,7 @@ The `ping` method measures the latency between the client and the server by calc
 latency = await client.ping()
 print(f"Latency: {latency} ms")
 ```
-
+---
 ### get_price
 
 The `get_price` method fetches the current market price for a specific trading pair. It provides details such as the current ask, bid, and last trade price.
@@ -231,6 +233,8 @@ print(price_info)
 | `ask`  | `str or None` | The current ask price in atomic units. |
 
 </details>
+
+---
 
 ### get_depth
 
@@ -264,6 +268,8 @@ print(order_book)
 
 </details>
 
+---
+
 ### get_symbols
 
 The `get_symbols` method retrieves a list of trading pairs that match a given pattern or partial symbol.
@@ -284,6 +290,8 @@ List of `Symbol` from `ultrade.types`
 | Field | Type | Description |
 | -------- | ----- | ----------------------------------------------- |
 | `pairKey` | `str` | A string representing a trading pair, e.g., 'algo_usdt' for 'algo' or 'usdt'. |
+
+---
 
 ### get_last_trades
 
@@ -314,6 +322,8 @@ List of `LastTrade` from `ultrade.types`
 | `trade_side`   | `int` | An integer indicating the trade side. A value of `0` represents a buy, and `1` represents a sell.            |
 
 </details>
+
+---
 
 ### get_order_by_id
 
@@ -363,6 +373,8 @@ Dict: `Order`
 
 </details>
 
+---
+
 ### get_company_by_domain
 
 The `get_company_by_domain` method retrieves the company ID based on the domain name.
@@ -377,6 +389,7 @@ The method returns an integer representing the company ID.
 company_id = await client.get_company_by_domain("app.ultrade.org")
 print(company_id)
 ```
+---
 
 ## Required login methods
 
@@ -391,6 +404,8 @@ Below are methods that require the [login function](#logging-in) to be executed
 | [withdraw](#withdraw) | Withdraws a specified amount of tokens to a designated recipient. |
 | [subscribe](#subscribe) | Subscribes the client to various websocket streams. |
 | [unsubscribe](#unsubscribe) | Unsubscribes from a previously established websocket connection. |
+
+---
 
 ### get_balances
 
@@ -410,6 +425,8 @@ The method returns a list of dictionaries with the following key-value pairs:
 | `tokenChainId` | `int`          | The chain ID of the token.                             |
 | `amount`       | `int`          | The total amount of the token.                         |
 | `lockedAmount` | `int`          | The amount of the token that is locked.                |
+
+---
 
 ### get_orders_with_trades
 
@@ -467,6 +484,8 @@ List of `OrderWithTrade` from `ultrade.types`
 
 </details>
 
+---
+
 ### get_operations
 
 The `get_operations` method fetches the operation history for the logged-in user on the Ultrade platform (deposit/withdraw).
@@ -504,6 +523,8 @@ print(operations)
 
 </details>
 
+---
+
 ### withdraw
 
 The `withdraw` method enables the withdrawal of a specified amount of tokens to a designated recipient. To perform a withdrawal, you need to specify the recipient's wallet address where you wish to transfer the funds. This operation requires the user to be logged in and have a sufficient balance of the token they intend to withdraw.
@@ -527,6 +548,8 @@ await client.withdraw(
         recipient_chain_id=WormholeChains.POLYGON.value
     )
 ```
+
+---
 
 ### create_order
 
@@ -558,6 +581,8 @@ await client.create_order(
 This function does not return a value.  
 Raises `Exception` if the order creation fails.
 
+---
+
 #### cancel_order
 
 The `cancel_order` method is used to cancel an existing order on the Ultrade platform. This method requires the user to be logged in and have a valid order to cancel.
@@ -574,6 +599,8 @@ orders = await client.get_orders_with_trades()
 await client.cancel_order(order_id)
 ```
 
+---
+
 ### subscribe
 
 The `subscribe` method subscribes the client to various WebSocket streams based on the provided options. This method is useful for real-time data monitoring on the Ultrade platform.
@@ -583,14 +610,14 @@ The `subscribe` method subscribes the client to various WebSocket streams based 
 | `options`  | `dict`     | A dictionary containing the WebSocket subscription options. |
 | `callback` | `function` | A function to be called on receiving a WebSocket event.     |
 
-<details>
-<summary><strong>Websocket Subscription Options</strong></summary>
+<strong>Websocket Subscription Options</strong>
 
 | Field     | Type                       | Description                                                                                                   |
 | --------- | -------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | `symbol`  | `str`                      | The symbol representing the trading pair, e.g., "yldy_stbl".                                                  |
 | `streams` | `List[int]`                | Identifiers for the types of data streams to subscribe to. Each number represents a different type of stream. |
 | `options` | `Dict[str, Optional[str]]` | Additional options for the subscription.                                                                      |
+
 
 #### Stream Identifiers in `socket_options`:
 
@@ -612,7 +639,6 @@ The `subscribe` method subscribes the client to various WebSocket streams based 
 - `address`: Optional. The wallet address to use for subscriptions. If the user is logged in, this is optional and will default to the logged-in user's address.
 - `companyId`: Optional. The identifier for a specific company. Used to receive data specific to that company.
 
-</details>
 
 ```python
 from ultrade import socket_options
@@ -629,6 +655,8 @@ async def event_handler(event, data):
 
 connection_id = await client.subscribe(options, event_handler)
 ```
+
+---
 
 ### unsubscribe
 
