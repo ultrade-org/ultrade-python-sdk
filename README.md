@@ -14,7 +14,7 @@
 
 ## Introduction
 
-The `ultrade` package is a Python SDK for interacting with the Ultrade DeFi. It provides a simple interface for creating and signing transactions, as well as for interacting with the Ultrade API and streams
+The `ultrade` package is a Python SDK for interacting with ULTRADE's V2 platform, the Bridgeless Crosschain Orderbook DEX. It provides a simple interface for creating and managing orders, as well as for interacting with the Ultrade API and streams. Depositing assets to ultrade is currently done via the UI at testnet.ultrade.org by performing a login with the same account that you intend to use with this SDK, and then either depositing assets from that same account, or, from any other account/chain while logged in. Deposits are always credited to the logged in account. (programattic deposits will be added to this SDK soon). Creating orders are done via this SDK. The login account is used to create orders by cryptographically signing order messages and sending them to the API. This process does not involve on-chain transactions and does not incur any gas costs. Please note that in an upcoming update, you will have the option to provide a trading-key instead of using a login account. The trading key will be associated with a specific login account and its balances and will be used for managing orders, but will not be able to withdraw.
 
 ## Installation
 
