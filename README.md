@@ -614,7 +614,7 @@ The `subscribe` method subscribes the client to various WebSocket streams based 
 | `options`  | `dict`     | A dictionary containing the WebSocket subscription options. |
 | `callback` | `function` | A function to be called on receiving a WebSocket event.     |
 
-<strong>Websocket Subscription Options</strong>
+<strong>Websocket Subscription Options:</strong>
 
 | Field     | Type                       | Description                                                                                                   |
 | --------- | -------------------------- | ------------------------------------------------------------------------------------------------------------- |
@@ -675,3 +675,4 @@ To unsubscribe from a websocket stream, you need to provide the connection ID ob
 ```python
 await client.unsubscribe("your_connection_id")
 ```
+
