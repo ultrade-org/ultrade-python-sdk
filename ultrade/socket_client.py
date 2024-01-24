@@ -94,6 +94,9 @@ class SocketController():
         return handler_id
 
     async def handle_unsubscribe(self, handler_id):
+        if handler_id not in self.options_pool:
+            print(f"Warning: No subscription found for handler ID {handler_id}")
+            return []
         sub_options = self.options_pool[handler_id]
         streams_to_delete = []
         for opt in sub_options["streams"]:

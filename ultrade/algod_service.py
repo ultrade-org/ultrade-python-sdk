@@ -7,7 +7,7 @@ from algosdk import transaction
 from algosdk.logic import get_application_address
 from algosdk.v2client.algod import AlgodClient
 
-from .api import _get_encoded_balance
+# from .api import _get_encoded_balance
 from .constants import BALANCE_DECODE_FORMAT
 from .decode import unpack_data, decode_state
 
@@ -148,15 +148,15 @@ class AlgodService:
         address = account.address_from_private_key(key)
         return address
 
-    async def get_pair_balances(self, app_id):
-        try:
-            address = self.get_account_address()
-            encoded_data = await _get_encoded_balance(address, app_id)
+    # async def get_pair_balances(self, app_id):
+    #     try:
+    #         address = self.get_account_address()
+    #         encoded_data = await _get_encoded_balance(address, app_id)
 
-            balance_data = unpack_data(encoded_data, BALANCE_DECODE_FORMAT)
-            return balance_data
-        except Exception:
-            return {}
+    #         balance_data = unpack_data(encoded_data, BALANCE_DECODE_FORMAT)
+    #         return balance_data
+    #     except Exception:
+    #         return {}
 
     async def get_available_balance(self, app_id, side):
         try:

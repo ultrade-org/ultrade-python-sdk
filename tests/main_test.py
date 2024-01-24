@@ -1,210 +1,143 @@
+import asyncio
 from ultrade.sdk_client import Client
-from ultrade import api
-
+from ultrade.types import OrderStatus
 import pytest
-from unittest.mock import patch
-
-from algosdk.v2client import algod
-from algosdk import transaction
-
-from . import utils
-from .test_credentials import TEST_MNEMONIC_KEY, TEST_ALGOD_TOKEN, TEST_ALGOD_ADDRESS, TEST_SYMBOL, TEST_ALGO_WALLET
-
-algod_client = algod.AlgodClient(TEST_ALGOD_TOKEN, TEST_ALGOD_ADDRESS)
-
-credentials = {"mnemonic": TEST_MNEMONIC_KEY}
-opts = {"network": "testnet", "algo_sdk_client": algod_client,
-        "api_url": None}
-client = Client(credentials, opts)
-
-ALGO_USDC_ORDER = {
-    "symbol": "algo_usdc",
-    "side": 'B',
-    "type": "L",
-    "quantity": 2000000,
-    "price": 800
-}
-
-LMBO_USDC_ORDER = {
-    "symbol": "lmbo_usdc",
-    "side": 'B',
-    "type": "L",
-    "quantity": 350000000,
-    "price": 800
-}
-
-
-def mocked_send_transaction(self, txn_grp):
-    dry_run_request = transaction.create_dryrun(self.client, txn_grp)
-    data = algod_client.dryrun(dry_run_request)
-    print("txn length", len(data["txns"]))
-    txn = next(txn for txn in data["txns"]
-               if txn.get('app-call-messages') is not None)
-
-    print("app-call-status", txn.get('app-call-messages'))
-    return (txn.get('app-call-messages')[1], data["error"])
-
-
-def mocked_wait_for_transaction(self, txn_id):
-    return {"logs": txn_id}
-
-
-def mocked_decode_txn_logs(logs, order_type):
-    return logs
-
+from .test_credentials import TEST_API_URL, TEST_WALLET_ADDRESS
 
 @pytest.mark.asyncio
-@patch('ultrade.algod_service.AlgodService.send_transaction_grp', mocked_send_transaction)
-@patch('ultrade.algod_service.AlgodService.wait_for_transaction', mocked_wait_for_transaction)
-@patch('ultrade.sdk_client.decode_txn_logs', mocked_decode_txn_logs)
-class TestNewOrder():
+class TestClient:
 
-    async def test_algo_buy(self):
-        txn_result = await client.new_order(**ALGO_USDC_ORDER)
-        assert isinstance(txn_result, str)
+    @pytest.mark.asyncio
+    async def test_get_balances(self, client):
+        balances = await client.get_balances()
+        assert isinstance(balances, list)
+        assert all(isinstance(balance, dict) for balance in balances)
 
-    async def test_algo_sell(self):
-        txn_result = await client.new_order(**{**ALGO_USDC_ORDER, "side": "S"})
-        assert isinstance(txn_result, str)
+    async def test_get_orders(self, client):
+        orders = await client.get_orders_with_trades(
+            status=OrderStatus.OPEN_ORDER
+        )
+        print("orders", orders)
+        assert isinstance(orders, list)
+        assert all(isinstance(order, dict) for order in orders)
 
-    async def test_lmbo_buy(self):
-        txn_result = await client.new_order(**LMBO_USDC_ORDER)
-        assert isinstance(txn_result, str)
+    async def test_create_order(self, client):
+        pairs = await client.get_pair_list()
+        pair = pairs[0]
+        await client.create_order(
+            pair_id=pair["id"],
+            company_id=1,
+            order_side="B",
+            order_type="L",
+            amount=450000000,
+            price=2000,
+        )
 
-    async def test_lmbo_sell(self):
-        txn_result = await client.new_order(**LMBO_USDC_ORDER)
-        assert isinstance(txn_result, str)
+    @pytest.mark.asyncio
+    async def test_cancel_order(self, client):
+        orders = await client.get_orders_with_trades(
+            status=OrderStatus.OPEN_ORDER
+        )
+        order = orders[0]
+        await client.cancel_order(order["id"])
+    
+    @pytest.mark.asyncio
+    async def test_operations(self, client):
+        txns = await client.get_operations()
+        print("txns", txns)
+    
+    @pytest.mark.asyncio
+    async def test_get_pair_list(self, client):
+        pairs = await client.get_pair_list(1)
+        print("pairs", pairs)
+        assert isinstance(pairs, list)
+        assert all(isinstance(pair, dict) for pair in pairs)
 
-
-@ pytest.mark.asyncio
-@ patch('ultrade.algod_service.AlgodService.send_transaction_grp', mocked_send_transaction)
-class TestCancelOrder():
-    async def test_for_non_existed_order(self):
-        example_order_id = 99999
-        example_slot = 99
+    @pytest.mark.asyncio
+    async def test_get_pair_info(self, client):
         symbol = "algo_usdc"
+        exchange_info = await client.get_pair_info(symbol)
+        print("exchange_info", exchange_info)
+        assert isinstance(exchange_info, dict)
+    
+    @pytest.mark.asyncio
+    async def test_get_price(self, client):
+        symbol = "moon_usdcs"
+        price_info = await client.get_price(symbol)
+        print("price_info", price_info)
+        assert isinstance(price_info, dict)
+    
+    @pytest.mark.asyncio
+    async def test_get_depth(self, client):
+        symbol = "moon_usdcs"
+        depth = 1000
+        depth_info = await client.get_depth(symbol, depth)
+        print("moon_usdcs", depth_info)
+        assert isinstance(depth_info, dict)
 
-        with pytest.raises(Exception):
-            await client.cancel_order(symbol, example_order_id, example_slot)
-
-    async def test_cancel_random_order(self):
-        order = await utils.find_open_order(client)
-        if order is None:
-            return
-
-        order_id = order.get("id")
-        order = await client.get_order_by_id(None, order_id)
-        print("symbol", order["pair_key"])
-        print(f"testing cancellation of order with id:{order_id}")
-
-        txn_result = await client.cancel_order(order["pair_key"], order["orders_id"], order["slot"])
-        assert txn_result == ('PASS', "")
-
-
-@ pytest.mark.asyncio
-@ patch('ultrade.algod_service.AlgodService.send_transaction_grp', mocked_send_transaction)
-class TestCancelAllOrders():
-    async def test_algo_usdc(self):
-        symbol = "algo_usdc"
-        txn_result = await client.cancel_all_orders(symbol)
-        assert txn_result == ('PASS', "") or txn_result is None
-
-
-@ pytest.mark.asyncio
-class TestApiCalls():
-    async def test_get_order_by_id(self):
-        order = await utils.find_open_order(client)
-        if not order:
-            return
-
-        order_by_id = await client.get_order_by_id(None, order["id"])
-        utils.validate_response_for_expected_fields(order_by_id, ["pair_key"])
-
-    async def test_get_orders(self):
-        symbols = await api.get_symbols("")
-
-        for s in symbols:
-            orders = await client.get_orders(s["pairKey"], status=1)
-
-            if len(orders) != 0:
-                utils.validate_response_for_expected_fields(
-                    orders[0], ["pair_id", "slot", "id"])
-                return
-
-        raise Exception("Test failed")
-
-    async def test_get_wallet_transactions(self):
-        transactions = await client.get_wallet_transactions(TEST_ALGOD_ADDRESS)
-        if len(transactions) == 0:
-            return
-
-        utils.validate_response_for_expected_fields(
-            transactions[0], ["txnId", "pair", "amount"])
-
-    async def test_get_balances(self):
-        data = await client.get_balances("lmbo_usdc")
-        utils.validate_response_for_expected_fields(
-            data, ["priceCoin_locked", "priceCoin_available", "baseCoin_locked", "baseCoin_available",
-                   "priceCoin", "baseCoin"])
-
-    async def test_get_balances_with_algo(self):
-        data = await client.get_balances("algo_usdc")
-        utils.validate_response_for_expected_fields(
-            data, ["priceCoin_locked", "priceCoin_available", "baseCoin_locked", "baseCoin_available",
-                   "priceCoin", "baseCoin"])
-
-
-@pytest.mark.asyncio
-class TestGetExchangeInfo():
-    async def test_algo_usdc(self):
-        symbol = "algo_usdc"
-        data = await api.get_exchange_info(symbol)
-        utils.validate_response_for_expected_fields(
-            data, ["id", "application_id", "pair_key", "base_id"])
-
-    async def test_with_wrong_symbol(self):
-        symbol = "test_test123"
-        with pytest.raises(Exception):
-            await api.get_exchange_info(symbol)
-
-
-@pytest.mark.asyncio
-class TestApi():
-    async def test_ping(self):
-        latency = await api.ping()
-        assert type(latency) == int
-
-    async def test_get_history(self):
-        history = await api.get_history(TEST_SYMBOL)
-        print("history", history)
-        utils.validate_response_for_expected_fields(
-            history[0] if len(history) > 0 else [], ["v", "o", "c", "h", "l"])
-
-    async def test_get_price(self):
-        symbol = await utils.get_symbol_of_open_order(client)
-        price = await api.get_price(symbol)
-        utils.validate_response_for_expected_fields(
-            price, ["last", "bid", "ask"])
-
-    async def test_get_depth(self):
-        symbol = await utils.get_symbol_of_open_order(client)
-        depth = await api.get_depth(symbol)
-        utils.validate_response_for_expected_fields(depth, ["buy", "sell"])
-
-    async def test_get_symbols(self):
+    @pytest.mark.asyncio
+    async def test_get_symbols(self, client):
         mask = "algo"
-        symbols_list = await api.get_symbols(mask)
-        assert len(symbols_list) > 0
+        symbols = await client.get_symbols(mask)
+        print("Symbols:", symbols)
+        assert isinstance(symbols, list)
+        assert all(isinstance(symbol, dict) for symbol in symbols)
+        assert all(mask in symbol["pairKey"] for symbol in symbols)
 
-    async def test_get_encoded_balance(self):
-        app_id = 202953808  # algo_usdc
-        balance = await api._get_encoded_balance(TEST_ALGO_WALLET, app_id)
-        assert balance is not None
+    @pytest.mark.asyncio
+    async def test_get_last_trades(self, client):
+        symbol = "moon_usdcs"
+        last_trades = await client.get_last_trades(symbol)
+        print("Last trades for symbol:", symbol, "Trades Data:", last_trades)
+        assert isinstance(last_trades, list)
 
-    async def test_get_last_trades(self):
-        trades = await api.get_last_trades(TEST_SYMBOL)
-        if len(trades) == 0:
-            return
 
-        utils.validate_response_for_expected_fields(
-            trades[0], ["price", "amount", "buy_user_id", "sell_user_id"])
+    @pytest.mark.asyncio
+    async def test_get_order_by_id(self, client):
+        order_id = 107423
+        order_data = await client.get_order_by_id(order_id)
+        print("Order:", order_data)
+        assert isinstance(order_data, dict)
+
+
+@pytest.mark.asyncio
+class TestApiCalls:
+    @classmethod
+    def setup_class(cls):
+        cls.client = Client(network="testnet", api_url=TEST_API_URL)
+        cls.api = cls.client.create_api()
+
+    # async def test_get_orders(self):
+    #     status = 1  # Open orders
+    #     orders = await self.api.get_orders(status, address="")
+    #     print("Orders Data:", orders)
+    #     assert isinstance(orders, list)
+
+
+@pytest.mark.asyncio
+class TestSocket:
+    async def test_socket(self, client):
+        received_event = asyncio.Event()
+        received_data = None
+        subscribe_options = {
+            "symbol": "",
+            "streams": [5],
+            "options": {
+                "address": TEST_WALLET_ADDRESS
+            }
+        }
+        def callback(event, data):
+            nonlocal received_data
+            print("event", event)
+            print("data", data)
+            received_data = data
+            received_event.set()
+        
+        sub_id = await client.subscribe(subscribe_options, callback)
+        print("sub_id", sub_id)
+
+        await received_event.wait()
+        assert received_data is not None
+        assert isinstance(received_data, list)
+        assert all(isinstance(data, dict) for data in received_data)
+        await client.unsubscribe(sub_id)

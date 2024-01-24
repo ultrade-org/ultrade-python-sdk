@@ -24,17 +24,6 @@ def construct_new_order_args(side, type, price, quantity, partnerAppId, direct_s
     return args
 
 
-def construct_query_string_for_api_request(args: List):
-    query_result = "?"
-    for key in args:
-        if key == "self":
-            pass
-        elif args[key] is not None:
-            query_result = query_result + f"{key}={args[key]}&"
-
-    return query_result
-
-
 def decode_txn_logs(txn_logs, order_type):
     decoded_logs = [int.from_bytes(base64.b64decode(
         log), byteorder='big') for log in txn_logs]

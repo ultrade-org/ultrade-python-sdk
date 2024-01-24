@@ -1,324 +1,374 @@
-from typing import Any, Dict, List, Optional, TypedDict
-import asyncio
+import json
 import aiohttp
 from algosdk.v2client.algod import AlgodClient
-import time
 
-from . import api
 from .socket_client import SocketClient
 from .algod_service import AlgodService
-from .utils import is_asset_opted_in, is_app_opted_in, construct_new_order_args, \
-    construct_query_string_for_api_request, decode_txn_logs, validate_mnemonic
-from .constants import OPEN_ORDER_STATUS, BALANCE_DECODE_FORMAT, get_api_domain, set_domains, OrderType
+from .constants import NETWORK_CONSTANTS
 from . import socket_options
-from .decode import unpack_data
+from .types import (
+    ClientOptions,
+    Depth,
+    LastTrade,
+    Network,
+    CreateOrder,
+    Balance,
+    OrderStatus,
+    OrderWithTrade,
+    Price,
+    Symbol,
+    WalletOperations,
+    TradingPair,
+    PairInfo,
+)
+from .signers.main import Signer
+from .encode import get_order_bytes, make_withdraw_msg
+from typing import Literal, Optional, List, Dict
+import time
 
 OPTIONS = socket_options
 
 
-class Order(TypedDict):
-    id: str
-    symbol: str
-    side: str
-    type: str
-    time_force: str
-    quantity: int
-    price: int
-    status: int
+class CompanyNotEnabledException(Exception):
+    pass
 
 
-class NewOrderOptions(TypedDict):
-    symbol: str
-    side: str
-    type: str
-    quantity: int
-    price: int
-
-
-class AccountCredentials(TypedDict):
-    mnemonic: str
-
-
-class ClientOptions(TypedDict):
-    network: str
-    algo_sdk_client: AlgodClient
-    api_url: str
-    websocket_url: str
-
-
-class Client():
+class Client:
     """
-    UltradeSdk client. Provides methods for creating and canceling orders on Ultrade exchange.
-    Also can be used for subscribing to Ultrade data streams
-
-    Args:
-        auth_credentials (dict): credentials as a mnemonic or a private key
-        options (dict): options allows to change default URLs for the API calls, also options should have algod client
+    UltradeSdk client. Provides methods for creating and canceling orders on Ultrade exchange and subscribing to Ultrade data streams.
     """
 
-    def __init__(self,
-                 auth_credentials: AccountCredentials,
-                 options: ClientOptions
-                 ):
-        validate_mnemonic(auth_credentials.get(
-            "mnemonic"))
-        if options["network"] == "mainnet":
-            self.api_url = "https://api.ultrade.org"
-            self.algod_node = 'https://mainnet-api.algonode.cloud'
-            self.algod_indexer = 'https://mainnet-idx.algonode.cloud'
-            self.websocket_url = "wss://ws.mainnet.ultrade.org"
-        elif options["network"] == "testnet":
-            self.api_url = "https://api.testnet.ultrade.org"
-            self.algod_node = 'https://testnet-api.algonode.cloud'
-            self.algod_indexer = 'https://testnet-idx.algonode.cloud'
-            self.websocket_url = "wss://ws.testnet.ultrade.org"
+    def __init__(
+        self,
+        network: Literal[Network.MAINNET, Network.TESTNET],
+        **kwargs: Optional[ClientOptions],
+    ):
+        if not Network.is_valid_value(network):
+            raise ValueError("Network should be either mainnet or testnet")
+        self.network = network
+        self.__options = kwargs or {}
+        self.__configure()
+        self._login_user: Optional[Signer] = None
+        self._token: Optional[str] = None
+
+    def __configure(self):
+        network_constants = NETWORK_CONSTANTS.get(self.network)
+
+        if not network_constants:
+            raise ValueError(f"Unknown network: {self.network}")
+
+        algod_base_url = network_constants["node"]
+        indexer_base_url = network_constants["indexer"]
+        ws_base_url = network_constants["websocket_url"]
+        base_url = network_constants["api_url"]
+
+        self.__api_url = self.__options.get("api_url", base_url).rstrip("/")
+        self.__algod_node = self.__options.get("algod_node", algod_base_url).rstrip("/")
+        self.__algod_indexer = self.__options.get(
+            "algod_indexer", indexer_base_url
+        ).rstrip("/")
+        self.__websocket_url = self.__options.get("websocket_url", ws_base_url).rstrip(
+            "/"
+        )
+
+        self.__algod_client = self.__options.get(
+            "algo_sdk_client", AlgodClient("", self.__algod_node)
+        )
+        if self.__algod_client.genesis().get("network") != self.network:
+            raise ValueError(
+                "Network of the AlgodClient should be the same as the network specified in the options"
+            )
+        self._client = AlgodService(self.__algod_client)
+        self._websocket_client = SocketClient(self.__websocket_url)
+
+    def __validate_signer(self, signer: Signer):
+        if not isinstance(signer, Signer):
+            raise ValueError("parameter signer should be instance of Signer")
+
+    @property
+    def __headers(self):
+        headers = {}
+        if self._login_user and self._token:
+            headers["X-Wallet-Address"] = self._login_user.address
+            headers["X-Wallet-Token"] = self._token
+        return headers
+
+    async def set_login_user(self, signer: Signer):
+        """
+        Sets the login user for the SDK client.
+
+        Args:
+            signer (Signer): The signer object representing the user.
+
+        Raises:
+            Exception: If there is an error in the response from the server.
+
+        """
+        self.__validate_signer(signer)
+
+        data = {
+            "address": signer.address,
+            "provider": signer.provider_name,
+        }
+        message = json.dumps(data, separators=(",", ":"))
+        message_bytes = message.encode("utf-8")
+        signature = signer.sign_data(message_bytes)
+        signature_hex = signature.hex() if isinstance(signature, bytes) else signature
+
+        async with aiohttp.ClientSession() as session:
+            url = f"{self.__api_url}/wallet/signin"
+            async with session.put(
+                url, json={"data": data, "signature": signature_hex}
+            ) as resp:
+                response = await resp.text()
+                if "error" in response:
+                    raise Exception(response["error"])
+                if response:
+                    self._token = response
+                    self._login_user = signer
+
+    def is_logged_in(self):
+        """
+        Returns True if the client is logged in, otherwise returns False.
+        """
+        return self._login_user is not None and self._token is not None
+
+    def __check_is_logged_in(self):
+        if not self.is_logged_in():
+            raise Exception("You need to login first")
+
+    async def create_order(
+            self,
+            pair_id: int,
+            order_side: str,
+            order_type: str,
+            amount: int,
+            price: int,
+            wlp_id: int = 0,
+            company_id: int = 1,
+        ):
+            """
+            Creates an order using the provided order data.
+
+            Args:
+                pair_id (int): The ID of the trading pair.
+                order_side (str): The side of the order. Must be 'B' (buy) or 'S' (sell).
+                order_type (str): The type of the order. Must be 'M' (market), 'L' (limit), 'I' (ioc), or 'P' (post only).
+                amount (int): The amount of the order.
+                price (int): The price of the order.
+                wlp_id (int, optional): The ID of the WLP. Defaults to 0.
+                company_id (int, optional): The ID of the company. Defaults to 1.
+
+            Returns:
+                dict: The response from the server.
+
+            Raises:
+                ValueError: If the order_side or order_type is invalid.
+                Exception: If there is an error in the response.
+            """
+            self.__check_is_logged_in()
+            if order_side not in ["B", "S"]:
+                raise ValueError("order_side must be 'B' (buy) or 'S' (sell)")
+
+            if order_type not in ["M", "L", "I", "P"]:
+                raise ValueError(
+                    "order_type must be 'M' (market), 'L' (limit), 'I' (ioc), or 'P' (post only)"
+                )
+            # self.__check_maintenance_mode()
+            signer = self._login_user
+            pair = await self.get_pair_info(pair_id)
+            if not pair:
+                raise Exception(f"Pair with id {pair_id} not found")
+            
+            order = CreateOrder(
+                pair_id=pair_id,
+                company_id=company_id,
+                login_address=signer.address,
+                login_chain_id=signer.wormhole_chain_id,
+                order_side=order_side,
+                order_type=order_type,
+                amount=amount,
+                price=price,
+                base_token_address=pair["base_id"],
+                base_token_chain_id=pair["base_chain_id"],
+                price_token_address=pair["price_id"],
+                price_token_chain_id=pair["price_chain_id"],
+                wlp_id=wlp_id,
+            )
+            data = order.data
+            encoding = "hex"
+            message_bytes = get_order_bytes(data)
+            message = message_bytes.hex()
+            signature = signer.sign_data(message_bytes)
+            signature_hex = signature.hex() if isinstance(signature, bytes) else signature
+            url = f"{self.__api_url}/market/order"
+            async with aiohttp.ClientSession(headers=self.__headers) as session:
+                async with session.post(
+                    url,
+                    json={
+                        "data": data,
+                        "encoding": encoding,
+                        "message": message,
+                        "signature": signature_hex,
+                    },
+                ) as resp:
+                    response = await resp.json(content_type=None)
+                    if response is None:
+                        return
+                    if "error" in response:
+                        raise Exception(response)
+
+    async def cancel_order(self, order_id):
+        self.__check_is_logged_in()
+        # self.__check_maintenance_mode()
+
+        signer = self._login_user
+        data = {
+            "orderId": order_id,
+            "address": signer.address,
+        }
+        message = json.dumps(data, separators=(",", ":"))
+        message_bytes = message.encode("utf-8")
+        signature = signer.sign_data(message_bytes)
+        signature_hex = signature.hex() if isinstance(signature, bytes) else signature
+        body = {"signature": signature_hex, "data": data}
+        url = f"{self.__api_url}/market/order"
+        async with aiohttp.ClientSession(headers=self.__headers) as session:
+            async with session.delete(url, json=body) as resp:
+                response = await resp.json(content_type=None)
+                if response is None:
+                    return
+                if "error" in response:
+                    raise Exception(response)
+                else:
+                    return response
+
+    async def get_balances(self) -> List[Balance]:
+        """
+        Returns the balances of the logged user.
+
+        Returns:
+            list of dict: logged user balances.
+            - hash (str)
+            - loginAddress (str)
+            - loginChainId (int)
+            - tokenId (int or str)
+            - tokenChainId  (int)
+            - amount (int)
+            - lockedAmount (int)
+        """
+        self.__check_is_logged_in()
+        url = f"{self.__api_url}/market/balances"
+        async with aiohttp.ClientSession(headers=self.__headers) as session:
+            async with session.get(url) as resp:
+                data = await resp.json()
+                return data
+
+    async def get_orders_with_trades(
+        self, symbol=None, status=OrderStatus.OPEN_ORDER.value
+    ) -> List[OrderWithTrade]:
+        """
+        Returns the orders of the logged user.
+
+        Args:
+            symbol (str): The symbol of the pair.
+            status (OrderStatus): The status of the orders.
+
+        Returns:
+            List[OrderWithTrade]
+        """
+        self.__check_is_logged_in()
+        if isinstance(status, OrderStatus):
+            status_value = status.value
         else:
-            raise Exception("Network could be either testnet or mainnet ")
+            status_value = status
+        url = f"{self.__api_url}/market/orders-with-trades?address={self._login_user.address}&status={status_value}"
+        if symbol:
+            url += f"&symbol={symbol}"
+        async with aiohttp.ClientSession(headers=self.__headers) as session:
+            async with session.get(url) as resp:
+                data = await resp.json()
+                return data
 
-        if options["api_url"] is not None:
-            self.api_url = options["api_url"]
-
-        set_domains(self.api_url, self.algod_indexer, self.algod_node)
-        self.algod = options.get("algo_sdk_client", 0)
-        self.socket_client = SocketClient(self.websocket_url)
-        self.client = AlgodService(options.get(
-            "algo_sdk_client"), auth_credentials.get("mnemonic"))
-
-        self.mnemonic: Optional[str] = auth_credentials.get(
-            "mnemonic")  # todo remove creds from here
-        self.signer: Optional[Dict] = auth_credentials.get("signer")
-        self.client_secret: Optional[str] = auth_credentials.get(
-            "client_secret")
-        self.company: Optional[str] = auth_credentials.get("company")
-        self.client_id: Optional[str] = auth_credentials.get("client_id")
-        self.available_balance = {}
-        self.pending_txns = {}
-        self.algo_balance = None
-        self.maintenance_mode_status = 0
-
-    async def new_order(self, symbol, side, type, quantity, price, partner_app_id=0, direct_settle="N"):
+    async def get_operations(self) -> List[WalletOperations]:
         """
-        Create new order on the Ultrade exchange by sending group transaction to algorand API
+        Returns list of operation (deposit/witdraw) of the logged user.
 
         Args:
-            - symbol (str): The symbol representing an existing pair, for example: 'algo_usdt'
-            - side (str): Represents either a 'S' or 'B' order (SELL or BUY).
-            - type (str): Can be one of the following four order types: 'L', 'P', 'I', or 'M', which represent LIMIT,
-              POST, IOC, and MARKET orders respectively.
-            - quantity (decimal): The quantity of the base coin.
-            - price (decimal): The quantity of the price coin.
-            - partner_app_id (int, default=0): The ID of the partner to use in transactions.
-            - direct_settle (str): Can be either "N" or "Y".
+            symbol (str, optional): The symbol of the pair.
 
         Returns:
-            A dictionary with the following keys:
-            - 'order_id': The ID of the created order.
-            - 'slot': The slot data of the created order.
-
+            list
         """
-        def sync_function():
-            self._check_maintenance_mode()
-            if not self.mnemonic:
-                raise Exception(
-                    "You need to specify mnemonic or signer to execute this method")
-            side_index = 0 if side == "B" else 1
-            info = asyncio.run(api.get_exchange_info(symbol))
-            account_info = self._get_balance_and_state()
+        self.__check_is_logged_in()
+        url = f"{self.__api_url}/market/wallet-transactions?address={self._login_user.address}"
+        async with aiohttp.ClientSession(headers=self.__headers) as session:
+            async with session.get(url) as resp:
+                data = await resp.json()
+                await session.close()
 
-            if self.pending_txns.get(symbol) is None:
-                self.pending_txns[symbol] = {}
+        for transaction in data:
+            transaction.pop("vaa_message", None)
 
-            self.pending_txns[symbol][side_index] = self.pending_txns[symbol].get(
-                side_index, 0) + 1
-            if self.available_balance.get(symbol) is None:
-                self.available_balance[symbol] = [None, None]
+        return data
 
-            if self.pending_txns[symbol][side_index] == 1:
-                self.algo_balance = account_info.get("balances", {"0": 0})["0"]
-                self.available_balance[symbol][side_index] = asyncio.run(
-                    self.client.get_available_balance(info["application_id"], side))
-            elif self.available_balance[symbol][side_index] is None:
-                wait_count = 0
-                while (True):
-                    if self.available_balance[symbol][side_index] is not None:
-                        break
-                    if wait_count > 8:
-                        raise Exception("Available_balance is None")
-                    time.sleep(0.5)
-                    wait_count += 0.5
-
-            sender_address = self.client.get_account_address()
-            min_algo_balance = asyncio.run(
-                api.get_min_algo_balance(sender_address))
-            unsigned_txns = []
-
-            if is_asset_opted_in(account_info.get("balances"), info["base_id"]) is False:
-                unsigned_txns.append(self.client.opt_in_asset(
-                    sender_address, info["base_id"]))
-
-            if is_asset_opted_in(account_info.get("balances"), info["price_id"]) is False:
-                unsigned_txns.append(self.client.opt_in_asset(
-                    sender_address, info["price_id"]))
-
-            if is_app_opted_in(info["application_id"], account_info.get("local_state")) is False:
-                unsigned_txns.append(self.client.opt_in_app(
-                    info["application_id"], sender_address))
-
-            app_args = construct_new_order_args(
-                side, type, price, quantity, partner_app_id, direct_settle)
-            asset_index = info["base_id"] if side == "S" else info["price_id"]
-
-            transfer_amount = self.client.calculate_transfer_amount(
-                side, quantity, price, info["base_decimal"], self.available_balance[symbol][side_index])
-
-            if "algo" in symbol and (symbol.split("_")[0] == "algo"
-                                     and side == "S" or symbol.split("_")[1] == "algo" and side == "B"):
-                self.algo_balance -= transfer_amount
-
-                if self.algo_balance < min_algo_balance:
-                    self.algo_balance += transfer_amount
-                    self.pending_txns[symbol][side_index] -= 1
-                    if self.pending_txns[symbol][side_index] == 0:
-                        self.available_balance[symbol][side_index] = None
-
-                    raise Exception("Not enough algo for transfer")
-
-            updatedQuantity = (
-                quantity / 10**info["base_decimal"]) * price if side == "B" else quantity
-            self.available_balance[symbol][side_index] = 0 if transfer_amount > 0 \
-                else self.available_balance[symbol][side_index] - updatedQuantity
-
-            if not transfer_amount:
-                pass
-            elif asset_index == 0:
-                unsigned_txns.append(self.client.make_payment_txn(
-                    info["application_id"], sender_address, transfer_amount))
-            else:
-                unsigned_txns.append(self.client.make_transfer_txn(
-                    asset_index, info["application_id"], sender_address, transfer_amount))
-
-            unsigned_txns.append(self.client.make_app_call_txn(
-                asset_index, app_args, info["application_id"]))
-
-            signed_txns = self.client.sign_transaction_grp(unsigned_txns)
-            signed_app_call = signed_txns[-1]
-            tx_id = signed_app_call.get_txid()
-            self.client.send_transaction_grp(signed_txns)
-
-            pending_txn = self.client.wait_for_transaction(tx_id)
-            txn_logs = decode_txn_logs(
-                pending_txn["logs"], OrderType.new_order)
-
-            self.pending_txns[symbol][side_index] -= 1
-            if self.pending_txns[symbol][side_index] == 0:
-                self.available_balance[symbol][side_index] = None
-
-            return txn_logs
-
-        txn_logs = await asyncio.get_event_loop().run_in_executor(None, sync_function)
-        return txn_logs
-
-    async def cancel_order(self, symbol: str, order_id: int, slot: int, fee=None):
+    async def withdraw(
+        self,
+        amount: int,
+        token_address: str,
+        token_chain_id: int,
+        recipient: str,
+        recipient_chain_id: int,
+    ):
         """
-        Cancel the order matching the ID and symbol arguments.
+        Withdraws the specified amount of tokens to the specified recipient.
 
         Args:
-            - symbol (str): The symbol representing an existing pair, for example: 'algo_usdt'.
-            - order_id (int): The ID of the order to cancel, which can be provided by the Ultrade API.
-            - slot (int): The order position in the smart contract.
-            - fee (int, default=None): The fee needed for canceling an order with direct settlement option enabled.
+            amount (int): The amount of tokens to withdraw.
+            token_address (str): The address of the token to withdraw.
+            token_chain_id (int): The chain ID of the token to withdraw.
+            recipient (str): The address of the recipient.
+            recipient_chain_id (int): The chain ID of the recipient.
 
         Returns:
-            The first transaction ID.
+            dict: The response from the server.
         """
-        def sync_function():
-            self._check_maintenance_mode()
-            if not self.mnemonic:
-                raise Exception(
-                    "You need to specify mnemonic or signer to execute this method")
-
-            user_trade_orders = asyncio.run(
-                self.get_orders(symbol, OPEN_ORDER_STATUS))  # temporary, this function should use different order_id
-            try:
-                correct_order = [
-                    order for order in user_trade_orders if order["orders_id"] == order_id][0]
-            except Exception:
-                # Ultrade connector in the hummingbot handles this exception
-                raise Exception("Order not found")
-
-            exchange_info = asyncio.run(api.get_exchange_info(symbol))
-
-            foreign_asset_id = exchange_info["base_id"] if correct_order["order_side"] == 1 \
-                else exchange_info["price_id"]
-            app_args = [OrderType.cancel_order, order_id, slot]
-            unsigned_txn = self.client.make_app_call_txn(
-                foreign_asset_id, app_args, exchange_info["application_id"], fee)
-
-            signed_txn = self.client.sign_transaction_grp(unsigned_txn)
-            tx_id = self.client.send_transaction_grp(signed_txn)
-            pending_txn = self.client.wait_for_transaction(tx_id)
-            txn_logs = decode_txn_logs(
-                pending_txn["logs"], OrderType.cancel_order)
-            return txn_logs
-
-        tx_id = await asyncio.get_event_loop().run_in_executor(None, sync_function)
-        return tx_id
-
-    async def cancel_all_orders(self, symbol, fee=None):
-        """
-        Perform cancellation of all existing orders for the wallet specified in the Algod client.
-
-        Args:
-            - symbol (str): The symbol representing an existing pair, for example: 'algo_usdt'.
-            - fee (int, default=None): The fee needed for canceling orders with direct settlement option enabled.
-
-        Returns:
-            The first transaction ID.
-        """
-        self._check_maintenance_mode()
-        user_trade_orders = await self.get_orders(symbol, OPEN_ORDER_STATUS)
-        unique_ids = set()
-        filtered_orders = []
-        for order in user_trade_orders:
-            if order['id'] not in unique_ids:
-                unique_ids.add(order['id'])
-                filtered_orders.append(order)
-
-        exchange_info = await api.get_exchange_info(symbol)
-
-        unsigned_txns = []
-        for order in filtered_orders:
-            foreign_asset_id = exchange_info["base_id"] if order["order_side"] == 1 else exchange_info["price_id"]
-
-            app_args = [OrderType.cancel_order,
-                        order["orders_id"], order["slot"]]
-            unsigned_txn = self.client.make_app_call_txn(
-                foreign_asset_id, app_args, order["pair_id"], fee)
-            unsigned_txns.append(unsigned_txn)
-
-        if len(unsigned_txns) == 0:
-            return None
-
-        signed_txns = self.client.sign_transaction_grp(unsigned_txns)
-        tx_id = self.client.send_transaction_grp(signed_txns)
-        return tx_id
-
-    def _get_balance_and_state(self, account_info=None) -> Dict[str, int]:
-        balances: Dict[str, int] = dict()
-
-        if account_info is None:
-            address = self.client.get_account_address()
-            account_info = self.client.get_account_info(address)
-
-        balances["0"] = account_info["amount"]
-
-        assets: List[Dict[str, Any]] = account_info.get("assets", [])
-        for asset in assets:
-            asset_id = asset["asset-id"]
-            amount = asset["amount"]
-            balances[asset_id] = amount
-
-        return {"balances": balances, "local_state": account_info.get('apps-local-state', [])}
+        self.__check_is_logged_in()
+        signer = self._login_user
+        message_bytes = make_withdraw_msg(
+            signer.address,
+            signer.wormhole_chain_id,
+            recipient,
+            recipient_chain_id,
+            amount,
+            token_address,
+            token_chain_id,
+        )
+        data = {
+            "loginAddress": signer.address,
+            "loginChainId": signer.wormhole_chain_id,
+            "tokenAmount": amount,
+            "tokenIndex": token_address,
+            "tokenChainId": token_chain_id,
+            "recipient": recipient,
+            "recipientChainId": recipient_chain_id,
+        }
+        message = message_bytes.hex()
+        signature = signer.sign_data(message_bytes)
+        signature_hex = signature.hex() if isinstance(signature, bytes) else signature
+        url = f"{self.__api_url}/wallet/withdraw"
+        async with aiohttp.ClientSession(headers=self.__headers) as session:
+            async with session.post(
+                url,
+                json={
+                    "data": data,
+                    "encoding": "hex",
+                    "message": message,
+                    "signature": signature_hex,
+                },
+            ) as resp:
+                response = await resp.json()
+                return response
 
     async def subscribe(self, options, callback):
         """
@@ -346,12 +396,12 @@ class Client():
                 self.maintenance_mode_status = args
 
         if options.get("address") is None:
-            options["address"] = self.client.get_account_address()
+            options["address"] = self._login_user.address
 
         if OPTIONS.MAINTENANCE not in options["streams"]:
             options["streams"].append(OPTIONS.MAINTENANCE)
 
-        return await self.socket_client.subscribe(options, socket_callback)
+        return await self._websocket_client.subscribe(options, socket_callback)
 
     async def unsubscribe(self, connection_id):
         """
@@ -360,203 +410,183 @@ class Client():
         Args:
             connection_id (str): The ID of the connection to unsubscribe from.
         """
-        await self.socket_client.unsubscribe(connection_id)
+        await self._websocket_client.unsubscribe(connection_id)
 
-    async def get_orders(self, symbol=None, status=1, start_time=None, end_time=None, limit=500):
+    # def __check_maintenance_mode(self):
+    #     if self.maintenance_mode_status != 0:
+    #         raise Exception(
+    #             "ULTRADE APPLICATION IS CURRENTLY IN MAINTENANCE MODE. PLACING AND CANCELING ORDERS IS TEMPORARY DISABLED"
+    #         )
+    async def get_pair_list(self, company_id=None) -> List[TradingPair]:
         """
-        Get a list of orders for the specified address.
-
-        With the default status, it will return only open orders.
-        If no symbol is specified, it will return orders for all pairs.
+        Retrieves a list of trading pairs available on the exchange for a specific company.
 
         Args:
-             symbol (str): The symbol representing an existing pair, for example: 'algo_usdt'.
-             status (int): The status of the returned orders.
+            company_id (int, optional): The unique identifier of the company. Defaults to None, in which case all trading pairs will be returned.
 
         Returns:
-            list: A list of orders.
+            List[TradingPair]: A list containing trading pair information. Each trading pair is represented as a dictionary with specific attributes like 'pairName', 'baseCurrency', etc.
+
+        Raises:
+            aiohttp.ClientError: If an error occurs during the HTTP request.
         """
-        address = self.client.get_account_address()
-        query_string = construct_query_string_for_api_request(locals())
+        session = aiohttp.ClientSession()
+        query = "" if company_id is None else f"?companyId={company_id}"
+        url = f"{self.__api_url}/market/markets{query}"
+        async with session.get(url) as resp:
+            data = await resp.json()
+            await session.close()
+
+            return data
+
+    async def get_pair_info(self, symbol: str) -> PairInfo:
+        """
+        Retrieves detailed information about a specific trading pair.
+
+        Args:
+            symbol (str): The symbol representing the trading pair, e.g., 'algo_usdt'.
+
+        Returns:
+            dict: PairInfo.
+        """
 
         session = aiohttp.ClientSession()
-        url = f"{get_api_domain()}/market/orders-with-trades{query_string}"
+        url = f"{self.__api_url}/market/market?symbol={symbol}"
+        async with session.get(url) as resp:
+            resp.raise_for_status()
+            data = await resp.json()
+
+            await session.close()
+        return data
+
+    async def ping(self):
+        """
+        Checks the latency between the client and the server by measuring the time taken for a round-trip request.
+
+        Returns:
+            int: The round-trip latency in milliseconds.
+        """
+        session = aiohttp.ClientSession()
+        url = f"{self.__api_url}/system/time"
+        async with session.get(url) as resp:
+            resp.raise_for_status()
+            data = await resp.json()
+
+            await session.close()
+            return round(time.time() * 1000) - data["currentTime"]
+
+    async def get_price(self, symbol: str) -> Price:
+        """
+        Retrieves the current market price for a specified trading pair.
+
+        Args:
+            symbol (str): The symbol representing the trading pair, e.g., 'algo_usdt'.
+
+        Returns:
+            dict: A dictionary containing price information like the current ask, bid, and last trade price.
+        """
+        session = aiohttp.ClientSession()
+        url = f"{self.__api_url}/market/price?symbol={symbol}"
         async with session.get(url) as resp:
             data = await resp.json()
             await session.close()
             return data
 
-    async def get_wallet_transactions(self, symbol=None):
+    async def get_depth(self, symbol: str, depth: int = 100) -> Depth:
         """
-        Get the last transactions from the current wallet with a maximum amount of 100.
+        Retrieves the order book depth for a specified trading pair, showing the demand and supply at different price levels.
 
         Args:
-             symbol (str): The symbol representing an existing pair, for example: 'algo_usdt'.
+            symbol (str): The symbol representing the trading pair, e.g., 'algo_usdt'.
+            depth (int, optional): The depth of the order book to retrieve. Defaults to 100.
 
         Returns:
-            list: A list of transactions.
+            dict: A dictionary representing the order book with lists of bids and asks.
         """
-        address = self.client.get_account_address()
-        query_string = construct_query_string_for_api_request(locals())
-
         session = aiohttp.ClientSession()
-        url = f"{get_api_domain()}/market/wallet-transactions{query_string}"
+        url = f"{self.__api_url}/market/depth?symbol={symbol}&depth={depth}"
         async with session.get(url) as resp:
             data = await resp.json()
             await session.close()
             return data
 
-    async def get_order_by_id(self, symbol, order_id):
+    async def get_symbols(self, mask) -> List[Symbol]:
         """
-        Get an order by the specified ID and symbol.
+        Return example: For mask="algo" -> [{'pairKey': 'algo_usdt'}]
+
+        Args:
+            mask (str): A pattern or partial symbol to filter the trading pairs, e.g., 'algo'.
 
         Returns:
-            dict: A dictionary containing the order information.
+            list: A list of dictionaries, each containing a 'pairKey' that matches the provided mask.
         """
-        # this endpoint should support symbol query
-        # should work with user address
         session = aiohttp.ClientSession()
-        url = f"{get_api_domain()}/market/getOrderById?orderId={order_id}"
+        url = f"{self.__api_url}/market/symbols?mask={mask}"
         async with session.get(url) as resp:
             data = await resp.json()
-
             await session.close()
-            try:
-                order = data["order"][0]
-                return order
-            except TypeError:
-                raise Exception("Order not found")
+            return data
 
-    async def get_balances(self, symbol):
+    async def get_last_trades(self, symbol: str) -> List[LastTrade]:
         """
-        Returns a dictionary containing information about the assets stored in the wallet and exchange pair for
-        a specified symbol. Return value contains the following keys:
-            - 'priceCoin_available': The amount of price asset stored in the current pair and available for usage
-            - 'baseCoin_locked': The amount of base asset locked in the current pair
-            - 'baseCoin_available': The amount of base asset stored in the current pair and available for usage
-            - 'baseCoin': The amount of base asset stored in the wallet
-            - 'priceCoin': The amount of price asset stored in the wallet
+        Retrieves the most recent trades for a specified trading pair.
 
         Args:
-            symbol (str): The symbol representing an existing pair, for example: 'algo_usdt'
+            symbol (str): The symbol representing the trading pair, e.g., 'algo_usdt'.
 
         Returns:
-            dict
-
+            LastTrade
+            list: A list of the most recent trades for the specified trading pair.
         """
-        pair_info = await api.get_exchange_info(symbol)
-        wallet_balances = self._get_balance_and_state()["balances"]
-        address = self.client.get_account_address()
+        session = aiohttp.ClientSession()
+        url = f"{self.__api_url}/market/last-trades?symbol={symbol}"
+        async with session.get(url) as resp:
+            data = await resp.json()
+            await session.close()
+            return data
 
-        min_algo = await api.get_min_algo_balance(address)
-        exchange_balances = await self.client.get_pair_balances(
-            pair_info["application_id"])
-
-        balances_dict = {}
-
-        balances_dict["priceCoin_locked"] = exchange_balances.get(
-            "priceCoin_locked", 0)
-        balances_dict["priceCoin_available"] = exchange_balances.get(
-            "priceCoin_available", 0)
-        balances_dict["baseCoin_locked"] = exchange_balances.get(
-            "baseCoin_locked", 0)
-        balances_dict["baseCoin_available"] = exchange_balances.get(
-            "baseCoin_available", 0)
-
-        for key in wallet_balances:
-            if int(key) == pair_info["base_id"]:
-                balances_dict["baseCoin"] = wallet_balances.get(
-                    key) - min_algo if key == 0 else wallet_balances.get(key)
-            if int(key) == pair_info["price_id"]:
-                balances_dict["priceCoin"] = wallet_balances.get(
-                    key) - min_algo if key == 0 else wallet_balances.get(key)
-        return balances_dict
-
-    async def get_account_balances(self, exchange_pair_list=None):
+    async def get_order_by_id(self, order_id: int) -> OrderWithTrade:
         """
-        Returns a list of dictionaries containing information about the assets stored in the wallet and exchange pairs.
-        Each dictionary includes the following keys:
-            - 'free': the amount of the asset stored in the wallet.
-            - 'total': the total amount of the asset, including any amounts stored in
-            exchange pairs as available or locked balance.
-            - 'asset': the name of the asset.
-        The list contains one dictionary for each asset.
+        Retrieves detailed information about an order based on its unique identifier.
 
         Args:
-            exchange_pair_list (dict[], default=None): list of pairs to get balances for,
-                if not provided, would return balance for all currently available pairs.
-                To get pairs that you want, use function "api.get_pair_list()".
+            order_id (int): The unique identifier of the order.
 
         Returns:
-            List of dictionaries
+            dict: A dictionary containing detailed information about the specified order.
         """
-        if exchange_pair_list is None:
-            exchange_pair_list = await api.get_pair_list()
+        session = aiohttp.ClientSession()
+        url = f"{self.__api_url}/market/getOrderById?orderId={order_id}"
+        async with session.get(url) as resp:
+            data = await resp.json()
+            await session.close()
+            return data["order"][0]
 
-        address = self.client.get_account_address()
-        acc_info = self.client.get_account_info(address)
+    async def get_company_by_domain(self, domain: str) -> int:
+        """
+        Retrieves the company ID based on the domain name.
 
-        wallet_balances = self._get_balance_and_state(acc_info)["balances"]
+        Args:
+            domain (str): The domain of the company'.
+                        Example: "app.ultrade.org" or "https://app.ultrade.org/"
 
-        algo_buffer = 1000000
-        min_algo = acc_info.get("min-balance", 0) + algo_buffer
+        Returns:
+            int: The company ID.
 
-        exchange_balances = await self._get_exchange_balances_from_account_info(acc_info)
-
-        result_balances = {}
-
-        for key in wallet_balances:
-            asset_name = None
-            filtered_pairs = list(filter(lambda pair: pair.get(
-                "base_id", -1) == int(key) or pair.get("price_id", -1) == int(key), exchange_pair_list))
-
-            total_asset_balance_from_pairs = 0
-            for pair in filtered_pairs:
-                pair_app_id = pair.get("application_id")
-
-                exchange_pair = exchange_balances.get(
-                    pair_app_id, {})
-
-                is_asset_base_coin = int(pair["base_id"]) == int(key)
-
-                if asset_name is None:
-                    pair_name = pair.get("pair_name")
-                    asset_name = pair_name.split(
-                        "_")[0] if is_asset_base_coin else pair_name.split("_")[1]
-
-                pair_asset_balance = exchange_pair.get(
-                    "baseCoin_available", 0) + exchange_pair.get(
-                    "baseCoin_locked", 0) if is_asset_base_coin else exchange_pair.get("priceCoin_available", 0) \
-                    + exchange_pair.get("priceCoin_locked", 0)
-
-                total_asset_balance_from_pairs = total_asset_balance_from_pairs + pair_asset_balance
-
-            additional_fee = 0
-
-            if key == "0":
-                additional_fee = min_algo
-
-            result_balances[key] = {"free": wallet_balances[key] - additional_fee,
-                                    "total": total_asset_balance_from_pairs + wallet_balances[key] - additional_fee,
-                                    "asset": asset_name}
-
-        return result_balances
-
-    async def _get_exchange_balances_from_account_info(self, acc_info):
-        decoded_balances = {}
-        local_state = acc_info.get("apps-local-state")
-        for state in local_state:
-            try:
-                key = next((elem for elem in state["key-value"]
-                            if elem["key"] == "YWNjb3VudEluZm8="), None)
-                decoded_balances[state.get("id", "")] = unpack_data(
-                    key["value"].get("bytes"), BALANCE_DECODE_FORMAT)
-            except Exception:
-                pass
-
-        return decoded_balances
-
-    def _check_maintenance_mode(self):
-        if self.maintenance_mode_status != 0:
-            raise Exception(
-                "ULTRADE APPLICATION IS CURRENTLY IN MAINTENANCE MODE. PLACING AND CANCELING ORDERS IS TEMPORARY DISABLED")
+        Raises:
+            CompanyNotEnabledException: If the company is not enabled or
+                                        if an error occurs during the API request.
+        """
+        domain = domain.replace("https://", "").replace("http://", "").rstrip("/")
+        headers = {"wl-domain": domain}
+        url = f"{self.__api_url}/market/settings"
+        session = aiohttp.ClientSession()
+        async with session.get(url, headers=headers) as resp:
+            data = await resp.json()
+            await session.close()
+            is_enabled = bool(int(data["company.enabled"]))
+            if not is_enabled:
+                raise CompanyNotEnabledException(
+                    f"Company with {domain} domain is not enabled"
+                )
+            return data["companyId"]
