@@ -539,7 +539,6 @@ The `withdraw` method enables the withdrawal of a specified amount of tokens to 
 | `token_address`      | `str` | The blockchain address of the token.             |
 | `token_chain_id`     | `int` | The chain ID of the token.                       |
 | `recipient`          | `str` | The blockchain address of the recipient.         |
-| `recipient_chain_id` | `int` | The chain ID of the recipient's address.         |
 
 ```python
 from ultrade.types import WormholeChains
@@ -549,7 +548,6 @@ await client.withdraw(
         token_address="0xTokenAddress",
         token_chain_id=WormholeChains.POLYGON.value,
         recipient="0xRecipientAddress",
-        recipient_chain_id=WormholeChains.POLYGON.value
     )
 ```
 

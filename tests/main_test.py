@@ -2,11 +2,11 @@ import asyncio
 from ultrade.sdk_client import Client
 from ultrade.types import OrderStatus
 import pytest
-from .test_credentials import TEST_API_URL, TEST_WALLET_ADDRESS
+from .test_credentials import TEST_API_URL, TEST_WALLET_ADDRESS, TEST_WITHDRAW
+
 
 @pytest.mark.asyncio
 class TestClient:
-
     @pytest.mark.asyncio
     async def test_get_balances(self, client):
         balances = await client.get_balances()
@@ -14,9 +14,7 @@ class TestClient:
         assert all(isinstance(balance, dict) for balance in balances)
 
     async def test_get_orders(self, client):
-        orders = await client.get_orders_with_trades(
-            status=OrderStatus.OPEN_ORDER
-        )
+        orders = await client.get_orders_with_trades(status=OrderStatus.OPEN_ORDER)
         print("orders", orders)
         assert isinstance(orders, list)
         assert all(isinstance(order, dict) for order in orders)
@@ -35,17 +33,15 @@ class TestClient:
 
     @pytest.mark.asyncio
     async def test_cancel_order(self, client):
-        orders = await client.get_orders_with_trades(
-            status=OrderStatus.OPEN_ORDER
-        )
+        orders = await client.get_orders_with_trades(status=OrderStatus.OPEN_ORDER)
         order = orders[0]
         await client.cancel_order(order["id"])
-    
+
     @pytest.mark.asyncio
     async def test_operations(self, client):
         txns = await client.get_operations()
         print("txns", txns)
-    
+
     @pytest.mark.asyncio
     async def test_get_pair_list(self, client):
         pairs = await client.get_pair_list(1)
@@ -59,14 +55,14 @@ class TestClient:
         exchange_info = await client.get_pair_info(symbol)
         print("exchange_info", exchange_info)
         assert isinstance(exchange_info, dict)
-    
+
     @pytest.mark.asyncio
     async def test_get_price(self, client):
         symbol = "moon_usdcs"
         price_info = await client.get_price(symbol)
         print("price_info", price_info)
         assert isinstance(price_info, dict)
-    
+
     @pytest.mark.asyncio
     async def test_get_depth(self, client):
         symbol = "moon_usdcs"
@@ -91,13 +87,36 @@ class TestClient:
         print("Last trades for symbol:", symbol, "Trades Data:", last_trades)
         assert isinstance(last_trades, list)
 
-
     @pytest.mark.asyncio
     async def test_get_order_by_id(self, client):
         order_id = 107423
         order_data = await client.get_order_by_id(order_id)
         print("Order:", order_data)
         assert isinstance(order_data, dict)
+
+    @pytest.mark.asyncio
+    async def test_withdraw(self, client):
+        amount = TEST_WITHDRAW["amount"]
+        token_address = TEST_WITHDRAW["tokenAddress"]
+        token_chain_id = TEST_WITHDRAW["tokenChainId"]
+        recipient = TEST_WITHDRAW["recipient"]
+
+        print(
+            f"""\nWithdraw Data:
+            Amount: {amount}
+            Token Address: {token_address}
+            Token Chain ID: {token_chain_id}
+            Recipient: {recipient}
+            """
+        )
+
+        withdraw_data = await client.withdraw(
+            amount=amount,
+            token_address=token_address,
+            token_chain_id=token_chain_id,
+            recipient=recipient,
+        )
+        print("Withdraw Data:", withdraw_data)
 
 
 @pytest.mark.asyncio
@@ -122,17 +141,16 @@ class TestSocket:
         subscribe_options = {
             "symbol": "",
             "streams": [5],
-            "options": {
-                "address": TEST_WALLET_ADDRESS
-            }
+            "options": {"address": TEST_WALLET_ADDRESS},
         }
+
         def callback(event, data):
             nonlocal received_data
             print("event", event)
             print("data", data)
             received_data = data
             received_event.set()
-        
+
         sub_id = await client.subscribe(subscribe_options, callback)
         print("sub_id", sub_id)
 
