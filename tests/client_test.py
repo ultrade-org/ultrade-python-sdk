@@ -4,8 +4,7 @@ import asyncio
 from unittest.mock import MagicMock
 
 from requests import patch
-from ultrade.sdk_client import Client
-from ultrade.signers.main import Signer
+from ultrade import Client, Signer
 from ultrade.types import ClientOptions
 from .test_credentials import TEST_MNEMONIC_KEY, TEST_MAINNET_ALGOD_ADDRESS, TEST_ALGOD_TOKEN, TEST_ETH_PRIVATE_KEY
 from algosdk.v2client import algod

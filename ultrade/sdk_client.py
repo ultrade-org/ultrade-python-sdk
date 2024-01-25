@@ -318,7 +318,6 @@ class Client:
         token_address: str,
         token_chain_id: int,
         recipient: str,
-        recipient_chain_id: int,
     ):
         """
         Withdraws the specified amount of tokens to the specified recipient.
@@ -328,13 +327,14 @@ class Client:
             token_address (str): The address of the token to withdraw.
             token_chain_id (int): The chain ID of the token to withdraw.
             recipient (str): The address of the recipient.
-            recipient_chain_id (int): The chain ID of the recipient.
 
         Returns:
             dict: The response from the server.
         """
         self.__check_is_logged_in()
         signer = self._login_user
+
+        recipient_chain_id = token_chain_id
         message_bytes = make_withdraw_msg(
             signer.address,
             signer.wormhole_chain_id,
