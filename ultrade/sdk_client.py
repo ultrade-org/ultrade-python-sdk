@@ -84,6 +84,23 @@ class Client:
     def __validate_signer(self, signer: Signer):
         if not isinstance(signer, Signer):
             raise ValueError("parameter signer should be instance of Signer")
+    
+    async def __fetch_tmc_configuration(self):
+        url = f"{self.__api_url}/market/chains"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                data = await resp.json()
+
+                tmc_config = {}
+                for item in data:
+                    try:
+                        chain_id = int(item['chainId'])
+                        wh_chain_id = int(item['whChainId']) if 'whChainId' in item else None
+                        tmc_config[chain_id] = {**item, 'chainId': chain_id, 'whChainId': wh_chain_id}
+                    except ValueError:
+                        print(f"Cant convert '{item['chainId']}' to int.")
+                
+                return tmc_config
 
     @property
     def __headers(self):
@@ -370,6 +387,9 @@ class Client:
                 response = await resp.json()
                 return response
 
+    async def deposit(self):
+        pass
+ 
     async def subscribe(self, options, callback):
         """
         Subscribe the client to websocket streams for the specified options.
