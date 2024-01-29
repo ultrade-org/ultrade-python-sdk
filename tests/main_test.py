@@ -1,8 +1,14 @@
 import asyncio
-from ultrade.sdk_client import Client
+from ultrade.sdk_client import Client, Signer
 from ultrade.types import OrderStatus
 import pytest
-from .test_credentials import TEST_API_URL, TEST_WALLET_ADDRESS, TEST_WITHDRAW
+from .test_credentials import (
+    TEST_API_URL,
+    TEST_ETH_PRIVATE_KEY,
+    TEST_MNEMONIC_KEY,
+    TEST_WALLET_ADDRESS,
+    TEST_WITHDRAW,
+)
 
 
 @pytest.mark.asyncio
@@ -117,6 +123,25 @@ class TestClient:
             recipient=recipient,
         )
         print("Withdraw Data:", withdraw_data)
+
+    @pytest.mark.asyncio
+    async def test_deposit_algorand_algo(self, client):
+        walletSigner = Signer.create_signer(TEST_MNEMONIC_KEY)
+        result = await client.deposit(walletSigner, 500, 0)
+        print("Deposit Data:", result)
+
+    @pytest.mark.asyncio
+    async def test_deposit_algorand_asa(self, client):
+        walletSigner = Signer.create_signer(TEST_MNEMONIC_KEY)
+        result = await client.deposit(walletSigner, 500, 157824770)
+        print("Deposit Data:", result)
+
+    @pytest.mark.asyncio
+    async def test_deposit_evm(self, client):
+        walletSigner = Signer.create_signer(TEST_ETH_PRIVATE_KEY)
+        result = await client.deposit(walletSigner, 1_000_000_000_000_000_000, "0x60401dF2ce765c0Ac0cA0A76deC5F0a0B72f3Ae7", "https://polygon-mumbai.blockpi.network/v1/rpc/public")
+        # result = await client.deposit(walletSigner, 500, 1, "https://bsc-pokt.nodies.app")
+        print("Deposit Data:", result)
 
 
 @pytest.mark.asyncio
