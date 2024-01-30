@@ -85,6 +85,20 @@ class Client:
         if not isinstance(signer, Signer):
             raise ValueError("parameter signer should be instance of Signer")
 
+    async def __fetch_tmc_configuration(self):
+        url = f"{self.__api_url}/market/chains"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                data = await resp.json()
+                return data
+
+    async def __get_codex_app_id(self):
+        url = f"{self.__api_url}/market/codex-app-id"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                app_id = await resp.text()
+                return int(app_id)
+
     @property
     def __headers(self):
         headers = {}
@@ -138,85 +152,85 @@ class Client:
             raise Exception("You need to login first")
 
     async def create_order(
-            self,
-            pair_id: int,
-            order_side: str,
-            order_type: str,
-            amount: int,
-            price: int,
-            wlp_id: int = 0,
-            company_id: int = 1,
-        ):
-            """
-            Creates an order using the provided order data.
+        self,
+        pair_id: int,
+        order_side: str,
+        order_type: str,
+        amount: int,
+        price: int,
+        wlp_id: int = 0,
+        company_id: int = 1,
+    ):
+        """
+        Creates an order using the provided order data.
 
-            Args:
-                pair_id (int): The ID of the trading pair.
-                order_side (str): The side of the order. Must be 'B' (buy) or 'S' (sell).
-                order_type (str): The type of the order. Must be 'M' (market), 'L' (limit), 'I' (ioc), or 'P' (post only).
-                amount (int): The amount of the order.
-                price (int): The price of the order.
-                wlp_id (int, optional): The ID of the WLP. Defaults to 0.
-                company_id (int, optional): The ID of the company. Defaults to 1.
+        Args:
+            pair_id (int): The ID of the trading pair.
+            order_side (str): The side of the order. Must be 'B' (buy) or 'S' (sell).
+            order_type (str): The type of the order. Must be 'M' (market), 'L' (limit), 'I' (ioc), or 'P' (post only).
+            amount (int): The amount of the order.
+            price (int): The price of the order.
+            wlp_id (int, optional): The ID of the WLP. Defaults to 0.
+            company_id (int, optional): The ID of the company. Defaults to 1.
 
-            Returns:
-                dict: The response from the server.
+        Returns:
+            dict: The response from the server.
 
-            Raises:
-                ValueError: If the order_side or order_type is invalid.
-                Exception: If there is an error in the response.
-            """
-            self.__check_is_logged_in()
-            if order_side not in ["B", "S"]:
-                raise ValueError("order_side must be 'B' (buy) or 'S' (sell)")
+        Raises:
+            ValueError: If the order_side or order_type is invalid.
+            Exception: If there is an error in the response.
+        """
+        self.__check_is_logged_in()
+        if order_side not in ["B", "S"]:
+            raise ValueError("order_side must be 'B' (buy) or 'S' (sell)")
 
-            if order_type not in ["M", "L", "I", "P"]:
-                raise ValueError(
-                    "order_type must be 'M' (market), 'L' (limit), 'I' (ioc), or 'P' (post only)"
-                )
-            # self.__check_maintenance_mode()
-            signer = self._login_user
-            pair = await self.get_pair_info(pair_id)
-            if not pair:
-                raise Exception(f"Pair with id {pair_id} not found")
-            
-            order = CreateOrder(
-                pair_id=pair_id,
-                company_id=company_id,
-                login_address=signer.address,
-                login_chain_id=signer.wormhole_chain_id,
-                order_side=order_side,
-                order_type=order_type,
-                amount=amount,
-                price=price,
-                base_token_address=pair["base_id"],
-                base_token_chain_id=pair["base_chain_id"],
-                price_token_address=pair["price_id"],
-                price_token_chain_id=pair["price_chain_id"],
-                wlp_id=wlp_id,
+        if order_type not in ["M", "L", "I", "P"]:
+            raise ValueError(
+                "order_type must be 'M' (market), 'L' (limit), 'I' (ioc), or 'P' (post only)"
             )
-            data = order.data
-            encoding = "hex"
-            message_bytes = get_order_bytes(data)
-            message = message_bytes.hex()
-            signature = signer.sign_data(message_bytes)
-            signature_hex = signature.hex() if isinstance(signature, bytes) else signature
-            url = f"{self.__api_url}/market/order"
-            async with aiohttp.ClientSession(headers=self.__headers) as session:
-                async with session.post(
-                    url,
-                    json={
-                        "data": data,
-                        "encoding": encoding,
-                        "message": message,
-                        "signature": signature_hex,
-                    },
-                ) as resp:
-                    response = await resp.json(content_type=None)
-                    if response is None:
-                        return
-                    if "error" in response:
-                        raise Exception(response)
+        # self.__check_maintenance_mode()
+        signer = self._login_user
+        pair = await self.get_pair_info(pair_id)
+        if not pair:
+            raise Exception(f"Pair with id {pair_id} not found")
+
+        order = CreateOrder(
+            pair_id=pair_id,
+            company_id=company_id,
+            login_address=signer.address,
+            login_chain_id=signer.wormhole_chain_id,
+            order_side=order_side,
+            order_type=order_type,
+            amount=amount,
+            price=price,
+            base_token_address=pair["base_id"],
+            base_token_chain_id=pair["base_chain_id"],
+            price_token_address=pair["price_id"],
+            price_token_chain_id=pair["price_chain_id"],
+            wlp_id=wlp_id,
+        )
+        data = order.data
+        encoding = "hex"
+        message_bytes = get_order_bytes(data)
+        message = message_bytes.hex()
+        signature = signer.sign_data(message_bytes)
+        signature_hex = signature.hex() if isinstance(signature, bytes) else signature
+        url = f"{self.__api_url}/market/order"
+        async with aiohttp.ClientSession(headers=self.__headers) as session:
+            async with session.post(
+                url,
+                json={
+                    "data": data,
+                    "encoding": encoding,
+                    "message": message,
+                    "signature": signature_hex,
+                },
+            ) as resp:
+                response = await resp.json(content_type=None)
+                if response is None:
+                    return
+                if "error" in response:
+                    raise Exception(response)
 
     async def cancel_order(self, order_id):
         self.__check_is_logged_in()
@@ -369,6 +383,51 @@ class Client:
             ) as resp:
                 response = await resp.json()
                 return response
+
+    async def deposit(
+        self, signer: Signer, amount: int, token_address: str | int, rpc_url=None
+    ) -> str:
+        """
+        Deposit a specified amount of tokens into the Token Manager Contract.
+
+        This method facilitates the depositing of a certain amount of tokens to the Token Manager Contract.
+        To use this function, create a 'Signer' instance from the mnemonic of the wallet that will be used
+        as the deposit source to the Token Manager Contract. It is essential that the 'Signer' wallet is
+        part of the same blockchain network as the asset that is intended to be deposited.
+
+        For deposits into EVM-compatible networks (such as Ethereum, Polygon, Binance Smart Chain, etc.),
+        the 'rpc_url' parameter is required to specify the network's RPC URL. For other blockchain networks,
+        this parameter is not necessary and can be left as default (None).
+
+        Args:
+            signer (Signer): The 'Signer' instance created from the wallet's mnemonic. This wallet will be
+                             used as the source for the deposit and must belong to the same network as the
+                             asset being deposited.
+            amount (int): The amount of tokens to deposit.
+            token_address (str | int): The ID of the token to be deposited.
+            rpc_url (str, optional): The RPC URL of the EVM-compatible chain where the deposit will be made.
+                                     This is required for EVM networks. Defaults to None.
+
+        Returns:
+            str: The transaction ID of the deposit transaction.
+
+        Raises:
+            ValueError: If any of the required parameters are invalid or missing.
+        """
+        self.__check_is_logged_in()
+        self.__validate_signer(signer)
+
+        tmc_configs = await self.__fetch_tmc_configuration()
+        codex_app_id = await self.__get_codex_app_id()
+
+        config = {}
+        config["rpc_url"] = rpc_url
+        config["algod_client"] = self.__algod_client
+        config["tmc_configs"] = tmc_configs
+        config["login_user"] = self._login_user
+        config["codex_app_id"] = codex_app_id
+
+        return await signer._deposit(amount, token_address, config)
 
     async def subscribe(self, options, callback):
         """
@@ -590,3 +649,13 @@ class Client:
                     f"Company with {domain} domain is not enabled"
                 )
             return data["companyId"]
+
+    async def get_avaible_chains(self) -> List[str]:
+        """
+        Retrieves the list of available chains.
+
+        Returns:
+            list: A list of available chains.
+        """
+        config = await self.__fetch_tmc_configuration()
+        return [chain["name"] for chain in config]

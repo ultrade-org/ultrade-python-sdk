@@ -45,6 +45,10 @@ class Signer(ABC):
   def address(self) -> str:
     raise NotImplementedError("This method should be implemented by subclasses.")
   
+  @abstractmethod
+  def _deposit(self, amount: int, token_address: str | int, config: dict ) -> str:
+    raise NotImplementedError("This method should be implemented by subclasses.")
+
   @property
   def provider_name(self) -> str:
     if self._provider_name is None:
