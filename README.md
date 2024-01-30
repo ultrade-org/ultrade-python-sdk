@@ -16,7 +16,7 @@
 
 This is an early preview version of this SDK. It is work in progress. More detailed documentation will be added, and there may still be bugs lurking around. The SDK is available via this github but is NOT yet available via PIP.
 
-The `ultrade` package is a Python SDK for interacting with ULTRADE's V2 platform, the Bridgeless Crosschain Orderbook DEX. It provides a simple interface for creating and managing orders, as well as for interacting with the Ultrade API and streams. Depositing assets to ultrade is currently done via the UI at testnet.ultrade.org by performing a login with the same account that you intend to use with this SDK, and then either depositing assets from that same account, or, from any other account/chain while logged in. Deposits are always credited to the logged in account. (programattic deposits will be added to this SDK soon). Creating orders are done via this SDK. The login account is used to create orders by cryptographically signing order messages and sending them to the API. This process does not involve on-chain transactions and does not incur any gas costs. Please note that in an upcoming update, you will have the option to provide a trading-key instead of using a login account. The trading key will be associated with a specific login account and its balances and will be used for managing orders, but will not be able to withdraw. 
+The `ultrade` package is a Python SDK for interacting with ULTRADE's V2 platform, the Bridgeless Crosschain Orderbook DEX. It provides a simple interface for creating and managing orders, as well as for interacting with the Ultrade API and streams. Depositing assets to ultrade is currently done via the UI at testnet.ultrade.org by performing a login with the same account that you intend to use with this SDK, and then either depositing assets from that same account, or, from any other account/chain while logged in. Deposits are always credited to the logged in account. (programattic deposits will be added to this SDK soon). Creating orders are done via this SDK. The login account is used to create orders by cryptographically signing order messages and sending them to the API. This process does not involve on-chain transactions and does not incur any gas costs. Please note that in an upcoming update, you will have the option to provide a trading-key instead of using a login account. The trading key will be associated with a specific login account and its balances and will be used for managing orders, but will not be able to withdraw.
 
 When using this SDK, please note that token amounts and prices that are stated to be in Atomic Units mean the smallest indivisible units of the token based on its number of decimals, in a unsigned integern format. For example 1 ETH from Ethereum will be represented as 1 with 18 zeros, while 1 USDC from Algorand will be 1 with 6 zeros (6 decimals asset). The price is denominated based on the Price (Quote) token, while amounts of a base token are denominated according to that base tokens' decimals.
 
@@ -85,7 +85,9 @@ await client.set_login_user(signer)
 
 isLogged = client.is_logged_in() #returns True or False
 ```
+
 ---
+
 ## Public methods
 
 Below are methods that do not require the [login function](#logging-in) to be executed
@@ -100,7 +102,10 @@ Below are methods that do not require the [login function](#logging-in) to be ex
 | [get_last_trades](#get_last_trades) | Retrieves the most recent trades for a specified trading pair. |
 | [get_order_by_id](#get_order_by_id) | Retrieves detailed information about an order by its ID. |
 | [get_company_by_domain](#get_company_by_domain) | Retrieves the company ID based on the domain name. |
+| [get_avaible_chains](#get_avaible_chains) | Retrieves the list of chains supported by Ultrade. |
+
 ---
+
 ### get_pair_list
 
 To get the listed pair list, you need to call the `get_pair_list` method on the API instance. The `get_pair_list` method takes an optional `company_id` argument. If the `company_id` argument is not provided, all pairs are returned.
@@ -157,6 +162,7 @@ pairs = await client.get_pair_list()
 </details>
 
 ---
+
 ### get_pair_info
 
 The `get_pair_info` method retrieves detailed information about a specific trading pair on the Ultrade platform. It provides key data such as current price and trading volume.
@@ -200,6 +206,7 @@ info = await client.get_pair_info("algo_usdt")
 </details>
 
 ---
+
 ### ping
 
 The `ping` method measures the latency between the client and the server by calculating the round-trip time of a request. It returns the latency in milliseconds. This method is useful for checking the responsiveness of the server or the network connection.
@@ -208,7 +215,9 @@ The `ping` method measures the latency between the client and the server by calc
 latency = await client.ping()
 print(f"Latency: {latency} ms")
 ```
+
 ---
+
 ### get_price
 
 The `get_price` method fetches the current market price for a specific trading pair. It provides details such as the current ask, bid, and last trade price.
@@ -393,6 +402,18 @@ The method returns an integer representing the company ID.
 company_id = await client.get_company_by_domain("app.ultrade.org")
 print(company_id)
 ```
+
+---
+
+### get_avaible_chains
+
+Retrieves the list of chains supported by Ultrade DeFi.
+
+```python
+avaible_chains = await client.get_avaible_chains()
+print(avaible_chains)
+```
+
 ---
 
 ## Required login methods
@@ -405,6 +426,7 @@ Below are methods that require the [login function](#logging-in) to be executed
 | [get_operations](#get_operations) | Returns a list of operations and it statuses (deposits/withdrawals) for the logged-in user. |
 | [create_order](#create_order) | Creates an order on the Ultrade platform. |
 | [cancel_order](#cancel_order) | Cancels an existing order on the Ultrade platform. |
+| [deposit](#deposit) | Deposit a specified amont of tokens to the Token Manager Contract. |
 | [withdraw](#withdraw) | Withdraws a specified amount of tokens to a designated recipient. |
 | [subscribe](#subscribe) | Subscribes the client to various websocket streams. |
 | [unsubscribe](#unsubscribe) | Unsubscribes from a previously established websocket connection. |
@@ -529,16 +551,38 @@ print(operations)
 
 ---
 
+### deposit
+
+The `deposit` method allows for depositing a specified amount of tokens into the Token Manager Contract. This function requires the user to create a `Signer` instance using the mnemonic of the wallet that will act as the source for the deposit. The `Signer` wallet must be part of the same blockchain network as the asset to be deposited. For EVM-compatible networks (like Ethereum, Polygon, Binance Smart Chain, etc.), specifying the network's RPC URL via the 'rpc_url' parameter is necessary. For other blockchain networks, this parameter is optional.
+
+| Parameter       | Type            | Description                                                                  |
+| --------------- | --------------- | ---------------------------------------------------------------------------- |
+| `signer`        | `Signer`        | The 'Signer' instance, created from the wallet's mnemonic.                   |
+| `amount`        | `int`           | The amount of tokens to be deposited.                                        |
+| `token_address` | `str` \| `int`  | The ID of the token to be deposited.                                         |
+| `rpc_url`       | `str`, optional | The RPC URL of the EVM-compatible chain for the deposit. Defaults to `None`. |
+
+```python
+await client.deposit(
+    signer=your_signer_instance,
+    amount=5000,
+    token_address="0xTokenIDorAddress",
+    rpc_url="http://example.rpc.url"
+)
+```
+
+---
+
 ### withdraw
 
 The `withdraw` method enables the withdrawal of a specified amount of tokens to a designated recipient. To perform a withdrawal, you need to specify the recipient's wallet address where you wish to transfer the funds. This operation requires the user to be logged in and have a sufficient balance of the token they intend to withdraw.
 
-| Parameter            | Type  | Description                                      |
-| -------------------- | ----- | ------------------------------------------------ |
-| `amount`             | `int` | The amount of tokens to withdraw in atomic units |
-| `token_address`      | `str` | The blockchain address of the token.             |
-| `token_chain_id`     | `int` | The chain ID of the token.                       |
-| `recipient`          | `str` | The blockchain address of the recipient.         |
+| Parameter        | Type  | Description                                      |
+| ---------------- | ----- | ------------------------------------------------ |
+| `amount`         | `int` | The amount of tokens to withdraw in atomic units |
+| `token_address`  | `str` | The blockchain address of the token.             |
+| `token_chain_id` | `int` | The chain ID of the token.                       |
+| `recipient`      | `str` | The blockchain address of the recipient.         |
 
 ```python
 from ultrade.types import WormholeChains
@@ -620,7 +664,6 @@ The `subscribe` method subscribes the client to various WebSocket streams based 
 | `streams` | `List[int]`                | Identifiers for the types of data streams to subscribe to. Each number represents a different type of stream. |
 | `options` | `Dict[str, Optional[str]]` | Additional options for the subscription.                                                                      |
 
-
 #### Stream Identifiers in `socket_options`:
 
 - `QUOTE`: 1 - Real-time quotes for a trading pair.
@@ -640,7 +683,6 @@ The `subscribe` method subscribes the client to various WebSocket streams based 
 
 - `address`: Optional. The wallet address to use for subscriptions. If the user is logged in, this is optional and will default to the logged-in user's address.
 - `companyId`: Optional. The identifier for a specific company. Used to receive data specific to that company.
-
 
 ```python
 from ultrade import socket_options
@@ -673,4 +715,3 @@ To unsubscribe from a websocket stream, you need to provide the connection ID ob
 ```python
 await client.unsubscribe("your_connection_id")
 ```
-

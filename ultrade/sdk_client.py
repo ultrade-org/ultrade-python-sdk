@@ -649,3 +649,13 @@ class Client:
                     f"Company with {domain} domain is not enabled"
                 )
             return data["companyId"]
+
+    async def get_avaible_chains(self) -> List[str]:
+        """
+        Retrieves the list of available chains.
+
+        Returns:
+            list: A list of available chains.
+        """
+        config = await self.__fetch_tmc_configuration()
+        return [chain["name"] for chain in config]
