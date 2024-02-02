@@ -587,12 +587,15 @@ The `withdraw` method enables the withdrawal of a specified amount of tokens to 
 ```python
 from ultrade.types import WormholeChains
 
-await client.withdraw(
+try:
+    await client.withdraw(
         amount=10000,
         token_address="0xTokenAddress",
         token_chain_id=WormholeChains.POLYGON.value,
         recipient="0xRecipientAddress",
     )
+except Exception as e:
+    print(f"Error withdrawing funds: {str(e)}")
 ```
 
 ---
@@ -613,15 +616,17 @@ The `create_order` method is used to create a new order on the Ultrade platform.
 
 ```python
 pair = await client.get_pair_info("algo_moon")
-
-await client.create_order(
-    pair_id=pair["id"],
-    order_side="B",
-    order_type="L",
-    amount=350000000,  # in atomic units
-    price=1000,       # in atomic units
-    company_id=1,
-)
+try:
+    await client.create_order(
+        pair_id=pair["id"],
+        order_side="B",
+        order_type="L",
+        amount=350000000,  # in atomic units
+        price=1000,       # in atomic units
+        company_id=1,
+    )
+except Exception as e:
+    print(f"Error creating order: {str(e)}")
 ```
 
 This function does not return a value.  
@@ -639,10 +644,21 @@ The `cancel_order` method is used to cancel an existing order on the Ultrade pla
 
 To cancel an order, provide the ID of the order you wish to cancel. The method checks if the user is logged in before proceeding. It is asynchronous and must be awaited.
 
+Returns: void if order succsesfully canceled
+
+Raises: Exception: If there is an error in the response from the server.
+`Exception: {'statusCode': 404, 'message': 'Order not found', 'error': 'Not Found'}`
+
 ```python
 orders = await client.get_orders_with_trades()
+order = orders[0] # the first one order in array
+order_id = order["id"]
+try:
+    await client.cancel_order(order_id)
+    print(f"Order with ID {order_id} has been successfully canceled.")
+except Exception as e:
+    print(f"Error canceling order with ID {order_id}: {str(e)}")
 
-await client.cancel_order(order_id)
 ```
 
 ---

@@ -231,8 +231,24 @@ class Client:
                     return
                 if "error" in response:
                     raise Exception(response)
+                return response
 
-    async def cancel_order(self, order_id):
+    async def cancel_order(self, order_id) -> None:
+        """
+        Cancels the order with the specified ID.
+
+        Args:
+            order_id (int): The ID of the order to cancel.
+
+        Returns: void if the order was successfully canceled.
+
+        Raises:
+            Exception: If there is an error in the response from the server.
+            For example:
+            Exception: {'statusCode': 404, 'message': 'Order not found', 'error': 'Not Found'}
+
+        """
+
         self.__check_is_logged_in()
         # self.__check_maintenance_mode()
 
