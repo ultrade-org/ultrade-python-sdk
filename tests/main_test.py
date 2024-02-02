@@ -52,14 +52,15 @@ class TestClient:
         pairs = await client.get_pair_list()
         pair = pairs[0]
         try:
-            await client.create_order(
+            res = await client.create_order(
                 pair_id=pair["id"],
                 company_id=1,
-                order_side="B",
+                order_side="S",
                 order_type="L",
                 amount=450000000 * 1_000_000_000,
                 price=2000 * 100000,
             )
+            print(res, "RES")
         except Exception as e:
             print("Exception:", e)
 

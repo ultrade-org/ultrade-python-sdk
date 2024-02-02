@@ -190,9 +190,13 @@ class Client:
             )
         # self.__check_maintenance_mode()
         signer = self._login_user
+
         pair = await self.get_pair_info(pair_id)
+
         if not pair:
             raise Exception(f"Pair with id {pair_id} not found")
+
+        await self.__check_user_balances(order_side, order_type, amount, price, pair)
 
         order = CreateOrder(
             pair_id=pair_id,
@@ -675,3 +679,59 @@ class Client:
         """
         config = await self.__fetch_tmc_configuration()
         return [chain["name"] for chain in config]
+
+    async def __check_user_balances(
+        self, order_side: str, order_type: str, amount: int, price: int, pair: dict
+    ):
+        """
+        Checks if the user has enough balance to create an order, considering min_order_size and min_price_increment.
+        Raises:
+            ValueError: If the order amount is below the minimum order size.
+            ValueError: If the price does not meet the minimum price increment.
+            ValueError: If there are insufficient funds in the price currency balance to execute the buy order.
+            ValueError: If there are insufficient funds in the base currency balance to execute the sell order.
+        """
+        balance = await self.get_balances()
+        zero_balance = {
+            "amount": 0,
+        }
+        base_balance = next((x for x in balance if x["tokenId"] == pair["base_id"]), zero_balance)
+        price_balance = next(
+            (x for x in balance if x["tokenId"] == pair["price_id"]), zero_balance
+        )
+
+        base_balance_amount = int(base_balance["amount"]) - int(
+            base_balance.get("lockedAmount", 0)
+        )
+        price_balance_amount = int(price_balance["amount"]) - int(
+            price_balance.get("lockedAmount", 0)
+        )
+
+        if amount < int(pair["min_order_size"]):
+            raise ValueError(
+                f"Order amount is below the minimum order size of {pair['min_order_size']}."
+            )
+
+        if order_side == "B":
+            if order_type in ["L", "I", "P"] and (
+                price % int(pair["min_price_increment"]) != 0
+            ):
+                raise ValueError(
+                    f"Price does not meet the minimum price increment of {pair['min_price_increment']}."
+                )
+            required_amount = (
+                amount
+                if order_type == "M"
+                else (amount * price) / 10 ** pair["base_decimal"]
+            )
+            if price_balance_amount < required_amount:
+                raise ValueError(
+                    "Insufficient funds in price currency balance to execute the buy order."
+                )
+        else:  # "S"
+            if base_balance_amount < amount:
+                raise ValueError(
+                    "Insufficient funds in base currency balance to execute the sell order."
+                )
+
+        return True

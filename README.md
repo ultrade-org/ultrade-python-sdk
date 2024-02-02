@@ -20,6 +20,16 @@ The `ultrade` package is a Python SDK for interacting with ULTRADE's V2 platform
 
 When using this SDK, please note that token amounts and prices that are stated to be in Atomic Units mean the smallest indivisible units of the token based on its number of decimals, in a unsigned integern format. For example 1 ETH from Ethereum will be represented as 1 with 18 zeros, while 1 USDC from Algorand will be 1 with 6 zeros (6 decimals asset). The price is denominated based on the Price (Quote) token, while amounts of a base token are denominated according to that base tokens' decimals.
 
+### Funds Management on Ultrade Exchange
+
+Ultrade Exchange provides a straightforward approach to funds management:
+
+Users deposit funds into their Ultrade accounts.
+When creating orders, a portion of the user's funds may be temporarily locked to cover the order.
+These locked funds are used for order execution.
+Unused funds remain accessible for other purposes, including withdrawals.
+Ultrade ensures that users cannot spend more than their available balance. This straightforward approach eliminates the need for complex liquidation procedures, allowing users to trade securely and efficiently.
+
 ## Installation
 
 To install the `ultrade` package, you can use pip:
@@ -562,13 +572,18 @@ The `deposit` method allows for depositing a specified amount of tokens into the
 | `token_address` | `str` \| `int`  | The ID of the token to be deposited.                                         |
 | `rpc_url`       | `str`, optional | The RPC URL of the EVM-compatible chain for the deposit. Defaults to `None`. |
 
+Raises
+
 ```python
-await client.deposit(
-    signer=your_signer_instance,
-    amount=5000,
-    token_address="0xTokenIDorAddress",
-    rpc_url="http://example.rpc.url"
-)
+try:
+    await client.deposit(
+        signer=your_signer_instance,
+        amount=5000,
+        token_address="0xTokenIDorAddress",
+        rpc_url="http://example.rpc.url"
+    )
+except Exception as e:
+    print(f"Error depositing funds: {str(e)}")
 ```
 
 ---
@@ -630,7 +645,11 @@ except Exception as e:
 ```
 
 This function does not return a value.  
-Raises `Exception` if the order creation fails.
+Raises:
+`ValueError: If the order amount is below the minimum order size.`
+`ValueError: If the price does not meet the minimum price increment.`
+`ValueError: If there are insufficient funds in the price currency balance to execute the buy order.`
+`ValueError: If there are insufficient funds in the base currency balance to execute the sell order.`
 
 ---
 
