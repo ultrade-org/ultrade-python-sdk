@@ -25,6 +25,17 @@ class TestClient:
         assert isinstance(orders, list)
         assert all(isinstance(order, dict) for order in orders)
 
+    async def test_rate_limit(self, client):
+        count = 0
+        try:
+            for i in range(1000):
+                client.get_balances()
+                count = i
+        except Exception as e:
+            print("Exception:", e)
+        print("Count:", count)
+
+
     async def test_create_order(self, client):
         pairs = await client.get_pair_list()
         pair = pairs[0]
@@ -37,11 +48,34 @@ class TestClient:
             price=2000,
         )
 
+    async def test_create_order_with_insufficient_balance(self, client):
+        pairs = await client.get_pair_list()
+        pair = pairs[0]
+        try:
+            res = await client.create_order(
+                pair_id=pair["id"],
+                company_id=1,
+                order_side="S",
+                order_type="L",
+                amount=450000000 * 1_000_000_000,
+                price=2000 * 100000,
+            )
+            print(res, "RES")
+        except Exception as e:
+            print("Exception:", e)
+
     @pytest.mark.asyncio
     async def test_cancel_order(self, client):
         orders = await client.get_orders_with_trades(status=OrderStatus.OPEN_ORDER)
         order = orders[0]
         await client.cancel_order(order["id"])
+
+    @pytest.mark.asyncio
+    async def test_cancel_not_existing_order(self, client):
+        try:
+            await client.cancel_order(123456789)
+        except Exception as e:
+            print("Exception:", e)
 
     @pytest.mark.asyncio
     async def test_operations(self, client):
@@ -139,7 +173,12 @@ class TestClient:
     @pytest.mark.asyncio
     async def test_deposit_evm(self, client):
         walletSigner = Signer.create_signer(TEST_ETH_PRIVATE_KEY)
-        result = await client.deposit(walletSigner, 1_000_000_000_000_000_000, "0x60401dF2ce765c0Ac0cA0A76deC5F0a0B72f3Ae7", "https://polygon-mumbai.blockpi.network/v1/rpc/public")
+        result = await client.deposit(
+            walletSigner,
+            1_000_000_000_000_000_000,
+            "0x60401dF2ce765c0Ac0cA0A76deC5F0a0B72f3Ae7",
+            "https://polygon-mumbai.blockpi.network/v1/rpc/public",
+        )
         # result = await client.deposit(walletSigner, 500, 1, "https://bsc-pokt.nodies.app")
         print("Deposit Data:", result)
 

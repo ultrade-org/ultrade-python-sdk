@@ -20,6 +20,16 @@ The `ultrade` package is a Python SDK for interacting with ULTRADE's V2 platform
 
 When using this SDK, please note that token amounts and prices that are stated to be in Atomic Units mean the smallest indivisible units of the token based on its number of decimals, in a unsigned integern format. For example 1 ETH from Ethereum will be represented as 1 with 18 zeros, while 1 USDC from Algorand will be 1 with 6 zeros (6 decimals asset). The price is denominated based on the Price (Quote) token, while amounts of a base token are denominated according to that base tokens' decimals.
 
+### Funds Management on Ultrade Exchange
+
+Ultrade Exchange provides a straightforward approach to funds management:
+
+Users deposit funds into their Ultrade accounts.
+When creating orders, a portion of the user's funds may be temporarily locked to cover the order.
+These locked funds are used for order execution.
+Unused funds remain accessible for other purposes, including withdrawals.
+Ultrade ensures that users cannot spend more than their available balance. This straightforward approach eliminates the need for complex liquidation procedures, allowing users to trade securely and efficiently.
+
 ## Installation
 
 To install the `ultrade` package, you can use pip:
@@ -562,13 +572,18 @@ The `deposit` method allows for depositing a specified amount of tokens into the
 | `token_address` | `str` \| `int`  | The ID of the token to be deposited.                                         |
 | `rpc_url`       | `str`, optional | The RPC URL of the EVM-compatible chain for the deposit. Defaults to `None`. |
 
+Raises
+
 ```python
-await client.deposit(
-    signer=your_signer_instance,
-    amount=5000,
-    token_address="0xTokenIDorAddress",
-    rpc_url="http://example.rpc.url"
-)
+try:
+    await client.deposit(
+        signer=your_signer_instance,
+        amount=5000,
+        token_address="0xTokenIDorAddress",
+        rpc_url="http://example.rpc.url"
+    )
+except Exception as e:
+    print(f"Error depositing funds: {str(e)}")
 ```
 
 ---
@@ -587,12 +602,15 @@ The `withdraw` method enables the withdrawal of a specified amount of tokens to 
 ```python
 from ultrade.types import WormholeChains
 
-await client.withdraw(
+try:
+    await client.withdraw(
         amount=10000,
         token_address="0xTokenAddress",
         token_chain_id=WormholeChains.POLYGON.value,
         recipient="0xRecipientAddress",
     )
+except Exception as e:
+    print(f"Error withdrawing funds: {str(e)}")
 ```
 
 ---
@@ -613,19 +631,25 @@ The `create_order` method is used to create a new order on the Ultrade platform.
 
 ```python
 pair = await client.get_pair_info("algo_moon")
-
-await client.create_order(
-    pair_id=pair["id"],
-    order_side="B",
-    order_type="L",
-    amount=350000000,  # in atomic units
-    price=1000,       # in atomic units
-    company_id=1,
-)
+try:
+    await client.create_order(
+        pair_id=pair["id"],
+        order_side="B",
+        order_type="L",
+        amount=350000000,  # in atomic units
+        price=1000,       # in atomic units
+        company_id=1,
+    )
+except Exception as e:
+    print(f"Error creating order: {str(e)}")
 ```
 
 This function does not return a value.  
-Raises `Exception` if the order creation fails.
+Raises:
+`ValueError: If the order amount is below the minimum order size.`
+`ValueError: If the price does not meet the minimum price increment.`
+`ValueError: If there are insufficient funds in the price currency balance to execute the buy order.`
+`ValueError: If there are insufficient funds in the base currency balance to execute the sell order.`
 
 ---
 
@@ -639,10 +663,21 @@ The `cancel_order` method is used to cancel an existing order on the Ultrade pla
 
 To cancel an order, provide the ID of the order you wish to cancel. The method checks if the user is logged in before proceeding. It is asynchronous and must be awaited.
 
+Returns: void if order succsesfully canceled
+
+Raises: Exception: If there is an error in the response from the server.
+`Exception: {'statusCode': 404, 'message': 'Order not found', 'error': 'Not Found'}`
+
 ```python
 orders = await client.get_orders_with_trades()
+order = orders[0] # the first one order in array
+order_id = order["id"]
+try:
+    await client.cancel_order(order_id)
+    print(f"Order with ID {order_id} has been successfully canceled.")
+except Exception as e:
+    print(f"Error canceling order with ID {order_id}: {str(e)}")
 
-await client.cancel_order(order_id)
 ```
 
 ---
