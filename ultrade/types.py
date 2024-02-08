@@ -72,6 +72,7 @@ class Providers(Enum):
     METAMASK = "METAMASK"
     MYALGO = "myalgo"
     PHANTOM = "phantom"
+    PERA = "PERA"
 
 
 class CreateOrder:

@@ -23,7 +23,7 @@ class AlgorandSigner(Signer):
     def __init__(self, private_key):
         super().__init__(wormhole_chain_id=WormholeChains.ALGORAND)
         self.__algo_private_key = mnemonic.to_private_key(private_key)
-        self._provider_name = Providers.MYALGO.value
+        self._provider_name = Providers.PERA.value
 
     def sign_data(self, message: bytes) -> str:
         """

@@ -28,7 +28,7 @@ class TestClient(unittest.TestCase):
     
     def test_login_eth(self):
         options = ClientOptions()
-        options["api_url"] = 'https://api.testnet.ultrade.org'
+        options["api_url"] = 'https://api.dev.ultradedev.net'
         client = Client(network="testnet", **options)
 
         loop = asyncio.get_event_loop()
@@ -37,7 +37,7 @@ class TestClient(unittest.TestCase):
 
     def test_login_algorand(self):
         options = ClientOptions()
-        options["api_url"] = 'https://api.testnet.ultrade.org'
+        options["api_url"] = 'https://api.dev.ultradedev.net'
         client = Client(network="testnet", **options)
 
         loop = asyncio.get_event_loop()
