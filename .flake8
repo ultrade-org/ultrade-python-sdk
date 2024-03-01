@@ -1,3 +1,5 @@
 [flake8]
 max-line-length = 120
-exclude = .git,__pycache__,old,build,dist
+filename = *.py, *.pyx, *.pxd
+ignore = E251,E501,E702,W504,W503
+exclude = .git,__pycache__,old,build,dist,tests/*.py

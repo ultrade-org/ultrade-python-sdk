@@ -98,8 +98,9 @@ class EthereumSigner(Signer):
         ]
 
         tmc_address = tmc_config["tmc"]
-        tmc_contract = web3.eth.contract(address=Web3.to_checksum_address(tmc_address), abi=abi)
-        
+        tmc_contract = web3.eth.contract(
+            address=Web3.to_checksum_address(tmc_address), abi=abi
+        )
 
         transaction = tmc_contract.functions.depositToCodex(
             token_address,
