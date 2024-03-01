@@ -7,6 +7,7 @@ from ..types import KeyType
 class InvalidKeyError(Exception):
     pass
 
+
 class PrivateKey:
     def __init__(self, key_str: str):
         self.key_str = key_str

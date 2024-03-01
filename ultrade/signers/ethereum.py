@@ -1,4 +1,4 @@
-from ultrade.encode import determine_address_type, normalize_address
+from ultrade.utils.encode import determine_address_type, normalize_address
 from .main import Signer
 from web3 import Web3, HTTPProvider
 from web3.middleware import geth_poa_middleware
@@ -98,8 +98,9 @@ class EthereumSigner(Signer):
         ]
 
         tmc_address = tmc_config["tmc"]
-        tmc_contract = web3.eth.contract(address=Web3.to_checksum_address(tmc_address), abi=abi)
-        
+        tmc_contract = web3.eth.contract(
+            address=Web3.to_checksum_address(tmc_address), abi=abi
+        )
 
         transaction = tmc_contract.functions.depositToCodex(
             token_address,

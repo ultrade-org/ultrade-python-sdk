@@ -1,4 +1,4 @@
-from ultrade.encode import normalize_address, determine_address_type
+from ultrade.utils.encode import normalize_address, determine_address_type
 from .main import Signer
 from algosdk import mnemonic, account, abi
 from algosdk.logic import get_application_address

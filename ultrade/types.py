@@ -206,15 +206,18 @@ class OrderStatus(Enum):
     MATCHED = 3
     SELF_MATCHED = 4
 
+
 class OrderType(Enum):
     LIMIT = 0
     IOC = 1
     POST = 2
     MARKET = 3
 
+
 class OrderSide(Enum):
     BUY = 0
     SELL = 1
+
 
 class Trade(TypedDict, total=False):
     trades_id: int
@@ -303,11 +306,13 @@ class Depth(TypedDict, total=False):
     sell: List[List[str]]
     buy: List[List[str]]
     ts: int
-    u: int #lastUpdateId
+    u: int  # lastUpdateId
     pair: str
+
 
 class Symbol(TypedDict):
     pairKey: str
+
 
 class LastTrade(TypedDict):
     price: str
@@ -316,3 +321,9 @@ class LastTrade(TypedDict):
     buy_user_id: str
     sell_user_id: str
     trade_side: int
+
+
+class AuthMethod(Enum):
+    TRADING_KEY = 1
+    LOGIN = 2
+    NONE = 3

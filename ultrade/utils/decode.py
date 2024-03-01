@@ -11,17 +11,17 @@ def unpack_data(data: str, format: dict):
         if index >= len(decoded_data):
             return result
 
-        if type["type"] == 'address':
-            result[name] = encoding.encode_address(
-                decoded_data[index:index + 32])
+        if type["type"] == "address":
+            result[name] = encoding.encode_address(decoded_data[index: index + 32])
             index += 32
-        elif type["type"] == 'bytes':
+        elif type["type"] == "bytes":
             pass
-        elif type["type"] == 'uint':
+        elif type["type"] == "uint":
             result[name] = int.from_bytes(
-                decoded_data[index:index + 8], byteorder='big')
+                decoded_data[index: index + 8], byteorder="big"
+            )
             index += 8
-        elif type["type"] == 'string':
+        elif type["type"] == "string":
             pass
 
     return result
@@ -29,7 +29,7 @@ def unpack_data(data: str, format: dict):
 
 def decode_state(app_info):
     state = {}
-    gl_state = app_info['params']["global-state"]
+    gl_state = app_info["params"]["global-state"]
     for i in range(len(gl_state)):
         key = base64.b64decode(gl_state[i]["key"]).decode()
 

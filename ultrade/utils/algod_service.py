@@ -1,4 +1,3 @@
-
 from random import random
 from typing import List
 
@@ -8,8 +7,7 @@ from algosdk.logic import get_application_address
 from algosdk.v2client.algod import AlgodClient
 
 # from .api import _get_encoded_balance
-from .constants import BALANCE_DECODE_FORMAT
-from .decode import unpack_data, decode_state
+from .decode import decode_state
 
 
 class AlgodService:
@@ -29,14 +27,16 @@ class AlgodService:
         foreign_apps = [super_app_id]
         foreign_assets = [asset_index]
 
-        txn = transaction.ApplicationNoOpTxn(sender_address,
-                                             suggested_params,
-                                             app_id,
-                                             app_args,
-                                             accounts,
-                                             foreign_apps,
-                                             foreign_assets,
-                                             str(random()))
+        txn = transaction.ApplicationNoOpTxn(
+            sender_address,
+            suggested_params,
+            app_id,
+            app_args,
+            accounts,
+            foreign_apps,
+            foreign_assets,
+            str(random()),
+        )
 
         return txn
 
@@ -49,7 +49,7 @@ class AlgodService:
             self.get_transaction_params(),
             get_application_address(int(app_id)),
             transfer_amount,
-            asset_index
+            asset_index,
         )
 
         return txn
@@ -63,18 +63,16 @@ class AlgodService:
             sp=self.get_transaction_params(),
             note=str(random()),
             receiver=receiver,
-            amt=transfer_amount)
+            amt=transfer_amount,
+        )
 
         return txn
 
     def opt_in_asset(self, sender, asset_id):
         if asset_id:
             txn = transaction.AssetTransferTxn(
-                sender,
-                self.get_transaction_params(),
-                sender,
-                0,
-                asset_id)
+                sender, self.get_transaction_params(), sender, 0, asset_id
+            )
 
             return txn
         else:
@@ -83,9 +81,7 @@ class AlgodService:
 
     def opt_in_app(self, app_id: int, sender_address):
         txn = transaction.ApplicationOptInTxn(
-            sender_address,
-            self.get_transaction_params(),
-            app_id
+            sender_address, self.get_transaction_params(), app_id
         )
 
         return txn
@@ -102,11 +98,10 @@ class AlgodService:
             return key
         except Exception:
             raise Exception(
-                "An error occurred when trying to get private key from mnemonic")
+                "An error occurred when trying to get private key from mnemonic"
+            )
 
-    def wait_for_transaction(
-        self, tx_id: str, timeout: int = 10
-    ):
+    def wait_for_transaction(self, tx_id: str, timeout: int = 10):
         last_status = self.client.status()
         last_round = last_status["last-round"]
         start_round = last_round
@@ -118,16 +113,14 @@ class AlgodService:
                 return pending_txn
 
             if pending_txn["pool-error"]:
-                raise Exception("Pool error: {}".format(
-                    pending_txn["pool-error"]))
+                raise Exception("Pool error: {}".format(pending_txn["pool-error"]))
 
             last_status = self.client.status_after_block(last_round + 1)
 
             last_round += 1
 
         raise Exception(
-            "Transaction {} not confirmed after {} rounds".format(
-                tx_id, timeout)
+            "Transaction {} not confirmed after {} rounds".format(tx_id, timeout)
         )
 
     def sign_transaction_grp(self, txn_group) -> List:
@@ -161,14 +154,19 @@ class AlgodService:
     async def get_available_balance(self, app_id, side):
         try:
             pair_balances = await self.get_pair_balances(app_id)
-            available_balance = pair_balances["priceCoin_available"] if side == "B" \
+            available_balance = (
+                pair_balances["priceCoin_available"]
+                if side == "B"
                 else pair_balances["baseCoin_available"]
+            )
 
             return available_balance
         except Exception:
             return 0
 
-    def calculate_transfer_amount(self, side, quantity, price, decimal, available_balance):
+    def calculate_transfer_amount(
+        self, side, quantity, price, decimal, available_balance
+    ):
         if side == "B":
             quantity = (quantity / 10**decimal) * price
 

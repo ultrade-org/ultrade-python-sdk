@@ -119,7 +119,7 @@ def make_withdraw_msg(
         "recipient": recipient,
         "recipientChainId": recipient_chain_id,
     }
-    json_withdraw = json.dumps(json_data, separators=(',', ':')) + "\n"
+    json_withdraw = json.dumps(json_data, separators=(",", ":")) + "\n"
     utf8_encoded_data = json_withdraw.encode("utf-8")
     base64_encoded_data = base64.b64encode(bytes(data_bytes))
     message_bytes = bytearray(utf8_encoded_data) + bytearray(base64_encoded_data)

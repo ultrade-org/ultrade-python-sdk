@@ -3,7 +3,8 @@ import aiohttp
 from algosdk.v2client.algod import AlgodClient
 
 from .socket_client import SocketClient
-from .algod_service import AlgodService
+from .utils.algod_service import AlgodService
+from .utils.utils import get_wh_id_by_address
 from .constants import NETWORK_CONSTANTS
 from . import socket_options
 from .types import (
@@ -20,9 +21,10 @@ from .types import (
     WalletOperations,
     TradingPair,
     PairInfo,
+    AuthMethod,
 )
 from .signers.main import Signer
-from .encode import get_order_bytes, make_withdraw_msg
+from .utils.encode import get_order_bytes, make_withdraw_msg
 from typing import Literal, Optional, List, Dict
 import time
 
@@ -51,6 +53,7 @@ class Client:
         self._login_user: Optional[Signer] = None
         self._token: Optional[str] = None
         self._trading_key_data: Optional[Dict[str, str]] = None
+        self._trading_key_signer: Optional[Signer] = None
 
     def __configure(self):
         network_constants = NETWORK_CONSTANTS.get(self.network)
@@ -110,14 +113,33 @@ class Client:
             headers["X-Trading-Key"] = self._trading_key_data["trading_key"]
             headers["X-Wallet-Address"] = self._trading_key_data["address"]
         return headers
-    
-    def set_trading_key(self, trading_key: str, address: str):
+
+    def __disconnect_login_user(self):
+        self._login_user = None
+        self._token = None
+
+    def __disconnect_trading_key(self):
+        self._trading_key_data = None
+        self._trading_key_signer = None
+
+    def _check_auth_method(self):
+        if self._login_user and self._token:
+            return AuthMethod.LOGIN
+        if self._trading_key_data and self._trading_key_signer:
+            return AuthMethod.TRADING_KEY
+        return AuthMethod.NONE
+
+    def set_trading_key(
+        self, trading_key: str, address: str, trading_key_mnemonic: str
+    ):
         """
-        Sets the trading key for the SDK client.
+        Sets the trading key for the SDK client. This method is used to authenticate the client with the Ultrade exchange.
+        Alternatively, you can use the `set_login_user` method to authenticate the client.
 
         Args:
             trading_key (str): The trading key.
             address (str): The address of the trading key.
+            trading_key_mnemonic (str): The mnemonic of the trading key. The mnemonic is a string of words that is generated when you register a trading key
 
         Raises:
             Exception: If there is an error in the response from the server.
@@ -126,12 +148,16 @@ class Client:
         self._trading_key_data = {
             "trading_key": trading_key,
             "address": address,
+            "mnemonic": trading_key_mnemonic,
         }
-        self._login_user = None
-    
+        trading_key_signer = Signer.create_signer(trading_key_mnemonic)
+        self._trading_key_signer = trading_key_signer
+        self.__disconnect_login_user()
+
     async def set_login_user(self, signer: Signer):
         """
-        Sets the login user for the SDK client.
+        Sets the login user for the SDK client. This method is used to authenticate the client with the Ultrade exchange.
+        Alternatively, you can use the `set_trading_key` method to authenticate the client.
 
         Args:
             signer (Signer): The signer object representing the user.
@@ -162,14 +188,14 @@ class Client:
                 if response:
                     self._token = response
                     self._login_user = signer
-                    self._trading_key_data = None
-
+                    self.__disconnect_trading_key()
 
     def is_logged_in(self):
         """
         Returns True if the client is logged in, otherwise returns False.
         """
-        return self._login_user is not None and self._token is not None or self._trading_key_data is not None
+        auth_method = self._check_auth_method()
+        return auth_method != AuthMethod.NONE
 
     def __check_is_logged_in(self):
         if not self.is_logged_in():
@@ -213,7 +239,20 @@ class Client:
                 "order_type must be 'M' (market), 'L' (limit), 'I' (ioc), or 'P' (post only)"
             )
         # self.__check_maintenance_mode()
-        signer = self._login_user
+        auth_method = self._check_auth_method()
+
+        signer = None
+        login_address = None
+        login_chain_id = None
+
+        if auth_method == AuthMethod.TRADING_KEY:
+            login_address = self._trading_key_data["address"]
+            login_chain_id = get_wh_id_by_address(login_address)
+            signer = self._trading_key_signer
+        else:
+            login_address = self._login_user.address
+            login_chain_id = self._login_user.wormhole_chain_id
+            signer = self._login_user
 
         pair = await self.get_pair_info(pair_id)
 
@@ -223,8 +262,8 @@ class Client:
         order = CreateOrder(
             pair_id=pair_id,
             company_id=company_id,
-            login_address=signer.address,
-            login_chain_id=signer.wormhole_chain_id,
+            login_address=login_address,
+            login_chain_id=login_chain_id,
             order_side=order_side,
             order_type=order_type,
             amount=amount,
@@ -278,10 +317,21 @@ class Client:
         self.__check_is_logged_in()
         # self.__check_maintenance_mode()
 
-        signer = self._login_user
+        signer = None
+        login_address = None
+
+        auth_method = self._check_auth_method()
+
+        if auth_method == AuthMethod.TRADING_KEY:
+            login_address = self._trading_key_data["address"]
+            signer = self._trading_key_signer
+        else:
+            signer = self._login_user
+            login_address = self._login_user.address
+
         data = {
             "orderId": order_id,
-            "address": signer.address,
+            "address": login_address,
         }
         message = json.dumps(data, separators=(",", ":"))
         message_bytes = message.encode("utf-8")
@@ -338,7 +388,12 @@ class Client:
             status_value = status.value
         else:
             status_value = status
-        url = f"{self.__api_url}/market/orders-with-trades?address={self._login_user.address}&status={status_value}"
+        login_address = (
+            self._login_user.address
+            if self._login_user
+            else self._trading_key_data["address"]
+        )
+        url = f"{self.__api_url}/market/orders-with-trades?address={login_address}&status={status_value}"
         if symbol:
             url += f"&symbol={symbol}"
         async with aiohttp.ClientSession(headers=self.__headers) as session:
@@ -357,7 +412,12 @@ class Client:
             list
         """
         self.__check_is_logged_in()
-        url = f"{self.__api_url}/market/wallet-transactions?address={self._login_user.address}"
+        login_address = (
+            self._login_user.address
+            if self._login_user
+            else self._trading_key_data["address"]
+        )
+        url = f"{self.__api_url}/market/wallet-transactions?address={login_address}"
         async with aiohttp.ClientSession(headers=self.__headers) as session:
             async with session.get(url) as resp:
                 data = await resp.json()
@@ -388,6 +448,9 @@ class Client:
             dict: The response from the server.
         """
         self.__check_is_logged_in()
+        auth_method = self._check_auth_method()
+        if auth_method == AuthMethod.TRADING_KEY:
+            raise Exception("Trading key can't withdraw, use set_login_user method")
         signer = self._login_user
 
         recipient_chain_id = token_chain_id
@@ -457,6 +520,9 @@ class Client:
             ValueError: If any of the required parameters are invalid or missing.
         """
         self.__check_is_logged_in()
+        auth_method = self._check_auth_method()
+        if auth_method == AuthMethod.TRADING_KEY:
+            raise Exception("Trading key can't deposit, use set_login_user method")
         self.__validate_signer(signer)
 
         tmc_configs = await self.__fetch_tmc_configuration()
@@ -488,6 +554,7 @@ class Client:
         Returns:
             str: The ID of the established connection.
         """
+        self.__check_is_logged_in()
 
         def socket_callback(event, args):
             if event != "mode":
@@ -497,7 +564,11 @@ class Client:
                 self.maintenance_mode_status = args
 
         if options.get("address") is None:
-            options["address"] = self._login_user.address
+            options["address"] = (
+                self._login_user.address
+                if self._login_user
+                else self._trading_key_data["address"]
+            )
 
         if OPTIONS.MAINTENANCE not in options["streams"]:
             options["streams"].append(OPTIONS.MAINTENANCE)

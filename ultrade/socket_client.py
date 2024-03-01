@@ -11,7 +11,7 @@ class SubscribeOptions(TypedDict):
     options: Dict[str, any]
 
 
-class SocketClient():
+class SocketClient:
     def __init__(self, url):
         self.socket: Optional[socketio.AsyncClient] = None
         self.url = url
@@ -20,19 +20,26 @@ class SocketClient():
         self.subscribe_options = {}
 
     def get_sub_options(self):
-        options = {'options': self.subscribe_options["options"],
-                   'symbol': self.subscribe_options["symbol"], 'streams': self.socket_controller.streams_pool}
+        options = {
+            "options": self.subscribe_options["options"],
+            "symbol": self.subscribe_options["symbol"],
+            "streams": self.socket_controller.streams_pool,
+        }
         return options
 
-    async def subscribe(self, options: SubscribeOptions, callback: Callable[[str, List[any]], any]):
-        if self.subscribe_options.get("symbol") and options["symbol"] != self.subscribe_options["symbol"]:
+    async def subscribe(
+        self, options: SubscribeOptions, callback: Callable[[str, List[any]], any]
+    ):
+        if (
+            self.subscribe_options.get("symbol")
+            and options["symbol"] != self.subscribe_options["symbol"]
+        ):
             raise Exception("Socket client support only one pair per instance")
 
         if not self.isConnectionExist:
             self.subscribe_options = options
             self.isConnectionExist = True
-            self.socket = socketio.AsyncClient(
-                reconnection_delay_max=1000, logger=True)
+            self.socket = socketio.AsyncClient(reconnection_delay_max=1000, logger=True)
 
             sub_id = self.socket_controller.handle_subscribe(options, callback)
             self.add_event_listeners()
@@ -45,7 +52,9 @@ class SocketClient():
         return sub_id
 
     async def unsubscribe(self, handler_id: str):
-        streams_to_unsubscribe = await self.socket_controller.handle_unsubscribe(handler_id)
+        streams_to_unsubscribe = await self.socket_controller.handle_unsubscribe(
+            handler_id
+        )
         if len(streams_to_unsubscribe) > 0:
             options = self.get_sub_options()
             options["streams"] = streams_to_unsubscribe
@@ -57,22 +66,26 @@ class SocketClient():
             self.socket = None
 
     def add_event_listeners(self):
-        self.socket.on('*', self.socket_controller.callback_handler)
+        self.socket.on("*", self.socket_controller.callback_handler)
 
         async def reconnect_handler():
             await self.socket.emit("subscribe", self.get_sub_options())
+
         self.socket.on("reconnect", reconnect_handler)
 
         async def connect_handler():
             await self.socket.emit("subscribe", self.get_sub_options())
+
         self.socket.on("connect", connect_handler)
 
 
-class SocketController():
+class SocketController:
     def __init__(self):
-        self.options_pool: Optional[Dict[str, 'SubscribeOptions']] = {}
-        self.callbacks_pool = {event: [(lambda *args: stream_value, stream_value)]
-                               for event, stream_value in EVENT_LIST}
+        self.options_pool: Optional[Dict[str, "SubscribeOptions"]] = {}
+        self.callbacks_pool = {
+            event: [(lambda *args: stream_value, stream_value)]
+            for event, stream_value in EVENT_LIST
+        }
         self.streams_pool = []
 
     def event_from_stream(self, stream):
@@ -86,8 +99,9 @@ class SocketController():
             if opt not in self.streams_pool:
                 self.streams_pool.append(opt)
 
-            self.callbacks_pool[self.event_from_stream(
-                opt)].append((callback, handler_id))
+            self.callbacks_pool[self.event_from_stream(opt)].append(
+                (callback, handler_id)
+            )
 
         self.options_pool[handler_id] = sub_options
 
@@ -102,7 +116,8 @@ class SocketController():
         for opt in sub_options["streams"]:
             event = self.event_from_stream(opt)
             self.callbacks_pool[event] = [
-                elem for elem in self.callbacks_pool[event] if elem[1] != handler_id]
+                elem for elem in self.callbacks_pool[event] if elem[1] != handler_id
+            ]
 
             if len(self.callbacks_pool[event]) < 2:
                 self.streams_pool.remove(opt)
@@ -113,8 +128,10 @@ class SocketController():
         return streams_to_delete
 
     async def callback_handler(self, event, args, id=None):
-        coros = [self.make_async(callback_tuple[0], event, args)
-                 for callback_tuple in self.callbacks_pool[event]]
+        coros = [
+            self.make_async(callback_tuple[0], event, args)
+            for callback_tuple in self.callbacks_pool[event]
+        ]
 
         await asyncio.gather(*coros)
 

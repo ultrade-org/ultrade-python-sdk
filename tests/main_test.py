@@ -35,7 +35,6 @@ class TestClient:
             print("Exception:", e)
         print("Count:", count)
 
-
     async def test_create_order(self, client):
         pairs = await client.get_pair_list()
         pair = pairs[0]
@@ -223,3 +222,32 @@ class TestSocket:
         assert isinstance(received_data, list)
         assert all(isinstance(data, dict) for data in received_data)
         await client.unsubscribe(sub_id)
+
+
+@pytest.mark.asyncio
+class TestTradingKey:
+    async def test_balances(self, trading_client):
+        balances = await trading_client.get_balances()
+        print("Balances:", balances)
+        assert isinstance(balances, list)
+
+    async def test_create_order(self, trading_client):
+        pairs = await trading_client.get_pair_list()
+        pair = pairs[0]
+        await trading_client.create_order(
+            pair_id=pair["id"],
+            company_id=1,
+            order_side="B",
+            order_type="L",
+            amount=450000000,
+            price=2000,
+        )
+
+    async def test_cancel_order(self, trading_client):
+        orders = await trading_client.get_orders_with_trades(
+            status=OrderStatus.OPEN_ORDER
+        )
+        print("\nOrders", orders)
+        order = orders[0]
+        print("\nOrder", order)
+        await trading_client.cancel_order(order["id"])
