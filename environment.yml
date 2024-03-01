@@ -1,0 +1,15 @@
+name: ultrade
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - pip
+  - pytest
+  - python=3.10
+  - pip:
+    - py-algorand-sdk>=2.0.0
+    - python-socketio>=5.0.0
+    - asyncio>=3.4.3
+    - aiohttp>=3.7.4
+    - bip-utils>=2.0.0
+    - web3>=6.12.0
