@@ -8,6 +8,7 @@
    - [Structure](#structure)
    - [Creating a Client](#creating-a-client)
    - [Creating a Signer](#creating-a-signer)
+   - [Trading key example](#trading-key-example)
    - [Logging In](#logging-in)
 4. [Public methods](#public-methods)
 5. [Required login methods](#required-login-methods)
@@ -48,6 +49,7 @@ pip install ultrade
 | `ultrade.Signer`         | A class designed for generating signers based on the provided private key. It can be used for user login as well as signing deposit transactions. |
 | `ultrade.types`          | A module containing data type definitions used throughout the SDK.                                                                                |
 | `ultrade.socket_options` | Options related to WebSocket connections.                                                                                                         |
+| `ultrade.utils`          | Contains helper functions that can be useful.                                                                                                     |
 
 ### Creating a client
 
@@ -94,6 +96,26 @@ signer = Signer.create_signer(mnemonic_key)
 await client.set_login_user(signer)
 
 isLogged = client.is_logged_in() #returns True or False
+```
+
+---
+
+### Trading Key Example
+
+Sets the trading key for the SDK client. This method is used to authenticate the client with the Ultrade exchange. The key allows you to carry out trading operations, but does not have the ability to perform deposit/withdraw. Alternatively, you can use the `set_login_user` method to authenticate the client.
+
+| Option               | Description                                                                                                          |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| trading_key          | The trading key.                                                                                                     |
+| address              | Login address of the account for which the trading key was issued                                                    |
+| trading_key_mnemonic | The mnemonic of the trading key. The mnemonic is a string of words that is generated when you register a trading key |
+
+```python
+client.set_trading_key(
+        trading_key=TRADING_KEY,
+        address=LOGIN_ADDRESS,
+        trading_key_mnemonic=TRADING_KEY_MNEMONIC,
+    )
 ```
 
 ---

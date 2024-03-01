@@ -1,5 +1,4 @@
-from ultrade.sdk_client import Client
-from ultrade import Signer
+from ultrade import Client, Signer
 from .test_credentials import (
     TEST_API_URL,
     TEST_SOCKET_URL,

@@ -2,4 +2,4 @@
 max-line-length = 120
 filename = *.py, *.pyx, *.pxd
 ignore = E251,E501,E702,W504,W503
-exclude = .git,__pycache__,old,build,dist,tests/*.py
+exclude = .git,__pycache__,old,build,dist,tests/*.py,ultrade/__init__.py

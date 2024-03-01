@@ -4,7 +4,7 @@ from algosdk.v2client.algod import AlgodClient
 
 from .socket_client import SocketClient
 from .utils.algod_service import AlgodService
-from .utils import get_wh_id_by_address
+from .utils.utils import get_wh_id_by_address
 from .constants import NETWORK_CONSTANTS
 from . import socket_options
 from .types import (
