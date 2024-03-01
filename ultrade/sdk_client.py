@@ -50,6 +50,7 @@ class Client:
         self.__configure()
         self._login_user: Optional[Signer] = None
         self._token: Optional[str] = None
+        self._trading_key_data: Optional[Dict[str, str]] = None
 
     def __configure(self):
         network_constants = NETWORK_CONSTANTS.get(self.network)
@@ -105,8 +106,29 @@ class Client:
         if self._login_user and self._token:
             headers["X-Wallet-Address"] = self._login_user.address
             headers["X-Wallet-Token"] = self._token
+        if self._trading_key_data:
+            headers["X-Trading-Key"] = self._trading_key_data["trading_key"]
+            headers["X-Wallet-Address"] = self._trading_key_data["address"]
         return headers
+    
+    def set_trading_key(self, trading_key: str, address: str):
+        """
+        Sets the trading key for the SDK client.
 
+        Args:
+            trading_key (str): The trading key.
+            address (str): The address of the trading key.
+
+        Raises:
+            Exception: If there is an error in the response from the server.
+
+        """
+        self._trading_key_data = {
+            "trading_key": trading_key,
+            "address": address,
+        }
+        self._login_user = None
+    
     async def set_login_user(self, signer: Signer):
         """
         Sets the login user for the SDK client.
@@ -140,16 +162,18 @@ class Client:
                 if response:
                     self._token = response
                     self._login_user = signer
+                    self._trading_key_data = None
+
 
     def is_logged_in(self):
         """
         Returns True if the client is logged in, otherwise returns False.
         """
-        return self._login_user is not None and self._token is not None
+        return self._login_user is not None and self._token is not None or self._trading_key_data is not None
 
     def __check_is_logged_in(self):
         if not self.is_logged_in():
-            raise Exception("You need to login first")
+            raise Exception("You need to login or specify trading key first")
 
     async def create_order(
         self,
@@ -195,8 +219,6 @@ class Client:
 
         if not pair:
             raise Exception(f"Pair with id {pair_id} not found")
-
-        await self.__check_user_balances(order_side, order_type, amount, price, pair)
 
         order = CreateOrder(
             pair_id=pair_id,
@@ -679,59 +701,3 @@ class Client:
         """
         config = await self.__fetch_tmc_configuration()
         return [chain["name"] for chain in config]
-
-    async def __check_user_balances(
-        self, order_side: str, order_type: str, amount: int, price: int, pair: dict
-    ):
-        """
-        Checks if the user has enough balance to create an order, considering min_order_size and min_price_increment.
-        Raises:
-            ValueError: If the order amount is below the minimum order size.
-            ValueError: If the price does not meet the minimum price increment.
-            ValueError: If there are insufficient funds in the price currency balance to execute the buy order.
-            ValueError: If there are insufficient funds in the base currency balance to execute the sell order.
-        """
-        balance = await self.get_balances()
-        zero_balance = {
-            "amount": 0,
-        }
-        base_balance = next((x for x in balance if x["tokenId"] == pair["base_id"]), zero_balance)
-        price_balance = next(
-            (x for x in balance if x["tokenId"] == pair["price_id"]), zero_balance
-        )
-
-        base_balance_amount = int(base_balance["amount"]) - int(
-            base_balance.get("lockedAmount", 0)
-        )
-        price_balance_amount = int(price_balance["amount"]) - int(
-            price_balance.get("lockedAmount", 0)
-        )
-
-        if amount < int(pair["min_order_size"]):
-            raise ValueError(
-                f"Order amount is below the minimum order size of {pair['min_order_size']}."
-            )
-
-        if order_side == "B":
-            if order_type in ["L", "I", "P"] and (
-                price % int(pair["min_price_increment"]) != 0
-            ):
-                raise ValueError(
-                    f"Price does not meet the minimum price increment of {pair['min_price_increment']}."
-                )
-            required_amount = (
-                amount
-                if order_type == "M"
-                else (amount * price) / 10 ** pair["base_decimal"]
-            )
-            if price_balance_amount < required_amount:
-                raise ValueError(
-                    "Insufficient funds in price currency balance to execute the buy order."
-                )
-        else:  # "S"
-            if base_balance_amount < amount:
-                raise ValueError(
-                    "Insufficient funds in base currency balance to execute the sell order."
-                )
-
-        return True
