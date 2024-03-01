@@ -3,9 +3,9 @@ import re
 import base64
 import base58
 from bip_utils import AlgorandMnemonicValidator
-from .constants import OrderType
+from ..constants import OrderType
 from algosdk.encoding import is_valid_address as is_valid_algorand_address
-from .types import WormholeChains
+from ..types import WormholeChains
 
 
 def is_asset_opted_in(balances: Dict[str, str], asset_id: int):

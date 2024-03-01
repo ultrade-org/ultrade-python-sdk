@@ -3,7 +3,7 @@ import aiohttp
 from algosdk.v2client.algod import AlgodClient
 
 from .socket_client import SocketClient
-from .algod_service import AlgodService
+from .utils.algod_service import AlgodService
 from .utils import get_wh_id_by_address
 from .constants import NETWORK_CONSTANTS
 from . import socket_options
@@ -24,7 +24,7 @@ from .types import (
     AuthMethod,
 )
 from .signers.main import Signer
-from .encode import get_order_bytes, make_withdraw_msg
+from .utils.encode import get_order_bytes, make_withdraw_msg
 from typing import Literal, Optional, List, Dict
 import time
 

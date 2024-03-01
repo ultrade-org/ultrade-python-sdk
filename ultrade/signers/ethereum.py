@@ -1,4 +1,4 @@
-from ultrade.encode import determine_address_type, normalize_address
+from ultrade.utils.encode import determine_address_type, normalize_address
 from .main import Signer
 from web3 import Web3, HTTPProvider
 from web3.middleware import geth_poa_middleware
