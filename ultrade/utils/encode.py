@@ -3,6 +3,7 @@ from algosdk.encoding import decode_address
 from typing import Union
 from enum import Enum
 import base64
+from base58 import b58decode, b58encode
 import json
 
 
@@ -20,6 +21,8 @@ def normalize_address(address: Union[str, int], addr_type: AddressType) -> bytes
         return decode_address(address)
     elif addr_type == AddressType.AlgorandAsset:
         return eth_abi.encode(["uint256"], [int(address)])
+    elif addr_type == AddressType.SolanaMint:
+        return b58decode(address)
 
 
 def determine_address_type(chain_id: int, is_token: bool) -> AddressType:

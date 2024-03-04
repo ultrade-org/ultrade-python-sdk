@@ -232,14 +232,13 @@ class TestTradingKey:
         assert isinstance(balances, list)
 
     async def test_create_order(self, trading_client):
-        pairs = await trading_client.get_pair_list()
-        pair = pairs[0]
-        await trading_client.create_order(
+        pair = await trading_client.get_pair_info('moon_usdcs')
+        res = await trading_client.create_order(
             pair_id=pair["id"],
             company_id=1,
-            order_side="B",
+            order_side="S",
             order_type="L",
-            amount=450000000,
+            amount=2000000,
             price=2000,
         )
 
