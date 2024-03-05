@@ -291,9 +291,7 @@ class Client:
                     "signature": signature_hex,
                 },
             ) as resp:
-                response = await resp.json(content_type=None)
-                if response is None:
-                    return
+                response = await resp.json()
                 if "error" in response:
                     raise Exception(response)
                 return response

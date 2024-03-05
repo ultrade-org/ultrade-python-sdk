@@ -241,6 +241,7 @@ class TestTradingKey:
             amount=2000000,
             price=2000,
         )
+        print("Order:", res)
 
     async def test_cancel_order(self, trading_client):
         orders = await trading_client.get_orders_with_trades(
