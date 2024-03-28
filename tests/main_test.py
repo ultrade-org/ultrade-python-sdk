@@ -36,16 +36,17 @@ class TestClient:
         print("Count:", count)
 
     async def test_create_order(self, client):
-        pairs = await client.get_pair_list()
-        pair = pairs[0]
-        await client.create_order(
+        pair = await client.get_pair_info("moon_usdcs")
+        print("Pair:", pair)
+        res = await client.create_order(
             pair_id=pair["id"],
             company_id=1,
-            order_side="B",
+            order_side="S",
             order_type="L",
-            amount=450000000,
-            price=2000,
+            amount=1000000000000000000,
+            price=20000000,
         )
+        print("Order:", res)
 
     async def test_create_order_with_insufficient_balance(self, client):
         pairs = await client.get_pair_list()
@@ -183,20 +184,6 @@ class TestClient:
 
 
 @pytest.mark.asyncio
-class TestApiCalls:
-    @classmethod
-    def setup_class(cls):
-        cls.client = Client(network="testnet", api_url=TEST_API_URL)
-        cls.api = cls.client.create_api()
-
-    # async def test_get_orders(self):
-    #     status = 1  # Open orders
-    #     orders = await self.api.get_orders(status, address="")
-    #     print("Orders Data:", orders)
-    #     assert isinstance(orders, list)
-
-
-@pytest.mark.asyncio
 class TestSocket:
     async def test_socket(self, client):
         received_event = asyncio.Event()
@@ -232,14 +219,15 @@ class TestTradingKey:
         assert isinstance(balances, list)
 
     async def test_create_order(self, trading_client):
-        pair = await trading_client.get_pair_info('moon_usdcs')
+        pair = await trading_client.get_pair_info("moon_usdcs")
+        print("Pair:", pair)
         res = await trading_client.create_order(
             pair_id=pair["id"],
             company_id=1,
             order_side="S",
             order_type="L",
-            amount=2000000,
-            price=2000,
+            amount=1000000000000000000,
+            price=20000000,
         )
         print("Order:", res)
 

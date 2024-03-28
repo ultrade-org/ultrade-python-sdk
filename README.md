@@ -649,7 +649,6 @@ The `create_order` method is used to create a new order on the Ultrade platform.
 | `amount`     | `int`           | The amount of tokens to buy or sell in atomic units.                     |
 | `price`      | `int`           | The price per token for the order in atomic units.                       |
 | `company_id` | `Optional[int]` | The ID of the company associated with the order. Default Ultrade.        |
-| `wlp_id`     | `Optional[int]` | The ID of the white label partner associated with the order. (Default 0) |
 
 ```python
 pair = await client.get_pair_info("algo_moon")

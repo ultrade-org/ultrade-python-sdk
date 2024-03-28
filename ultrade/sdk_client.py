@@ -208,7 +208,6 @@ class Client:
         order_type: str,
         amount: int,
         price: int,
-        wlp_id: int = 0,
         company_id: int = 1,
     ):
         """
@@ -272,7 +271,6 @@ class Client:
             base_token_chain_id=pair["base_chain_id"],
             price_token_address=pair["price_id"],
             price_token_chain_id=pair["price_chain_id"],
-            wlp_id=wlp_id,
         )
         data = order.data
         encoding = "hex"

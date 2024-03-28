@@ -90,7 +90,6 @@ class CreateOrder:
         base_token_chain_id: int,
         price_token_address: str,
         price_token_chain_id: int,
-        wlp_id: int = 0,
     ):
         self.pair_id = pair_id
         self.company_id = company_id
@@ -105,7 +104,6 @@ class CreateOrder:
         self.base_token_chain_id = base_token_chain_id
         self.price_token_address = price_token_address
         self.price_token_chain_id = price_token_chain_id
-        self.wlp_id = wlp_id
 
         self._data = self.__setup_data()
 
@@ -124,7 +122,6 @@ class CreateOrder:
             "baseTokenChainId": self.base_token_chain_id,
             "priceTokenAddress": self.price_token_address,
             "priceTokenChainId": self.price_token_chain_id,
-            "wlpId": self.wlp_id,
         }
 
     @property

@@ -63,28 +63,11 @@ def get_order_bytes(
         )
     )
     order.extend(data["priceTokenChainId"].to_bytes(8, "big"))
-    order.extend(data["wlpId"].to_bytes(8, "big"))
+    order.extend(data["companyId"].to_bytes(8, "big"))
 
     base64_order = base64.b64encode(bytes(order))
 
-    json_data = {
-        "expiredTime": data["expiredTime"],
-        "side": data["orderSide"],
-        "price": data["price"],
-        "amount": data["amount"],
-        "type": data["orderType"],
-        "loginAddress": data["address"],
-        "loginChainId": data["chainId"],
-        "baseTokenAddress": data["baseTokenAddress"],
-        "baseTokenChainId": data["baseTokenChainId"],
-        "priceTokenAddress": data["priceTokenAddress"],
-        "priceTokenChainId": data["priceTokenChainId"],
-        "wlpId": data["wlpId"],
-    }
-    json_order = json.dumps(json_data) + "\n"
-    json_order_bytes = json_order.encode("utf-8")
-
-    message_bytes = bytearray(json_order_bytes) + bytearray(base64_order)
+    message_bytes = bytearray(base64_order)
     return bytes(message_bytes)
 
 
@@ -112,22 +95,10 @@ def make_withdraw_msg(
     data_bytes.extend(sender_bytes)
     data_bytes.extend(recipient_chain_id_bytes)
     data_bytes.extend(token_amount_bytes)
-
-    json_data = {
-        "loginAddress": login_address,
-        "loginChainId": login_chain_id,
-        "tokenAmount": token_amount,
-        "tokenIndex": token_address,
-        "tokenChainId": token_chain_id,
-        "recipient": recipient,
-        "recipientChainId": recipient_chain_id,
-    }
-    json_withdraw = json.dumps(json_data, separators=(",", ":")) + "\n"
-    utf8_encoded_data = json_withdraw.encode("utf-8")
+    
     base64_encoded_data = base64.b64encode(bytes(data_bytes))
-    message_bytes = bytearray(utf8_encoded_data) + bytearray(base64_encoded_data)
+    message_bytes = bytearray(base64_encoded_data)
     return bytes(message_bytes)
-
 
 def get_account_balance_box_name(
     login_address: str,
