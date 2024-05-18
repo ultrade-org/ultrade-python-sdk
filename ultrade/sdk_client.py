@@ -1,10 +1,9 @@
-import json
 import aiohttp
 from algosdk.v2client.algod import AlgodClient
 
 from .socket_client import SocketClient
 from .utils.algod_service import AlgodService
-from .utils.utils import get_wh_id_by_address
+from .utils.utils import get_wh_id_by_address, toJson
 from .constants import NETWORK_CONSTANTS
 from . import socket_options
 from .types import (
@@ -172,7 +171,7 @@ class Client:
             "address": signer.address,
             "provider": signer.provider_name,
         }
-        message = json.dumps(data, separators=(",", ":"))
+        message = toJson(data)
         message_bytes = message.encode("utf-8")
         signature = signer.sign_data(message_bytes)
         signature_hex = signature.hex() if isinstance(signature, bytes) else signature
@@ -329,7 +328,7 @@ class Client:
             "orderId": order_id,
             "address": login_address,
         }
-        message = json.dumps(data, separators=(",", ":"))
+        message = toJson(data)
         message_bytes = message.encode("utf-8")
         signature = signer.sign_data(message_bytes)
         signature_hex = signature.hex() if isinstance(signature, bytes) else signature
@@ -768,3 +767,29 @@ class Client:
         """
         config = await self.__fetch_tmc_configuration()
         return [chain["name"] for chain in config]
+
+    async def get_cctp_assets(self) -> dict:
+        """
+        Retrieves the CCTP assets from the market endpoint.
+
+        Returns:
+            dict: A dictionary containing the CCTP assets.
+        """
+        url = f"{self.__api_url}/market/cctp-assets"
+        async with aiohttp.ClientSession(headers=self.__headers) as session:
+            async with session.get(url) as resp:
+                data = await resp.json()
+                return data
+
+    async def get_cctp_unified_assets(self) -> dict:
+        """
+        Retrieves the unified CCTP assets from the market endpoint.
+
+        Returns:
+            dict: A dictionary containing the unified CCTP assets.
+        """
+        url = f"{self.__api_url}/market/cctp-unified-assets"
+        async with aiohttp.ClientSession(headers=self.__headers) as session:
+            async with session.get(url) as resp:
+                data = await resp.json()
+                return data

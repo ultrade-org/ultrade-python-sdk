@@ -2,6 +2,7 @@ from typing import Dict
 import re
 import base64
 import base58
+import json
 from bip_utils import AlgorandMnemonicValidator
 from ..constants import OrderType
 from algosdk.encoding import is_valid_address as is_valid_algorand_address
@@ -87,3 +88,7 @@ def get_wh_id_by_address(address: str):
         return WormholeChains.SOLANA.value
     else:
         raise Exception("Invalid address")
+
+
+def toJson(data):
+    return json.dumps(data, separators=(",", ":"))

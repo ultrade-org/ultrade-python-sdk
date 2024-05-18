@@ -16,6 +16,7 @@ class TestClient:
     @pytest.mark.asyncio
     async def test_get_balances(self, client):
         balances = await client.get_balances()
+        print("Balances:", balances)
         assert isinstance(balances, list)
         assert all(isinstance(balance, dict) for balance in balances)
 
@@ -175,9 +176,9 @@ class TestClient:
         walletSigner = Signer.create_signer(TEST_ETH_PRIVATE_KEY)
         result = await client.deposit(
             walletSigner,
-            1_000_000_000_000_000_000,
-            "0x60401dF2ce765c0Ac0cA0A76deC5F0a0B72f3Ae7",
-            "https://polygon-mumbai.blockpi.network/v1/rpc/public",
+            TEST_WITHDRAW["amount"],
+            TEST_WITHDRAW["tokenAddress"],
+            "https://sepolia.optimism.io",
         )
         # result = await client.deposit(walletSigner, 500, 1, "https://bsc-pokt.nodies.app")
         print("Deposit Data:", result)
