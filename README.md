@@ -135,6 +135,8 @@ Below are methods that do not require the [login function](#logging-in) to be ex
 | [get_order_by_id](#get_order_by_id) | Retrieves detailed information about an order by its ID. |
 | [get_company_by_domain](#get_company_by_domain) | Retrieves the company ID based on the domain name. |
 | [get_avaible_chains](#get_avaible_chains) | Retrieves the list of chains supported by Ultrade. |
+| [get_cctp_assets](#get_cctp_assets) | Retrieves the list of CCTP assets from the market endpoint. |
+| [get_cctp_unified_assets](#get_cctp_unified_assets) | Retrieves the list of unified CCTP assets from the market endpoint. |
 
 ---
 
@@ -445,6 +447,25 @@ Retrieves the list of chains supported by Ultrade DeFi.
 avaible_chains = await client.get_avaible_chains()
 print(avaible_chains)
 ```
+
+### get_cctp_assets
+
+This method retrieves the list of CCTP assets available on the Ultrade platform from the market endpoint.
+
+```python
+cctp_assets = await client.get_cctp_assets()
+```
+**Returns**:
+dict: A dictionary containing the CCTP assets.
+
+### get_cctp_unified_assets
+This method retrieves the list of unified CCTP assets from the market endpoint, providing a standardized interface across different blockchain platforms.
+
+```python
+unified_cctp_assets = await client.get_cctp_unified_assets()
+```
+**Returns**:
+dict: A dictionary containing the unified CCTP assets.
 
 ---
 

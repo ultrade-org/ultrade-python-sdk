@@ -64,8 +64,29 @@ class WormholeChains(BaseEnum):
     BTC = 29
     BASE = 30
     SEI = 32
-    WORMCHAIN = 3104
+    ROOTSTOCK = 33
+    SCROLL = 34
+    MANTLE = 35
+    BLAST = 36
+    XLAYER = 37
+    LINEA = 38
+    BERACHAIN = 39
+    SEIEVM = 40
+    COSMOSHUB = 4000
+    EVMOS = 4001
+    KUJIRA = 4002
+    NEUTRON = 4003
+    CELESTIA = 4004
+    STARGAZE = 4005
+    SEDA = 4006
+    DYME = 4007
+    PROVENANCE = 4008
     SEPOLIA = 10002
+    ARBITRUM_SEPOLIA = 10003
+    BASE_SEPOLIA = 10004
+    OPTIMISM_SEPOLIA = 10005
+    HOLESKY = 10006
+    POLYGON_SEPOLIA = 10007
 
 
 class Providers(Enum):
@@ -99,7 +120,9 @@ class CreateOrder:
         self.order_type = order_type
         self.price = price
         self.amount = amount
-        self.expired_time = int(time.time()) + 30 * 24 * 60 * 60  # cur time + 30 days
+        self.expired_time = (
+            int(time.time()) + 30 * 24 * 60 * 60
+        ) * 1000  # cur time + 30 days in ms
         self.base_token_address = base_token_address
         self.base_token_chain_id = base_token_chain_id
         self.price_token_address = price_token_address

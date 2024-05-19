@@ -1,11 +1,12 @@
 from ultrade.utils.encode import determine_address_type, normalize_address
-from .main import Signer
+from ultrade.types import Providers, WormholeChains
+from ultrade.constants import TMC_ABI as abi, ERC20_ABI
+from ultrade import Signer
 from web3 import Web3, HTTPProvider
 from web3.middleware import geth_poa_middleware
 from eth_account import Account
 from eth_keys import keys
 from eth_account.messages import encode_defunct
-from ..types import Providers, WormholeChains
 
 GAS_LIMIT = 1000000
 
@@ -41,9 +42,10 @@ class EthereumSigner(Signer):
             amount (int): The amount of tokens to deposit.
             token_address (str | int): The id of the token to deposit.
         """
-        is_valid_token = Web3.is_address(token_address)
-        if not is_valid_token:
+        if not Web3.is_address(token_address):
             raise Exception("You must provide a valid EVM token address.")
+
+        token_address = Web3.to_checksum_address(token_address)
 
         rpc_url = config.get("rpc_url", None)
         tmc_configs = config.get("tmc_configs", None)
@@ -68,39 +70,38 @@ class EthereumSigner(Signer):
             )
 
         chain_id = web3.eth.chain_id
-        tmc_config = [obj for obj in tmc_configs if obj["chainId"] == str(chain_id)]
-        if tmc_config:
-            tmc_config = tmc_config[0]
-        else:
+        tmc_config = next(
+            (obj for obj in tmc_configs if obj["chainId"] == str(chain_id)), None
+        )
+        if not tmc_config:
             raise Exception(
-                f"Chain ID {chain_id} is not supported by the Token Manager Contract. Please specify rpc_url for supported chain IDs."
+                f"Chain ID {chain_id} is not supported by the Token Manager Contract."
             )
 
-        abi = [
-            {
-                "inputs": [
-                    {"internalType": "address", "name": "token", "type": "address"},
-                    {"internalType": "uint256", "name": "amount", "type": "uint256"},
-                    {"internalType": "bytes", "name": "loginAddress", "type": "bytes"},
-                    {
-                        "internalType": "uint256",
-                        "name": "loginChainId",
-                        "type": "uint256",
-                    },
-                ],
-                "name": "depositToCodex",
-                "outputs": [
-                    {"internalType": "uint64", "name": "sequence", "type": "uint64"}
-                ],
-                "stateMutability": "nonpayable",
-                "type": "function",
-            }
-        ]
-
         tmc_address = tmc_config["tmc"]
+        if not Web3.is_address(tmc_address):
+            raise Exception("Invalid Token Manager Contract address.")
+
         tmc_contract = web3.eth.contract(
             address=Web3.to_checksum_address(tmc_address), abi=abi
         )
+        token_contract = web3.eth.contract(address=token_address, abi=ERC20_ABI)
+
+        allowance = token_contract.functions.allowance(self.address, tmc_address).call()
+        if allowance < amount:
+            approve_txn = token_contract.functions.approve(
+                tmc_address, amount
+            ).build_transaction(
+                {
+                    "from": self.address,
+                    "nonce": web3.eth.get_transaction_count(self.address),
+                }
+            )
+            signed_approve_txn = web3.eth.account.sign_transaction(
+                approve_txn, private_key=self.__private_key
+            )
+            web3.eth.send_raw_transaction(signed_approve_txn.rawTransaction)
+            web3.eth.wait_for_transaction_receipt(signed_approve_txn.hash)
 
         transaction = tmc_contract.functions.depositToCodex(
             token_address,
@@ -110,8 +111,6 @@ class EthereumSigner(Signer):
         ).build_transaction(
             {
                 "from": self.address,
-                "gas": GAS_LIMIT * 10,
-                "gasPrice": web3.to_wei("50", "gwei"),
                 "nonce": web3.eth.get_transaction_count(self.address),
             }
         )

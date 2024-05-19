@@ -8,6 +8,7 @@ from .test_credentials import (
     TEST_MNEMONIC_KEY,
     TEST_WALLET_ADDRESS,
     TEST_WITHDRAW,
+    TEST_PAIR_NAME,
 )
 
 
@@ -16,6 +17,7 @@ class TestClient:
     @pytest.mark.asyncio
     async def test_get_balances(self, client):
         balances = await client.get_balances()
+        print("Balances:", balances)
         assert isinstance(balances, list)
         assert all(isinstance(balance, dict) for balance in balances)
 
@@ -36,15 +38,15 @@ class TestClient:
         print("Count:", count)
 
     async def test_create_order(self, client):
-        pair = await client.get_pair_info("moon_usdcs")
+        pair = await client.get_pair_info(TEST_PAIR_NAME)
         print("Pair:", pair)
         res = await client.create_order(
             pair_id=pair["id"],
             company_id=1,
             order_side="S",
             order_type="L",
-            amount=1000000000000000000,
-            price=20000000,
+            amount=100000000000000000,
+            price=2000,
         )
         print("Order:", res)
 
@@ -98,7 +100,7 @@ class TestClient:
 
     @pytest.mark.asyncio
     async def test_get_price(self, client):
-        symbol = "moon_usdcs"
+        symbol = TEST_PAIR_NAME
         price_info = await client.get_price(symbol)
         print("price_info", price_info)
         assert isinstance(price_info, dict)
@@ -175,9 +177,9 @@ class TestClient:
         walletSigner = Signer.create_signer(TEST_ETH_PRIVATE_KEY)
         result = await client.deposit(
             walletSigner,
-            1_000_000_000_000_000_000,
-            "0x60401dF2ce765c0Ac0cA0A76deC5F0a0B72f3Ae7",
-            "https://polygon-mumbai.blockpi.network/v1/rpc/public",
+            TEST_WITHDRAW["amount"],
+            TEST_WITHDRAW["tokenAddress"],
+            "https://sepolia.optimism.io",
         )
         # result = await client.deposit(walletSigner, 500, 1, "https://bsc-pokt.nodies.app")
         print("Deposit Data:", result)
@@ -219,15 +221,15 @@ class TestTradingKey:
         assert isinstance(balances, list)
 
     async def test_create_order(self, trading_client):
-        pair = await trading_client.get_pair_info("moon_usdcs")
+        pair = await trading_client.get_pair_info(TEST_PAIR_NAME)
         print("Pair:", pair)
         res = await trading_client.create_order(
             pair_id=pair["id"],
             company_id=1,
             order_side="S",
             order_type="L",
-            amount=1000000000000000000,
-            price=20000000,
+            amount=100000000000000000,
+            price=1000,
         )
         print("Order:", res)
 
