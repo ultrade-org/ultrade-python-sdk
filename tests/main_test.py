@@ -8,6 +8,7 @@ from .test_credentials import (
     TEST_MNEMONIC_KEY,
     TEST_WALLET_ADDRESS,
     TEST_WITHDRAW,
+    TEST_PAIR_NAME,
 )
 
 
@@ -37,15 +38,15 @@ class TestClient:
         print("Count:", count)
 
     async def test_create_order(self, client):
-        pair = await client.get_pair_info("moon_usdcs")
+        pair = await client.get_pair_info(TEST_PAIR_NAME)
         print("Pair:", pair)
         res = await client.create_order(
             pair_id=pair["id"],
             company_id=1,
             order_side="S",
             order_type="L",
-            amount=1000000000000000000,
-            price=20000000,
+            amount=100000000000000000,
+            price=2000,
         )
         print("Order:", res)
 
@@ -99,7 +100,7 @@ class TestClient:
 
     @pytest.mark.asyncio
     async def test_get_price(self, client):
-        symbol = "moon_usdcs"
+        symbol = TEST_PAIR_NAME
         price_info = await client.get_price(symbol)
         print("price_info", price_info)
         assert isinstance(price_info, dict)
@@ -220,15 +221,15 @@ class TestTradingKey:
         assert isinstance(balances, list)
 
     async def test_create_order(self, trading_client):
-        pair = await trading_client.get_pair_info("moon_usdcs")
+        pair = await trading_client.get_pair_info(TEST_PAIR_NAME)
         print("Pair:", pair)
         res = await trading_client.create_order(
             pair_id=pair["id"],
             company_id=1,
             order_side="S",
             order_type="L",
-            amount=1000000000000000000,
-            price=20000000,
+            amount=100000000000000000,
+            price=1000,
         )
         print("Order:", res)
 

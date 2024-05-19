@@ -1,4 +1,5 @@
 import eth_abi
+import codecs
 from algosdk.encoding import decode_address
 from base58 import b58decode
 from typing import Union
@@ -6,7 +7,8 @@ from os import urandom
 from enum import Enum
 import base64
 
-from ..types import WormholeChains
+from ultrade.types import WormholeChains
+from ultrade.constants import CCTP_UNIFIED_ASSETS
 from .utils import toJson
 
 
@@ -15,6 +17,7 @@ class AddressType(Enum):
     Algorand = 1
     AlgorandAsset = 2
     SolanaMint = 3
+    Cctp = 4
 
 
 def normalize_address(address: Union[str, int], addr_type: AddressType) -> bytes:
@@ -26,13 +29,20 @@ def normalize_address(address: Union[str, int], addr_type: AddressType) -> bytes
         return eth_abi.encode(["uint256"], [int(address)])
     elif addr_type == AddressType.SolanaMint:
         return b58decode(address)
+    elif addr_type == AddressType.Cctp:
+        print("<<<<<<<<<<< CCTP >>>>>>>>>>>>>")
+        return decode_hex_string(str(address))
 
 
-def determine_address_type(chain_id: int, is_token: bool) -> AddressType:
+def determine_address_type(
+    chain_id: int, is_token: bool, token: str | int = None
+) -> AddressType:
     if chain_id == WormholeChains.SOLANA.value:
         return AddressType.SolanaMint
     elif chain_id == WormholeChains.ALGORAND.value:
         return AddressType.AlgorandAsset if is_token else AddressType.Algorand
+    elif token in CCTP_UNIFIED_ASSETS:
+        return AddressType.Cctp
     else:
         return AddressType.EVM
 
@@ -46,6 +56,12 @@ def generate_random_bytes_base32() -> str:
 def decode32_bytes(value: str) -> bytes:
     decoded_bytes = base64.b32decode(value)
     return decoded_bytes
+
+
+def decode_hex_string(address):
+    if address.startswith("0x"):
+        address = address[2:]
+    return codecs.decode(address, "hex")
 
 
 def encode_32_bytes(value: bytes) -> bytes:
@@ -81,14 +97,18 @@ def get_order_bytes(
     order.extend(
         normalize_address(
             data["baseTokenAddress"],
-            determine_address_type(data["baseTokenChainId"], True),
+            determine_address_type(
+                data["baseTokenChainId"], True, data["baseTokenAddress"]
+            ),
         )
     )
     order.extend(data["baseTokenChainId"].to_bytes(8, "big"))
     order.extend(
         normalize_address(
             data["priceTokenAddress"],
-            determine_address_type(data["priceTokenChainId"], True),
+            determine_address_type(
+                data["priceTokenChainId"], True, data["priceTokenAddress"]
+            ),
         )
     )
     order.extend(data["priceTokenChainId"].to_bytes(8, "big"))
