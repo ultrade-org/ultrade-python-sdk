@@ -179,7 +179,7 @@ class Client:
         async with aiohttp.ClientSession() as session:
             url = f"{self.__api_url}/wallet/signin"
             async with session.put(
-                url, json={"data": data, "signature": signature_hex}
+                url, json={"data": data, "message": message, "signature": signature_hex}
             ) as resp:
                 response = await resp.text()
                 if "error" in response:

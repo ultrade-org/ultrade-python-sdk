@@ -30,7 +30,6 @@ def normalize_address(address: Union[str, int], addr_type: AddressType) -> bytes
     elif addr_type == AddressType.SolanaMint:
         return b58decode(address)
     elif addr_type == AddressType.Cctp:
-        print("<<<<<<<<<<< CCTP >>>>>>>>>>>>>")
         return decode_hex_string(str(address))
 
 

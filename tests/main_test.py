@@ -93,7 +93,8 @@ class TestClient:
 
     @pytest.mark.asyncio
     async def test_get_pair_info(self, client):
-        symbol = "algo_usdc"
+        pair_list = await client.get_pair_list(1)
+        symbol = pair_list[0]['pair_key']
         exchange_info = await client.get_pair_info(symbol)
         print("exchange_info", exchange_info)
         assert isinstance(exchange_info, dict)
