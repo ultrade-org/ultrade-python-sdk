@@ -132,6 +132,9 @@ def make_withdraw_msg(
     token_amount: int,
     token_address: str,
     token_chain_id: int,
+    is_native_token: bool,
+    fee: int,
+    data: dict = None,
 ) -> bytes:
     data_bytes = bytearray()
     token_amount_bytes = token_amount.to_bytes(32, "big")
@@ -142,26 +145,21 @@ def make_withdraw_msg(
 
     recipient_chain_id_bytes = recipient_chain_id.to_bytes(8, "big")
 
+    fee_bytes = fee.to_bytes(32, "big")
+    is_native_token_bytes = is_native_token.to_bytes(1, "big")
+
     box_name_bytes = get_account_balance_box_name(
         login_address, login_chain_id, token_address, token_chain_id
     )
 
-    json_data = toJson(
-        {
-            "loginAddress": login_address,
-            "loginChainId": login_chain_id,
-            "tokenAmount": token_amount,
-            "tokenIndex": token_address,
-            "tokenChainId": token_chain_id,
-            "recipient": recipient,
-            "recipientChainId": recipient_chain_id,
-        }
-    )
+    json_data = toJson(data)
 
     data_bytes.extend(box_name_bytes)
     data_bytes.extend(sender_bytes)
     data_bytes.extend(recipient_chain_id_bytes)
     data_bytes.extend(token_amount_bytes)
+    data_bytes.extend(is_native_token_bytes)
+    data_bytes.extend(fee_bytes)
 
     message_bytes = make_signing_message(json_data, data_bytes)
     return bytes(message_bytes)

@@ -169,7 +169,7 @@ class Client:
 
         data = {
             "address": signer.address,
-            "provider": signer.provider_name,
+            "technology": signer.provider_name,
         }
         message = toJson(data)
         message_bytes = message.encode("utf-8")
@@ -429,6 +429,7 @@ class Client:
         token_address: str,
         token_chain_id: int,
         recipient: str,
+        is_native_token: bool = False,
     ):
         """
         Withdraws the specified amount of tokens to the specified recipient.
@@ -438,6 +439,7 @@ class Client:
             token_address (str): The address of the token to withdraw.
             token_chain_id (int): The chain ID of the token to withdraw.
             recipient (str): The address of the recipient.
+            is_native_token (bool, optional): Whether the token is native to the chain. Defaults to False.
 
         Returns:
             dict: The response from the server.
@@ -449,15 +451,8 @@ class Client:
         signer = self._login_user
 
         recipient_chain_id = token_chain_id
-        message_bytes = make_withdraw_msg(
-            signer.address,
-            signer.wormhole_chain_id,
-            recipient,
-            recipient_chain_id,
-            amount,
-            token_address,
-            token_chain_id,
-        )
+        fee = int(amount * 0.01)  # 1% fee hadrcode, temporary solution
+
         data = {
             "loginAddress": signer.address,
             "loginChainId": signer.wormhole_chain_id,
@@ -466,7 +461,23 @@ class Client:
             "tokenChainId": token_chain_id,
             "recipient": recipient,
             "recipientChainId": recipient_chain_id,
+            "isNative": is_native_token,
+            "fee": fee,
         }
+
+        message_bytes = make_withdraw_msg(
+            signer.address,
+            signer.wormhole_chain_id,
+            recipient,
+            recipient_chain_id,
+            amount,
+            token_address,
+            token_chain_id,
+            is_native_token,
+            fee,
+            data,
+        )
+
         message = message_bytes.hex()
         signature = signer.sign_data(message_bytes)
         signature_hex = signature.hex() if isinstance(signature, bytes) else signature

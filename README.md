@@ -455,15 +455,18 @@ This method retrieves the list of CCTP assets available on the Ultrade platform 
 ```python
 cctp_assets = await client.get_cctp_assets()
 ```
+
 **Returns**:
 dict: A dictionary containing the CCTP assets.
 
 ### get_cctp_unified_assets
+
 This method retrieves the list of unified CCTP assets from the market endpoint, providing a standardized interface across different blockchain platforms.
 
 ```python
 unified_cctp_assets = await client.get_cctp_unified_assets()
 ```
+
 **Returns**:
 dict: A dictionary containing the unified CCTP assets.
 
@@ -635,12 +638,13 @@ except Exception as e:
 
 The `withdraw` method enables the withdrawal of a specified amount of tokens to a designated recipient. To perform a withdrawal, you need to specify the recipient's wallet address where you wish to transfer the funds. This operation requires the user to be logged in and have a sufficient balance of the token they intend to withdraw.
 
-| Parameter        | Type  | Description                                      |
-| ---------------- | ----- | ------------------------------------------------ |
-| `amount`         | `int` | The amount of tokens to withdraw in atomic units |
-| `token_address`  | `str` | The blockchain address of the token.             |
-| `token_chain_id` | `int` | The chain ID of the token.                       |
-| `recipient`      | `str` | The blockchain address of the recipient.         |
+| Parameter         | Type   | Description                                                  |
+| ----------------- | ------ | ------------------------------------------------------------ |
+| `amount`          | `int`  | The amount of tokens to withdraw in atomic units             |
+| `token_address`   | `str`  | The blockchain address of the token.                         |
+| `token_chain_id`  | `int`  | The chain ID of the token.                                   |
+| `recipient`       | `str`  | The blockchain address of the recipient.                     |
+| `is_native_token` | `bool` | Whether the token is native to the chain. Defaults to False. |
 
 ```python
 from ultrade.types import WormholeChains

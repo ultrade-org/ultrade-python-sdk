@@ -12,7 +12,7 @@ from algosdk.transaction import (
 )
 from algosdk.util import sign_bytes
 from eth_utils import keccak
-from ..types import WormholeChains, Providers
+from ..types import WormholeChains, Technology
 
 
 class AlgorandSigner(Signer):
@@ -23,7 +23,7 @@ class AlgorandSigner(Signer):
     def __init__(self, private_key):
         super().__init__(wormhole_chain_id=WormholeChains.ALGORAND)
         self.__algo_private_key = mnemonic.to_private_key(private_key)
-        self._provider_name = Providers.PERA.value
+        self._provider_name = Technology.ALGORAND.value
 
     def sign_data(self, message: bytes) -> str:
         """

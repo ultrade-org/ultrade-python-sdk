@@ -1,5 +1,5 @@
 from ultrade.utils.encode import determine_address_type, normalize_address
-from ultrade.types import Providers, WormholeChains
+from ultrade.types import Technology, WormholeChains
 from ultrade.constants import TMC_ABI as abi, ERC20_ABI
 from ultrade import Signer
 from web3 import Web3, HTTPProvider
@@ -21,7 +21,7 @@ class EthereumSigner(Signer):
         super().__init__(wormhole_chain_id=WormholeChains.POLYGON)
         self.__eth_private_key = keys.PrivateKey(bytes.fromhex(private_key))
         self.__private_key = private_key
-        self._provider_name = Providers.METAMASK.value
+        self._provider_name = Technology.EVM.value
 
     def sign_data(self, message: bytes) -> str:
         """

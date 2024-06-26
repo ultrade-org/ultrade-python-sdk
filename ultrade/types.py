@@ -89,11 +89,10 @@ class WormholeChains(BaseEnum):
     POLYGON_SEPOLIA = 10007
 
 
-class Providers(Enum):
-    METAMASK = "METAMASK"
-    MYALGO = "myalgo"
-    PHANTOM = "phantom"
-    PERA = "PERA"
+class Technology(Enum):
+    ALGORAND = "ALGORAND"
+    SOLANA = "SOLANA"
+    EVM = "EVM"
 
 
 class CreateOrder:
