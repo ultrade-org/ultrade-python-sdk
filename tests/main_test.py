@@ -42,7 +42,6 @@ class TestClient:
         print("Pair:", pair)
         res = await client.create_order(
             pair_id=pair["id"],
-            company_id=1,
             order_side="S",
             order_type="L",
             amount=100000000000000000,
@@ -56,7 +55,6 @@ class TestClient:
         try:
             res = await client.create_order(
                 pair_id=pair["id"],
-                company_id=1,
                 order_side="S",
                 order_type="L",
                 amount=450000000 * 1_000_000_000,
@@ -86,14 +84,14 @@ class TestClient:
 
     @pytest.mark.asyncio
     async def test_get_pair_list(self, client):
-        pairs = await client.get_pair_list(1)
+        pairs = await client.get_pair_list()
         print("pairs", pairs)
         assert isinstance(pairs, list)
         assert all(isinstance(pair, dict) for pair in pairs)
 
     @pytest.mark.asyncio
     async def test_get_pair_info(self, client):
-        pair_list = await client.get_pair_list(1)
+        pair_list = await client.get_pair_list()
         symbol = pair_list[0]['pair_key']
         exchange_info = await client.get_pair_info(symbol)
         print("exchange_info", exchange_info)
@@ -132,7 +130,9 @@ class TestClient:
 
     @pytest.mark.asyncio
     async def test_get_order_by_id(self, client):
-        order_id = 107423
+        orders = await client.get_orders_with_trades(status=OrderStatus.CANCELLED)
+        assert orders, "Orders list is empty, cannot get order ID"
+        order_id = orders[0]["id"]
         order_data = await client.get_order_by_id(order_id)
         print("Order:", order_data)
         assert isinstance(order_data, dict)
@@ -226,7 +226,6 @@ class TestTradingKey:
         print("Pair:", pair)
         res = await trading_client.create_order(
             pair_id=pair["id"],
-            company_id=1,
             order_side="S",
             order_type="L",
             amount=100000000000000000,
