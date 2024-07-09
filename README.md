@@ -57,6 +57,7 @@ To create a client, you must specify the `network`, which can be either `mainnet
 
 | Option          | Description                           | Default value                                                                  |
 | --------------- | ------------------------------------- | ------------------------------------------------------------------------------ |
+| company_id      | Id of your company.                   | Ultrade (company_id = 1)                                                       |
 | api_url         | The URL of the Ultrade API.           | **Testnet**: _api.testnet.ultrade.org_<br>**Mainnet**: _api.ultrade.org_       |
 | websocket_url   | The URL of the Ultrade WebSocket API. | **Testnet**: _ws.testnet.ultrade.org_<br>**Mainnet**: _ws.mainnet.ultrade.org_ |
 | algo_sdk_client | The Algorand SDK client.              | Public client                                                                  |
@@ -64,7 +65,9 @@ To create a client, you must specify the `network`, which can be either `mainnet
 ```python
 from ultrade import Client
 
-client = Client(network="testnet")
+company_id = await Client.get_company_by_domain("app.ultrade.org")
+
+client = Client(network="testnet", company_id)
 ```
 
 ### Creating a signer
@@ -142,7 +145,7 @@ Below are methods that do not require the [login function](#logging-in) to be ex
 
 ### get_pair_list
 
-To get the listed pair list, you need to call the `get_pair_list` method on the API instance. The `get_pair_list` method takes an optional `company_id` argument. If the `company_id` argument is not provided, all pairs are returned.
+To get the listed pair list, you need to call the `get_pair_list` method on the API instance.
 
 ```python
 pairs = await client.get_pair_list()
@@ -424,7 +427,7 @@ Dict: `Order`
 
 ### get_company_by_domain
 
-The `get_company_by_domain` method retrieves the company ID based on the domain name.
+The `get_company_by_domain` static method retrieves the company ID based on the domain name.
 
 | Parameter | Type  | Description                                                                       |
 | --------- | ----- | --------------------------------------------------------------------------------- |
@@ -433,7 +436,9 @@ The `get_company_by_domain` method retrieves the company ID based on the domain 
 The method returns an integer representing the company ID.
 
 ```python
-company_id = await client.get_company_by_domain("app.ultrade.org")
+from ultrade import Client
+
+company_id = await Client.get_company_by_domain("app.ultrade.org")
 print(company_id)
 ```
 
@@ -666,14 +671,13 @@ except Exception as e:
 
 The `create_order` method is used to create a new order on the Ultrade platform. This method allows you to specify various parameters for the order, including the type, side, amount, and price.
 
-| Parameter    | Type            | Description                                                              |
-| ------------ | --------------- | ------------------------------------------------------------------------ |
-| `pair_id`    | `int`           | The ID of the trading pair.                                              |
-| `order_side` | `str`           | The side of the order, 'B' (buy) or 'S' (sell).                          |
-| `order_type` | `str`           | The type of the order: 'M' (market), 'L' (limit), 'I' (IOC), 'P' (post). |
-| `amount`     | `int`           | The amount of tokens to buy or sell in atomic units.                     |
-| `price`      | `int`           | The price per token for the order in atomic units.                       |
-| `company_id` | `Optional[int]` | The ID of the company associated with the order. Default Ultrade.        |
+| Parameter    | Type  | Description                                                              |
+| ------------ | ----- | ------------------------------------------------------------------------ |
+| `pair_id`    | `int` | The ID of the trading pair.                                              |
+| `order_side` | `str` | The side of the order, 'B' (buy) or 'S' (sell).                          |
+| `order_type` | `str` | The type of the order: 'M' (market), 'L' (limit), 'I' (IOC), 'P' (post). |
+| `amount`     | `int` | The amount of tokens to buy or sell in atomic units.                     |
+| `price`      | `int` | The price per token for the order in atomic units.                       |
 
 ```python
 pair = await client.get_pair_info("algo_moon")
@@ -683,8 +687,7 @@ try:
         order_side="B",
         order_type="L",
         amount=350000000,  # in atomic units
-        price=1000,       # in atomic units
-        company_id=1,
+        price=1000         # in atomic units
     )
 except Exception as e:
     print(f"Error creating order: {str(e)}")

@@ -4,7 +4,7 @@ from algosdk.v2client.algod import AlgodClient
 from .socket_client import SocketClient
 from .utils.algod_service import AlgodService
 from .utils.utils import get_wh_id_by_address, toJson
-from .constants import NETWORK_CONSTANTS
+from .constants import NETWORK_CONSTANTS, DEFAULT_LOGIN_MESSAGE
 from . import socket_options
 from .types import (
     ClientOptions,
@@ -53,6 +53,7 @@ class Client:
         self._token: Optional[str] = None
         self._trading_key_data: Optional[Dict[str, str]] = None
         self._trading_key_signer: Optional[Signer] = None
+        self._company_id = self.__options.get("company_id", 1)
 
     def __configure(self):
         network_constants = NETWORK_CONSTANTS.get(self.network)
@@ -167,19 +168,20 @@ class Client:
         """
         self.__validate_signer(signer)
 
-        data = {
-            "address": signer.address,
-            "technology": signer.provider_name,
-        }
-        message = toJson(data)
+        data = {"address": signer.address, "technology": signer.provider_name}
+        message = DEFAULT_LOGIN_MESSAGE
         message_bytes = message.encode("utf-8")
+        message_hex = message_bytes.hex()
         signature = signer.sign_data(message_bytes)
         signature_hex = signature.hex() if isinstance(signature, bytes) else signature
-
-        async with aiohttp.ClientSession() as session:
+        headers = {
+            "CompanyId": str(self._company_id),
+        }
+        async with aiohttp.ClientSession(headers=headers) as session:
             url = f"{self.__api_url}/wallet/signin"
             async with session.put(
-                url, json={"data": data, "message": message, "signature": signature_hex}
+                url,
+                json={"data": data, "message": message_hex, "signature": signature_hex},
             ) as resp:
                 response = await resp.text()
                 if "error" in response:
@@ -207,7 +209,6 @@ class Client:
         order_type: str,
         amount: int,
         price: int,
-        company_id: int = 1,
     ):
         """
         Creates an order using the provided order data.
@@ -219,7 +220,6 @@ class Client:
             amount (int): The amount of the order.
             price (int): The price of the order.
             wlp_id (int, optional): The ID of the WLP. Defaults to 0.
-            company_id (int, optional): The ID of the company. Defaults to 1.
 
         Returns:
             dict: The response from the server.
@@ -259,7 +259,7 @@ class Client:
 
         order = CreateOrder(
             pair_id=pair_id,
-            company_id=company_id,
+            company_id=self._company_id,
             login_address=login_address,
             login_chain_id=login_chain_id,
             order_side=order_side,
@@ -595,7 +595,7 @@ class Client:
     #         raise Exception(
     #             "ULTRADE APPLICATION IS CURRENTLY IN MAINTENANCE MODE. PLACING AND CANCELING ORDERS IS TEMPORARY DISABLED"
     #         )
-    async def get_pair_list(self, company_id=None) -> List[TradingPair]:
+    async def get_pair_list(self) -> List[TradingPair]:
         """
         Retrieves a list of trading pairs available on the exchange for a specific company.
 
@@ -609,7 +609,7 @@ class Client:
             aiohttp.ClientError: If an error occurs during the HTTP request.
         """
         session = aiohttp.ClientSession()
-        query = "" if company_id is None else f"?companyId={company_id}"
+        query = "" if self._company_id is None else f"?companyId={self._company_id}"
         url = f"{self.__api_url}/market/markets{query}"
         async with session.get(url) as resp:
             data = await resp.json()
@@ -733,13 +733,15 @@ class Client:
         Returns:
             dict: A dictionary containing detailed information about the specified order.
         """
-        session = aiohttp.ClientSession()
-        url = f"{self.__api_url}/market/getOrderById?orderId={order_id}"
+        self.__check_is_logged_in()
+        session = aiohttp.ClientSession(headers=self.__headers)
+        url = f"{self.__api_url}/market/order/{order_id}"
         async with session.get(url) as resp:
             data = await resp.json()
             await session.close()
-            return data["order"][0]
+            return data
 
+    @staticmethod
     async def get_company_by_domain(self, domain: str) -> int:
         """
         Retrieves the company ID based on the domain name.
