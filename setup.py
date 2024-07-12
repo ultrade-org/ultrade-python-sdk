@@ -21,4 +21,5 @@ setuptools.setup(
     extras_require={
         "dev": ["pytest>=7.0", "twine>=4.0.2"],
     },
+    python_requires='>=3.6'
 )
