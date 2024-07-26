@@ -21,7 +21,7 @@ class TestClient:
         assert isinstance(balances, list)
         assert all(isinstance(balance, dict) for balance in balances)
 
-    async def test_get_orders(self, client):
+    async def test_get_orders_with_trades(self, client):
         orders = await client.get_orders_with_trades(status=OrderStatus.OPEN_ORDER)
         print("orders", orders)
         assert isinstance(orders, list)
@@ -78,9 +78,29 @@ class TestClient:
             print("Exception:", e)
 
     @pytest.mark.asyncio
-    async def test_operations(self, client):
-        txns = await client.get_operations()
+    async def test_get_wallet_operations(self, client):
+        startTime = '2023-12-01T00:00:00Z'
+        endTime = '2023-12-31T23:59:59Z'
+        page = 1
+        limit = 10
+        txns = await client.get_wallet_transactions(
+            startTime=startTime,
+            endTime=endTime,
+            page=page,
+            limit=limit
+        )
         print("txns", txns)
+        assert isinstance(txns, list)
+
+    @pytest.mark.asyncio
+    async def test_get_orders(self, client):
+        orders = await client.get_orders(
+            page=1,
+            limit=10
+        )
+        print("orders", orders)
+        assert isinstance(orders, list)
+        assert all(isinstance(order, dict) for order in orders)
 
     @pytest.mark.asyncio
     async def test_get_pair_list(self, client):
@@ -184,6 +204,13 @@ class TestClient:
         )
         # result = await client.deposit(walletSigner, 500, 1, "https://bsc-pokt.nodies.app")
         print("Deposit Data:", result)
+
+    @pytest.mark.asyncio
+    async def test_get_assets(self, client):
+        assets = await client.get_assets()
+        print("Assets:", assets)
+        assert isinstance(assets, list)
+        assert all(isinstance(asset, dict) for asset in assets)
 
 
 @pytest.mark.asyncio

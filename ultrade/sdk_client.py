@@ -17,7 +17,7 @@ from .types import (
     OrderWithTrade,
     Price,
     Symbol,
-    WalletOperations,
+    WalletTransactions,
     TradingPair,
     PairInfo,
     AuthMethod,
@@ -350,13 +350,14 @@ class Client:
 
         Returns:
             list of dict: logged user balances.
-            - hash (str)
-            - loginAddress (str)
-            - loginChainId (int)
-            - tokenId (int or str)
-            - tokenChainId  (int)
-            - amount (int)
-            - lockedAmount (int)
+            - hash (str) - hash of the balance
+            - loginAddress (str) - address of the user
+            - loginChainId (int) - chain id of the user
+            - tokenId (int) - id of the token in the database
+            - tokenChainId  (int) - chain id of the token
+            - tokenAddress (str | int) - contract address of the token
+            - amount (int) - amount of the token
+            - lockedAmount (int) - locked amount of the token
         """
         self.__check_is_logged_in()
         url = f"{self.__api_url}/market/balances"
@@ -396,12 +397,21 @@ class Client:
                 data = await resp.json()
                 return data
 
-    async def get_operations(self) -> List[WalletOperations]:
+    async def get_wallet_transactions(
+        self,
+        startTime: Optional[int] = None,
+        endTime: Optional[int] = None,
+        page: Optional[int] = None,
+        limit: Optional[int] = None,
+    ) -> List[WalletTransactions]:
         """
-        Returns list of operation (deposit/witdraw) of the logged user.
+        Returns list of transactions (deposit/witdraw) of the logged user.
 
-        Args:
-            symbol (str, optional): The symbol of the pair.
+         Args:
+            startTime (int, optional): The start time for filtering transactions.
+            endTime (int, optional): The end time for filtering transactions.
+            page (int, optional): The page number for pagination.
+            limit (int, optional): The number of transactions per page.
 
         Returns:
             list
@@ -412,9 +422,17 @@ class Client:
             if self._login_user
             else self._trading_key_data["address"]
         )
-        url = f"{self.__api_url}/market/wallet-transactions?address={login_address}"
+        query_params = {
+            "address": login_address,
+            "startTime": startTime,
+            "endTime": endTime,
+            "page": page,
+            "limit": limit,
+        }
+        query_params = {k: v for k, v in query_params.items() if v is not None}
+        url = f"{self.__api_url}/wallet/transactions"
         async with aiohttp.ClientSession(headers=self.__headers) as session:
-            async with session.get(url) as resp:
+            async with session.get(url, params=query_params) as resp:
                 data = await resp.json()
                 await session.close()
 
@@ -805,4 +823,56 @@ class Client:
         async with aiohttp.ClientSession(headers=self.__headers) as session:
             async with session.get(url) as resp:
                 data = await resp.json()
+                return data
+
+    async def get_assets(self) -> List[Dict]:
+        """
+        Returns the list of market assets:
+        - id (int): The ID of the asset.
+        - address (str): The address of the asset.
+        - chainId (int): The chain ID of the asset.
+        - name (str): The name of the asset.
+        - unitName (str): The unit name of the asset.
+        - decimals (int): The number of decimals of the asset.
+        - isGas (bool): Whether the asset is gas.
+        """
+        url = f"{self.__api_url}/market/assets"
+        async with aiohttp.ClientSession(headers=self.__headers) as session:
+            async with session.get(url) as resp:
+                data = await resp.json()
+                return data
+
+    async def get_orders(
+        self,
+        startTime: Optional[int] = None,
+        endTime: Optional[int] = None,
+        page: Optional[int] = None,
+        limit: Optional[int] = None,
+    ) -> List[WalletTransactions]:
+        """
+        Returns list of logged user orders.
+
+         Args:
+            startTime (int, optional): The start time for filtering transactions.
+            endTime (int, optional): The end time for filtering transactions.
+            page (int, optional): The page number for pagination.
+            limit (int, optional): The number of transactions per page.
+
+        Returns:
+            list of dict - logged user orders.
+        """
+        self.__check_is_logged_in()
+
+        query_params = {
+            "startTime": startTime,
+            "endTime": endTime,
+            "page": page,
+            "limit": limit,
+        }
+        query_params = {k: v for k, v in query_params.items() if v is not None}
+        url = f"{self.__api_url}/market/orders"
+        async with aiohttp.ClientSession(headers=self.__headers) as session:
+            async with session.get(url, params=query_params) as resp:
+                data = await resp.json()
+                await session.close()
                 return data
