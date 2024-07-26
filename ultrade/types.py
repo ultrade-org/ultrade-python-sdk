@@ -278,7 +278,7 @@ class Token(TypedDict):
     decimals: int
 
 
-class WalletOperations(TypedDict, total=False):
+class WalletTransactions(TypedDict, total=False):
     primaryId: int
     id: Optional[str]
     login_address: str

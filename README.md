@@ -140,6 +140,7 @@ Below are methods that do not require the [login function](#logging-in) to be ex
 | [get_avaible_chains](#get_avaible_chains) | Retrieves the list of chains supported by Ultrade. |
 | [get_cctp_assets](#get_cctp_assets) | Retrieves the list of CCTP assets from the market endpoint. |
 | [get_cctp_unified_assets](#get_cctp_unified_assets) | Retrieves the list of unified CCTP assets from the market endpoint. |
+| [get_assets](#get_assets) | Retrieves the list of market assets |
 
 ---
 
@@ -475,6 +476,32 @@ unified_cctp_assets = await client.get_cctp_unified_assets()
 **Returns**:
 dict: A dictionary containing the unified CCTP assets.
 
+### get_assets
+
+This method retrieves the list of assets from the market endpoint
+
+```python
+assets = await client.get_assets()
+```
+
+**Returns**:
+Returns the list of market assets:
+
+<details>
+<summary><strong>Asset Details</strong></summary>
+
+| Field      | Type   | Description                         |
+| ---------- | ------ | ----------------------------------- |
+| `id`       | `int`  | The ID of the asset                 |
+| `address`  | `str`  | The address of the asset            |
+| `chainId`  | `int`  | The chain ID of the asset           |
+| `name`     | `str`  | The name of the asset               |
+| `unitName` | `str`  | The unit name of the asset          |
+| `decimals` | `int`  | The number of decimals of the asset |
+| `isGas`    | `bool` | Whether the asset is gas            |
+
+</details>
+
 ---
 
 ## Required login methods
@@ -484,7 +511,8 @@ Below are methods that require the [login function](#logging-in) to be executed
 | ------ | ----------- |
 | [get_balances](#get_balances) | Retrieves the current balance information for the logged-in user. |
 | [get_orders_with_trades](#get_orders_with_trades) | Retrieves a list of orders along with their trade details for the logged-in user. |
-| [get_operations](#get_operations) | Returns a list of operations and it statuses (deposits/withdrawals) for the logged-in user. |
+| [get_orders](#get_orders) | Retrieves a list of logged user orders.
+| [get_wallet_transactions](#get_wallet_transactions) | Returns a list of wallet transactions and it statuses (deposits/withdrawals) for the logged-in user. |
 | [create_order](#create_order) | Creates an order on the Ultrade platform. |
 | [cancel_order](#cancel_order) | Cancels an existing order on the Ultrade platform. |
 | [deposit](#deposit) | Deposit a specified amont of tokens to the Token Manager Contract. |
@@ -508,10 +536,11 @@ The method returns a list of dictionaries with the following key-value pairs:
 | -------------- | -------------- | ------------------------------------------------------ |
 | `loginAddress` | `str`          | The blockchain address of the logged user.             |
 | `loginChainId` | `int`          | The chain ID associated with the user's login address. |
-| `tokenId`      | `int` or `str` | The identifier of the token.                           |
+| `tokenAddress` | `int` or `str` | The contract address of the token.                     |
 | `tokenChainId` | `int`          | The chain ID of the token.                             |
 | `amount`       | `int`          | The total amount of the token.                         |
 | `lockedAmount` | `int`          | The amount of the token that is locked.                |
+| `tokenId`      | `int`          | Database token id                                      |
 
 ---
 
@@ -573,19 +602,75 @@ List of `OrderWithTrade` from `ultrade.types`
 
 ---
 
-### get_operations
+### get_orders
 
-The `get_operations` method fetches the operation history for the logged-in user on the Ultrade platform (deposit/withdraw).
+The `get_orders` method retrieves a list of orders for the logged-in user on the Ultrade platform. It allows filtering orders based on time, pagination, and limits.
+
+| Parameter   | Type             | Description                                                     |
+| ----------- | ---------------- | --------------------------------------------------------------- |
+| `startTime` | `Optional[date]` | The start time for filtering transactions (in ISO 8601 format). |
+| `endTime`   | `Optional[date]` | The end time for filtering transactions (in ISO 8601 format).   |
+| `page`      | `Optional[int]`  | The page number for pagination.                                 |
+| `limit`     | `Optional[int]`  | The number of transactions per page.                            |
 
 ```python
-operations = client.get_transactions()
-print(operations)
+orders = await client.get_orders(
+    startTime='2023-12-01T00:00:00Z',
+    endTime='2023-12-31T23:59:59Z',
+    page=1,
+    limit=50
+)
 ```
 
-**Returns:** a list of `WalletOperations` dictionaries from `ultrade.types`
+**Returns:**
+List of Orders:
 
 <details>
-<summary><strong>WalletOperations</strong></summary>
+<summary>Orders</summary>
+
+| Field          | Type       | Description                                                                 |
+| -------------- | ---------- | --------------------------------------------------------------------------- |
+| `id`           | `int`      | Unique identifier of the order.                                             |
+| `pairId`       | `int`      | Identifier of the trading pair.                                             |
+| `pair`         | `str`      | Symbol of the trading pair.                                                 |
+| `amount`       | `str`      | Amount of the order. Values are in atomic units.                            |
+| `price`        | `str`      | Price at which the order was placed. Values are in atomic units.            |
+| `total`        | `str`      | Total value of the order. Values are in atomic units.                       |
+| `filledAmount` | `str`      | Amount of the order that has been filled. Values are in atomic units.       |
+| `filledTotal`  | `str`      | Total value of the filled portion of the order. Values are in atomic units. |
+| `status`       | `int`      | Status of the order (1: Open, 2: Canceled, 3: Matched, 4: SelfMatched).     |
+| `side`         | `int`      | Side of the order (0 for buy, 1 for sell).                                  |
+| `type`         | `int`      | Type of the order: M (market), L (limit), I (ioc), P (post only).           |
+| `userId`       | `str`      | Identifier of the user who placed the order.                                |
+| `createdAt`    | `datetime` | Timestamp when the order was created.                                       |
+
+</details>
+
+### get_wallet_transactions
+
+The `get_wallet_transactions` method fetches the transaction history (deposit/withdraw) for the logged-in user on the Ultrade platform.
+
+| Parameter   | Type             | Description                                           |
+| ----------- | ---------------- | ----------------------------------------------------- |
+| `startTime` | `Optional[date]` | The start time for filtering transactions. (ISO 8601) |
+| `endTime`   | `Optional[date]` | The end time for filtering transactions. (ISO 8601)   |
+| `page`      | `Optional[int]`  | The page number for pagination.                       |
+| `limit`     | `Optional[int]`  | The number of transactions per page.                  |
+
+```python
+transactions = client.get_wallet_transactions(
+    startTime='2023-12-01T00:00:00Z', # optional
+    endTime='2023-12-31T23:59:59Z', # optional
+    page=1, # optional
+    limit=50 # optional
+)
+print(transactions)
+```
+
+**Returns:** a list of `WalletTransactions` dictionaries from `ultrade.types`
+
+<details>
+<summary><strong>WalletTransactions</strong></summary>
 
 | Field            | Type   | Description                                                    |
 | ---------------- | ------ | -------------------------------------------------------------- |
