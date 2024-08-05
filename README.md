@@ -845,7 +845,6 @@ The `subscribe` method subscribes the client to various WebSocket streams based 
 - `WALLET_TRANSACTIONS`: 8 - Updates on wallet transactions.
 - `ALL_STAT`: 9 - Statistics about all trading pairs.
 - `CODEX_BALANCES`: 10 - Balance information on the Codex platform.
-- `LAST_LOOK`: 11 - Last look liquidity data.
 - `CODEX_ASSETS`: 12 - Information about assets on the Codex platform.
 
 #### `options` Parameter:
