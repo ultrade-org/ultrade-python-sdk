@@ -833,21 +833,21 @@ The `subscribe` method subscribes the client to various WebSocket streams based 
 | `streams` | `List[int]`                | Identifiers for the types of data streams to subscribe to. Each number represents a different type of stream. |
 | `options` | `Dict[str, Optional[str]]` | Additional options for the subscription.                                                                      |
 
-#### Stream Identifiers in `socket_options`:
+<strong>Stream Identifiers in `socket_options`:</strong>
 
-- `QUOTE`: 1 - Real-time quotes for a trading pair.
-- `LAST_PRICE`: 2 - The latest price of the trading pair.
-- `DEPTH`: 3 - The depth of the order book.
-- `LAST_CANDLESTICK`: 4 - The last candlestick data.
-- `ORDERS`: 5 - Real-time updates of orders.
-- `TRADES`: 6 - Real-time trade data.
-- `MAINTENANCE`: 7 - Notifications of maintenance events.
-- `WALLET_TRANSACTIONS`: 8 - Updates on wallet transactions.
-- `ALL_STAT`: 9 - Statistics about all trading pairs.
-- `CODEX_BALANCES`: 10 - Balance information on the Codex platform.
-- `CODEX_ASSETS`: 12 - Information about assets on the Codex platform.
+| Stream/ID                 | Events              | Description                                                                                |
+| ------------------------- | ------------------- | ------------------------------------------------------------------------------------------ |
+| `QUOTE` - 1               | `quote`             | Real-time quotes for a trading pair. (ask/bid)                                             |
+| `LAST_PRICE` - 2          | `last_price`        | The latest price of the trading pair.                                                      |
+| `DEPTH` - 3               | `depth`             | The depth of the order book.                                                               |
+| `ORDERS` - 5              | `order`             | Real-time updates of orders.                                                               |
+| `TRADES` - 6              | `trades`, `trade`   | `trades`: to update last trades and chart data. <br>`trade`: to update order by new trade. |
+| `MAINTENANCE` - 7         | `mode`              | Notifications of maintenance events                                                        |
+| `WALLET_TRANSACTIONS` - 8 | `walletTransaction` | Updates on wallet transactions (deposits, withdraws)                                       |
+| `ALL_STAT` - 9            | `allStat`           | Statistics about all trading pairs.                                                        |
+| `CODEX_BALANCES` - 10     | `codexBalances`     | Balance information of your login adress.                                                  |
 
-#### `options` Parameter:
+<strong>`options` Parameter:</strong>
 
 - `address`: Optional. The wallet address to use for subscriptions. If the user is logged in, this is optional and will default to the logged-in user's address.
 - `companyId`: Optional. The identifier for a specific company. Used to receive data specific to that company.
