@@ -121,7 +121,7 @@ class CreateOrder:
         self.amount = amount
         self.expired_time = (
             int(time.time()) + 30 * 24 * 60 * 60
-        ) * 1000  # cur time + 30 days in ms
+        ) # cur time + 30 days in seconds
         self.base_token_address = base_token_address
         self.base_token_chain_id = base_token_chain_id
         self.price_token_address = price_token_address

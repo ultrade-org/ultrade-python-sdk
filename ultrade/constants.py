@@ -44,11 +44,11 @@ BALANCE_DECODE_FORMAT = {
 
 EVENT_LIST = [
     ("quote", 1),
-    ("last_price", 2),
+    ("lastPrice", 2),
     ("depth", 3),
     ("order", 5),
-    ("trades", 6),
-    ("trade", 6),
+    ("lastTrade", 6),
+    ("userTrade", 6),
     ("mode", 7),
     ("walletTransaction", 8),
     ("allStat", 9),
