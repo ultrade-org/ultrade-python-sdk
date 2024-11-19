@@ -277,11 +277,18 @@ print(price_info)
 <details>
 <summary><strong>Price</strong></summary>
 
-| Field  | Type          | Description                            |
-| ------ | ------------- | -------------------------------------- |
-| `last` | `str or None` | The last trade price in atomic units.  |
-| `bid`  | `str or None` | The current bid price in atomic units. |
-| `ask`  | `str or None` | The current ask price in atomic units. |
+| Field       | Type          | Description                                         |
+| ----------- | ------------- | --------------------------------------------------- |
+| `pairId`    | `int or None` | Market id.                                          |
+| `pair`      | `str or None` | Market symbol.                                      |
+| `askPrice`  | `str or None` | Ask price in atomic units.                          |
+| `askQty`    | `str or None` | Ask depth in atomic units.                          |
+| `bidPrice`  | `str or None` | Bid price in atomic units.                          |
+| `bidQty`    | `str or None` | Bid depth in atomic units.                          |
+| `lastPrice` | `str or None` | Last price in atomic units.                         |
+| `ts`        | `int or None` | UTC timestamp in microseconds.                      |
+| `u`         | `int or None` | The last sequence number of the order book update.  |
+| `U`         | `int or None` | The prev sequence number of the order book update.  |
 
 </details>
 
@@ -367,10 +374,11 @@ List of `LastTrade` from `ultrade.types`
 | -------------- | ----- | ------------------------------------------------------------------------------------------------------------ |
 | `price`        | `str` | The price at which the trade was executed (in atomic units).                                                 |
 | `amount`       | `str` | The amount of the asset traded (in atomic units).                                                            |
-| `created_at`   | `str` | The timestamp indicating when the trade was executed, in ISO 8601 format (e.g., '2023-12-19T16:43:40.256Z'). |
+| `createdAt`    | `str` | The timestamp indicating when the trade was executed, in ISO 8601 format (e.g., '2023-12-19T16:43:40.256Z'). |
 | `buy_user_id`  | `str` | The user ID or address of the buyer in the trade.                                                            |
 | `sell_user_id` | `str` | The user ID or address of the seller in the trade.                                                           |
 | `trade_side`   | `int` | An integer indicating the trade side. A value of `0` represents a buy, and `1` represents a sell.            |
+| `isBuyerMaker` | `bool`| Boolean indicating if the buyer is the maker of the trade.                                                   |
 
 </details>
 
@@ -838,14 +846,14 @@ The `subscribe` method subscribes the client to various WebSocket streams based 
 | Stream/ID                 | Events              | Description                                                                                |
 | ------------------------- | ------------------- | ------------------------------------------------------------------------------------------ |
 | `QUOTE` - 1               | `quote`             | Real-time quotes for a trading pair. (ask/bid)                                             |
-| `LAST_PRICE` - 2          | `last_price`        | The latest price of the trading pair.                                                      |
+| `LAST_PRICE` - 2          | `lastPrice`        | The latest price of the trading pair.                                                      |
 | `DEPTH` - 3               | `depth`             | The depth of the order book.                                                               |
 | `ORDERS` - 5              | `order`             | Real-time updates of orders.                                                               |
-| `TRADES` - 6              | `trades`, `trade`   | `trades`: to update last trades and chart data. <br>`trade`: to update order by new trade. |
+| `TRADES` - 6              | `lastTrade`, `userTrade`| `lastTrade`: to update last trades and chart data. <br>`userTrade`: to update order by new trade. |
 | `MAINTENANCE` - 7         | `mode`              | Notifications of maintenance events                                                        |
 | `WALLET_TRANSACTIONS` - 8 | `walletTransaction` | Updates on wallet transactions (deposits, withdraws)                                       |
 | `ALL_STAT` - 9            | `allStat`           | Statistics about all trading pairs.                                                        |
-| `CODEX_BALANCES` - 10     | `codexBalances`     | Balance information of your login adress.                                                  |
+| `CODEX_BALANCES` - 10     | `codexBalances`     | Balance information of your login address.                                                  |
 
 <strong>`options` Parameter:</strong>
 

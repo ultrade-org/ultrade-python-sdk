@@ -316,9 +316,16 @@ class PairInfo(TypedDict):
 
 
 class Price(TypedDict, total=False):
-    last: Optional[str]
-    bid: Optional[str]
-    ask: Optional[str]
+  pairId: number
+  pair: Optional[str]
+  askPrice: Optional[str]
+  askQty: Optional[str]
+  bidPrice: Optional[str]
+  bidQty: Optional[str]
+  lastPrice: Optional[str]
+  ts: Optional[int]
+  u: Optional[int]
+  U: Optional[int]
 
 
 class Depth(TypedDict, total=False):
