@@ -98,6 +98,7 @@ class Technology(Enum):
 class CreateOrder:
     def __init__(
         self,
+        version: int,
         pair_id: int,
         company_id: int,
         login_address: str,
@@ -106,11 +107,13 @@ class CreateOrder:
         order_type: str,
         price: int,
         amount: int,
+        decimal_price: float,
         base_token_address: str,
         base_token_chain_id: int,
         price_token_address: str,
         price_token_chain_id: int,
     ):
+        self.version = version
         self.pair_id = pair_id
         self.company_id = company_id
         self.address = login_address
@@ -119,6 +122,7 @@ class CreateOrder:
         self.order_type = order_type
         self.price = price
         self.amount = amount
+        self.decimal_price = decimal_price
         self.expired_time = (
             int(time.time()) + 30 * 24 * 60 * 60
         ) # cur time + 30 days in seconds
@@ -131,6 +135,7 @@ class CreateOrder:
 
     def __setup_data(self):
         return {
+            "version": self.version,
             "pairId": self.pair_id,
             "companyId": self.company_id,
             "address": self.address,
@@ -139,6 +144,7 @@ class CreateOrder:
             "orderType": self.order_type,
             "price": self.price,
             "amount": self.amount,
+            "decimalPrice": self.decimal_price,
             "expiredTime": self.expired_time,
             "baseTokenAddress": self.base_token_address,
             "baseTokenChainId": self.base_token_chain_id,

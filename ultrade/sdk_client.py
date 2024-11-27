@@ -257,7 +257,11 @@ class Client:
         if not pair:
             raise Exception(f"Pair with id {pair_id} not found")
 
+        decimal_price = price / 10 ** 18
+        order_msg_version = 1
+
         order = CreateOrder(
+            order_msg_version,
             pair_id=pair_id,
             company_id=self._company_id,
             login_address=login_address,
@@ -266,6 +270,7 @@ class Client:
             order_type=order_type,
             amount=amount,
             price=price,
+            decimal_price=decimal_price,
             base_token_address=pair["base_id"],
             base_token_chain_id=pair["base_chain_id"],
             price_token_address=pair["price_id"],
