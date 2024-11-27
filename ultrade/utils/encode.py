@@ -46,10 +46,9 @@ def determine_address_type(
         return AddressType.EVM
 
 
-def generate_random_bytes_base32() -> str:
+def generate_random_bytes() -> bytes:
     random_bytes = urandom(8)
-    random_base32 = base64.b32encode(random_bytes).decode("utf-8")
-    return random_base32
+    return random_bytes
 
 
 def decode32_bytes(value: str) -> bytes:
@@ -82,7 +81,8 @@ def get_order_bytes(
     data: dict,
 ) -> bytes:
     order = bytearray()
-    order.extend(data["expiredTime"].to_bytes(8, "big"))
+    order.extend(data["version"].to_bytes(2, "big"))
+    order.extend(data["expiredTime"].to_bytes(4, "big"))
     order.extend(data["orderSide"].encode())
     order.extend(eth_abi.encode(["uint256"], [data["price"]]))
     order.extend(eth_abi.encode(["uint256"], [data["amount"]]))
@@ -92,7 +92,7 @@ def get_order_bytes(
             data["address"], determine_address_type(data["chainId"], False)
         )
     )
-    order.extend(data["chainId"].to_bytes(8, "big"))
+    order.extend(data["chainId"].to_bytes(2, "big"))
     order.extend(
         normalize_address(
             data["baseTokenAddress"],
@@ -101,7 +101,7 @@ def get_order_bytes(
             ),
         )
     )
-    order.extend(data["baseTokenChainId"].to_bytes(8, "big"))
+    order.extend(data["baseTokenChainId"].to_bytes(4, "big"))
     order.extend(
         normalize_address(
             data["priceTokenAddress"],
@@ -110,17 +110,16 @@ def get_order_bytes(
             ),
         )
     )
-    order.extend(data["priceTokenChainId"].to_bytes(8, "big"))
-    order.extend(data["companyId"].to_bytes(8, "big"))
-
-    random_base32 = generate_random_bytes_base32()
-    random_bytes = decode32_bytes(random_base32)
-
-    order.extend(encode_32_bytes(random_bytes))
+    order.extend(data["priceTokenChainId"].to_bytes(4, "big"))
+    order.extend(data["companyId"].to_bytes(2, "big"))
+    random_bytes = generate_random_bytes()
+    order.extend(random_bytes)
+    order.extend(data["humanPrice"].to_bytes(8, "big"))
+    order.extend(b'\x00' * 50)
 
     base64_order = base64.b64encode(bytes(order))
-
     message_bytes = bytearray(base64_order)
+
     return bytes(message_bytes)
 
 
