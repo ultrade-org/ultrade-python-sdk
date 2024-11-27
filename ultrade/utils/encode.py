@@ -6,6 +6,8 @@ from typing import Union
 from os import urandom
 from enum import Enum
 import base64
+import random
+import struct
 
 from ultrade.types import WormholeChains
 from ultrade.constants import CCTP_UNIFIED_ASSETS
@@ -46,9 +48,11 @@ def determine_address_type(
         return AddressType.EVM
 
 
-def generate_random_bytes() -> bytes:
-    random_bytes = urandom(8)
-    return random_bytes
+def generate_random_8bytes() -> bytes:
+    max_safe_integer = 9007199254740991
+    random_number = random.randint(0, max_safe_integer)
+    byte_data = struct.pack('>Q', random_number)
+    return byte_data
 
 
 def decode32_bytes(value: str) -> bytes:
@@ -112,9 +116,9 @@ def get_order_bytes(
     )
     order.extend(data["priceTokenChainId"].to_bytes(4, "big"))
     order.extend(data["companyId"].to_bytes(2, "big"))
-    random_bytes = generate_random_bytes()
-    order.extend(random_bytes)
-    order.extend(data["humanPrice"].to_bytes(8, "big"))
+    random_8bytes = generate_random_8bytes()
+    order.extend(random_8bytes)
+    order.extend(struct.pack('>d', data["decimalPrice"]))
     order.extend(b'\x00' * 50)
 
     base64_order = base64.b64encode(bytes(order))

@@ -107,7 +107,7 @@ class CreateOrder:
         order_type: str,
         price: int,
         amount: int,
-        human_price: int,
+        decimal_price: float,
         base_token_address: str,
         base_token_chain_id: int,
         price_token_address: str,
@@ -122,7 +122,7 @@ class CreateOrder:
         self.order_type = order_type
         self.price = price
         self.amount = amount
-        self.human_price = human_price
+        self.decimal_price = decimal_price
         self.expired_time = (
             int(time.time()) + 30 * 24 * 60 * 60
         ) # cur time + 30 days in seconds
@@ -144,7 +144,7 @@ class CreateOrder:
             "orderType": self.order_type,
             "price": self.price,
             "amount": self.amount,
-            "humanPrice": self.human_price,
+            "decimalPrice": self.decimal_price,
             "expiredTime": self.expired_time,
             "baseTokenAddress": self.base_token_address,
             "baseTokenChainId": self.base_token_chain_id,
