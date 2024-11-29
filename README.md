@@ -770,7 +770,7 @@ The `create_order` method is used to create a new order on the Ultrade platform.
 | `order_side` | `str` | The side of the order, 'B' (buy) or 'S' (sell).                          |
 | `order_type` | `str` | The type of the order: 'M' (market), 'L' (limit), 'I' (IOC), 'P' (post). |
 | `amount`     | `int` | The amount of tokens to buy or sell in atomic units.                     |
-| `price`      | `int` | The price per token for the order in atomic units.                       |
+| `price`      | `int` | The price is in factored units, equals decimalPrice * 10 ^ 18.                       |
 
 ```python
 pair = await client.get_pair_info("algo_moon")
@@ -779,8 +779,8 @@ try:
         pair_id=pair["id"],
         order_side="B",
         order_type="L",
-        amount=350000000,  # in atomic units
-        price=1000         # in atomic units
+        amount=3000000,  # in atomic units
+        price=1500000000000000000  # in factored units
     )
 except Exception as e:
     print(f"Error creating order: {str(e)}")

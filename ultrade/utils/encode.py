@@ -9,6 +9,10 @@ import base64
 import random
 import struct
 
+from spl.token.constants import TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID
+from spl.token.instructions import get_associated_token_address
+from solders.pubkey import Pubkey
+
 from ultrade.types import WormholeChains
 from ultrade.constants import CCTP_UNIFIED_ASSETS
 from .utils import toJson
@@ -20,6 +24,7 @@ class AddressType(Enum):
     AlgorandAsset = 2
     SolanaMint = 3
     Cctp = 4
+    SolanaCctp = 5
 
 
 def normalize_address(address: Union[str, int], addr_type: AddressType) -> bytes:
@@ -39,6 +44,8 @@ def determine_address_type(
     chain_id: int, is_token: bool, token: str | int = None
 ) -> AddressType:
     if chain_id == WormholeChains.SOLANA.value:
+        if token in CCTP_UNIFIED_ASSETS:
+            return AddressType.SolanaCctp
         return AddressType.SolanaMint
     elif chain_id == WormholeChains.ALGORAND.value:
         return AddressType.AlgorandAsset if is_token else AddressType.Algorand
@@ -134,7 +141,6 @@ def make_withdraw_msg(
     recipient_chain_id: int,
     token_amount: int,
     token_address: str,
-    token_chain_id: int,
     is_native_token: bool,
     fee: int,
     data: dict = None,
@@ -142,9 +148,23 @@ def make_withdraw_msg(
     data_bytes = bytearray()
     token_amount_bytes = token_amount.to_bytes(32, "big")
 
-    sender_bytes = normalize_address(
-        recipient, determine_address_type(recipient_chain_id, False)
-    )
+    if determine_address_type(recipient_chain_id, False, token_address) == AddressTypeюSolanaCctp:
+        SOLANA_USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" if True == "MainNet" else "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"
+        USDC_MINT = Pubkey.from_string(SOLANA_USDC)
+
+        recipient_pubkey = Pubkey.from_string(recipient)
+        associated_token_address = get_associated_token_address(
+            owner=recipient_pubkey,
+            mint=USDC_MINT
+        )
+
+        recipient_address_bytes = normalize_address(
+            str(associated_token_address), determine_address_type(recipient_chain_id, False)
+        )
+    else:
+        recipient_address_bytes = normalize_address(
+            recipient, determine_address_type(recipient_chain_id, False)
+        )
 
     recipient_chain_id_bytes = recipient_chain_id.to_bytes(8, "big")
 
@@ -152,13 +172,13 @@ def make_withdraw_msg(
     is_native_token_bytes = is_native_token.to_bytes(1, "big")
 
     box_name_bytes = get_account_balance_box_name(
-        login_address, login_chain_id, token_address, token_chain_id
+        login_address, login_chain_id, token_address, recipient_chain_id
     )
 
     json_data = toJson(data)
 
     data_bytes.extend(box_name_bytes)
-    data_bytes.extend(sender_bytes)
+    data_bytes.extend(recipient_address_bytes)
     data_bytes.extend(recipient_chain_id_bytes)
     data_bytes.extend(token_amount_bytes)
     data_bytes.extend(is_native_token_bytes)
