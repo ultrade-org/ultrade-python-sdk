@@ -322,7 +322,7 @@ class PairInfo(TypedDict):
 
 
 class Price(TypedDict, total=False):
-  pairId: number
+  pairId: int
   pair: Optional[str]
   askPrice: Optional[str]
   askQty: Optional[str]
