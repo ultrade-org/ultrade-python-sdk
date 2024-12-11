@@ -586,7 +586,7 @@ class Client:
         self.__check_is_logged_in()
 
         def socket_callback(event, args):
-            if event != "mode":
+            if event != "maintenance":
                 return callback(event, args)
 
             if args != self.maintenance_mode_status:
