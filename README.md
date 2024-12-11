@@ -843,17 +843,17 @@ The `subscribe` method subscribes the client to various WebSocket streams based 
 
 <strong>Stream Identifiers in `socket_options`:</strong>
 
-| Stream/ID                 | Events              | Description                                                                                |
-| ------------------------- | ------------------- | ------------------------------------------------------------------------------------------ |
-| `QUOTE` - 1               | `quote`             | Real-time quotes for a trading pair. (ask/bid)                                             |
-| `LAST_PRICE` - 2          | `lastPrice`        | The latest price of the trading pair.                                                      |
-| `DEPTH` - 3               | `depth`             | The depth of the order book.                                                               |
-| `ORDERS` - 5              | `order`             | Real-time updates of orders.                                                               |
-| `TRADES` - 6              | `lastTrade`, `userTrade`| `lastTrade`: to update last trades and chart data. <br>`userTrade`: to update order by new trade. |
-| `MAINTENANCE` - 7         | `mode`              | Notifications of maintenance events                                                        |
-| `WALLET_TRANSACTIONS` - 8 | `walletTransaction` | Updates on wallet transactions (deposits, withdraws)                                       |
-| `ALL_STAT` - 9            | `allStat`           | Statistics about all trading pairs.                                                        |
-| `CODEX_BALANCES` - 10     | `codexBalances`     | Balance information of your login address.                                                  |
+| Stream/ID                 | Events                  | Description                                                                                |
+| ------------------------- | ------------------------| ------------------------------------------------------------------------------------------ |
+| `QUOTE` - 1               | `quote`                 | Real-time quotes for a trading pair. (ask/bid)                                             |
+| `LAST_PRICE` - 2          | `lastPrice`             | The latest price of the trading pair.                                                      |
+| `DEPTH` - 3               | `depth`                 | The depth of the order book.                                                               |
+| `ORDERS` - 5              | `order`                 | Real-time updates of orders.                                                               |
+| `TRADES` - 6              | `lastTrade`, `userTrade`| `lastTrade`: to update last trades and charts. <br>`userTrade`: to update order by trade.  |
+| `MAINTENANCE` - 7         | `maintenance`           | Notifications of maintenance events                                                        |
+| `WALLET_TRANSACTIONS` - 8 | `walletTransaction`     | Updates on wallet transactions (deposits, withdraws)                                       |
+| `ALL_STAT` - 9            | `allStat`               | Statistics about all trading pairs.                                                        |
+| `CODEX_BALANCES` - 10     | `codexBalances`         | Balance information of your login address.                                                 |
 
 <strong>`options` Parameter:</strong>
 
