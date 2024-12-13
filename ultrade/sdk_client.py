@@ -481,7 +481,6 @@ class Client:
             "loginChainId": signer.wormhole_chain_id,
             "tokenAmount": amount,
             "tokenIndex": token_address,
-            "tokenChainId": token_chain_id,
             "recipient": recipient,
             "recipientChainId": recipient_chain_id,
             "isNative": is_native_token,
@@ -495,7 +494,6 @@ class Client:
             recipient_chain_id,
             amount,
             token_address,
-            token_chain_id,
             is_native_token,
             fee,
             data,
@@ -509,10 +507,10 @@ class Client:
             async with session.post(
                 url,
                 json={
-                    "data": data,
                     "encoding": "hex",
                     "message": message,
                     "signature": signature_hex,
+                    "destinationAddress": recipient,
                 },
             ) as resp:
                 response = await resp.json()
