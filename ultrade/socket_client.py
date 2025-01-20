@@ -89,19 +89,20 @@ class SocketController:
         self.streams_pool = []
 
     def event_from_stream(self, stream):
+        matching_events = []
         for event in self.callbacks_pool:
             if self.callbacks_pool[event][0][1] == stream:
-                return event
+                matching_events.append(event)
+        return matching_events
 
     def handle_subscribe(self, sub_options, callback):
         handler_id = str(time.time_ns())
         for opt in sub_options["streams"]:
             if opt not in self.streams_pool:
                 self.streams_pool.append(opt)
-
-            self.callbacks_pool[self.event_from_stream(opt)].append(
-                (callback, handler_id)
-            )
+            events = self.event_from_stream(opt)
+            for event in events:
+                self.callbacks_pool[event].append((callback, handler_id))
 
         self.options_pool[handler_id] = sub_options
 
@@ -114,20 +115,25 @@ class SocketController:
         sub_options = self.options_pool[handler_id]
         streams_to_delete = []
         for opt in sub_options["streams"]:
-            event = self.event_from_stream(opt)
-            self.callbacks_pool[event] = [
-                elem for elem in self.callbacks_pool[event] if elem[1] != handler_id
-            ]
+            events = self.event_from_stream(opt)
+            for event in events:
+                self.callbacks_pool[event] = [
+                    elem for elem in self.callbacks_pool[event] if elem[1] != handler_id
+                ]
 
-            if len(self.callbacks_pool[event]) < 2:
-                self.streams_pool.remove(opt)
-                streams_to_delete.append(opt)
+                if len(self.callbacks_pool[event]) < 2:
+                    self.streams_pool.remove(opt)
+                    streams_to_delete.append(opt)
 
         del self.options_pool[handler_id], sub_options
 
         return streams_to_delete
 
     async def callback_handler(self, event, args, id=None):
+        if event not in self.callbacks_pool:
+            print(f"Warning: No callbacks found for event {event}")
+            return
+
         coros = [
             self.make_async(callback_tuple[0], event, args)
             for callback_tuple in self.callbacks_pool[event]
