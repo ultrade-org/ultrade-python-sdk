@@ -132,6 +132,7 @@ class SocketController:
     async def callback_handler(self, event, args, id=None):
         if event not in self.callbacks_pool:
             print(f"Warning: No callbacks found for event {event}")
+            print(f"Event: {event}. Args: {args}")
             return
 
         coros = [

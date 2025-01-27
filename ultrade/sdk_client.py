@@ -563,7 +563,7 @@ class Client:
 
         return await signer._deposit(amount, token_address, config)
 
-    async def subscribe(self, options, callback):
+    async def subscribe(self, subscribe_options, callback):
         """
         Subscribe the client to websocket streams for the specified options.
 
@@ -589,8 +589,8 @@ class Client:
             if args != self.maintenance_mode_status:
                 self.maintenance_mode_status = args
 
-        if options.get("address") is None:
-            options["address"] = (
+        if subscribe_options.get("address") is None:
+            subscribe_options["address"] = (
                 self._login_user.address
                 if self._login_user
                 else self._trading_key_data["address"]
@@ -599,7 +599,7 @@ class Client:
         auth_method = self._check_auth_method()
 
         if auth_method == AuthMethod.LOGIN:
-            options["token"] = self._token
+            subscribe_options["options"]["token"] = self._token
         elif auth_method == AuthMethod.TRADING_KEY:
             signer = self._trading_key_signer
             message = "Grant access by trading key"
@@ -608,13 +608,13 @@ class Client:
             message_hex = message_bytes.hex()
             signature = signer.sign_data(message_bytes)
 
-            options["tradingKey"] = self._trading_key_data["trading_key"]
-            options["message"] = message_hex
-            options["signature"] = signature
-        if OPTIONS.MAINTENANCE not in options["streams"]:
-            options["streams"].append(OPTIONS.MAINTENANCE)
+            subscribe_options["options"]["message"] = message_hex
+            subscribe_options["options"]["signature"] = signature
+            subscribe_options["options"]["tradingKey"] = self._trading_key_data["trading_key"]
+        if OPTIONS.MAINTENANCE not in subscribe_options["streams"]:
+            subscribe_options["streams"].append(OPTIONS.MAINTENANCE)
 
-        return await self._websocket_client.subscribe(options, socket_callback)
+        return await self._websocket_client.subscribe(subscribe_options, socket_callback)
 
     async def unsubscribe(self, connection_id):
         """
