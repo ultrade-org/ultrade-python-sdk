@@ -148,7 +148,7 @@ def make_withdraw_msg(
     data_bytes = bytearray()
     token_amount_bytes = token_amount.to_bytes(32, "big")
 
-    if determine_address_type(recipient_chain_id, False, token_address) == AddressTypeюSolanaCctp:
+    if determine_address_type(recipient_chain_id, False, token_address) == AddressType.SolanaCctp:
         SOLANA_USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" if True == "MainNet" else "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"
         USDC_MINT = Pubkey.from_string(SOLANA_USDC)
 

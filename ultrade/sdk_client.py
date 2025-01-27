@@ -1,6 +1,5 @@
 import aiohttp
 from algosdk.v2client.algod import AlgodClient
-
 from .socket_client import SocketClient
 from .utils.algod_service import AlgodService
 from .utils.utils import get_wh_id_by_address, toJson
@@ -597,6 +596,21 @@ class Client:
                 else self._trading_key_data["address"]
             )
 
+        auth_method = self._check_auth_method()
+
+        if auth_method == AuthMethod.LOGIN:
+            options["token"] = self._token
+        elif auth_method == AuthMethod.TRADING_KEY:
+            signer = self._trading_key_signer
+            message = "Grant access by trading key"
+
+            message_bytes = message.encode("utf-8")
+            message_hex = message_bytes.hex()
+            signature = signer.sign_data(message_bytes)
+
+            options["tradingKey"] = self._trading_key_data["trading_key"]
+            options["message"] = message_hex
+            options["signature"] = signature
         if OPTIONS.MAINTENANCE not in options["streams"]:
             options["streams"].append(OPTIONS.MAINTENANCE)
 
@@ -852,6 +866,7 @@ class Client:
         page: Optional[int] = None,
         limit: Optional[int] = None,
     ) -> List[WalletTransactions]:
+        # todo update, add 'status' query param
         """
         Returns list of logged user orders.
 
