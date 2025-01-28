@@ -47,7 +47,6 @@ class SocketClient:
 
             return sub_id
 
-        sub_id = self.socket_controller.handle_subscribe(options, callback)
         await self.socket.emit("subscribe", self.get_sub_options())
         return sub_id
 
