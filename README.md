@@ -849,7 +849,7 @@ The `subscribe` method subscribes the client to various WebSocket streams based 
 | `LAST_PRICE` - 2          | `lastPrice`             | The latest price of the trading pair.                                                      |
 | `DEPTH` - 3               | `depth`                 | The depth of the order book.                                                               |
 | `ORDERS` - 5              | `order`                 | Real-time updates of orders.                                                               |
-| `TRADES` - 6              | `lastTrade`, `userTrade`| `lastTrade`: to update last trades and charts. <br>`userTrade`: to update order by trade.  |
+| `TRADES` - 6              | `lastTrade`, `userTrade`| `lastTrade`: Info about last executed trade. <br>`userTrade`: info about last user trade   |
 | `MAINTENANCE` - 7         | `maintenance`           | Notifications of maintenance events                                                        |
 | `WALLET_TRANSACTIONS` - 8 | `walletTransaction`     | Updates on wallet transactions (deposits, withdraws)                                       |
 | `ALL_STAT` - 9            | `allStat`               | Statistics about all trading pairs.                                                        |
