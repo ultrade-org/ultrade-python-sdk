@@ -47,7 +47,6 @@ class SocketClient:
 
             return sub_id
 
-        sub_id = self.socket_controller.handle_subscribe(options, callback)
         await self.socket.emit("subscribe", self.get_sub_options())
         return sub_id
 
@@ -132,6 +131,7 @@ class SocketController:
     async def callback_handler(self, event, args, id=None):
         if event not in self.callbacks_pool:
             print(f"Warning: No callbacks found for event {event}")
+            print(f"Event: {event}. Args: {args}")
             return
 
         coros = [
