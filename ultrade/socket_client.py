@@ -47,7 +47,8 @@ class SocketClient:
 
             return sub_id
 
-        await self.socket.emit("subscribe", self.get_sub_options())
+        sub_id = self.socket_controller.handle_subscribe(options, callback)
+
         return sub_id
 
     async def unsubscribe(self, handler_id: str):
