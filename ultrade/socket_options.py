@@ -1,3 +1,4 @@
+ERROR = 0
 QUOTE = 1
 LAST_PRICE = 2
 DEPTH = 3
