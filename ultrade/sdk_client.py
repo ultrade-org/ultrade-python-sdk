@@ -613,6 +613,8 @@ class Client:
             subscribe_options["options"]["tradingKey"] = self._trading_key_data["trading_key"]
         if OPTIONS.MAINTENANCE not in subscribe_options["streams"]:
             subscribe_options["streams"].append(OPTIONS.MAINTENANCE)
+        if OPTIONS.ERROR not in subscribe_options["streams"]:
+            subscribe_options["streams"].append(OPTIONS.ERROR)
 
         return await self._websocket_client.subscribe(subscribe_options, socket_callback)
 
