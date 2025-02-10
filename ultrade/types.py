@@ -112,7 +112,7 @@ class CreateOrder:
         base_token_chain_id: int,
         price_token_address: str,
         price_token_chain_id: int,
-        expiration_date_in_seconds
+        expiration_date_in_seconds: int,
     ):
         self.version = version
         self.pair_id = pair_id
