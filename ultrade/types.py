@@ -112,6 +112,7 @@ class CreateOrder:
         base_token_chain_id: int,
         price_token_address: str,
         price_token_chain_id: int,
+        expiration_date_in_seconds
     ):
         self.version = version
         self.pair_id = pair_id
@@ -123,9 +124,7 @@ class CreateOrder:
         self.price = price
         self.amount = amount
         self.decimal_price = decimal_price
-        self.expired_time = (
-            int(time.time()) + 30 * 24 * 60 * 60
-        ) # cur time + 30 days in seconds
+        self.expired_time = expiration_date_in_seconds
         self.base_token_address = base_token_address
         self.base_token_chain_id = base_token_chain_id
         self.price_token_address = price_token_address

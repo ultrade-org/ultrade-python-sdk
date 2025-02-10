@@ -764,13 +764,14 @@ except Exception as e:
 
 The `create_order` method is used to create a new order on the Ultrade platform. This method allows you to specify various parameters for the order, including the type, side, amount, and price.
 
-| Parameter    | Type  | Description                                                              |
-| ------------ | ----- | ------------------------------------------------------------------------ |
-| `pair_id`    | `int` | The ID of the trading pair.                                              |
-| `order_side` | `str` | The side of the order, 'B' (buy) or 'S' (sell).                          |
-| `order_type` | `str` | The type of the order: 'M' (market), 'L' (limit), 'I' (IOC), 'P' (post). |
-| `amount`     | `int` | The amount of tokens to buy or sell in atomic units.                     |
-| `price`      | `int` | The price is in factored units, equals decimalPrice * 10 ^ 18.                       |
+| Parameter                       | Type  | Description                                                              |
+| --------------------------------| ----- | ------------------------------------------------------------------------ |
+| `pair_id`                       | `int` | The ID of the trading pair.                                              |
+| `order_side`                    | `str` | The side of the order, 'B' (buy) or 'S' (sell).                          |
+| `order_type`                    | `str` | The type of the order: 'M' (market), 'L' (limit), 'I' (IOC), 'P' (post). |
+| `amount`                        | `int` | The amount of tokens to buy or sell in atomic units.                     |
+| `price`                         | `int` | The price is in factored units, equals decimalPrice * 10 ^ 18.           |
+| `seconds_until_expiration`      | `int` | Seconds until the order expires, default=3600.                           |
 
 ```python
 pair = await client.get_pair_info("algo_moon")

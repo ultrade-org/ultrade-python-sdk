@@ -208,6 +208,7 @@ class Client:
         order_type: str,
         amount: int,
         price: int,
+        seconds_until_expiration: int = 3600,
     ):
         """
         Creates an order using the provided order data.
@@ -218,7 +219,7 @@ class Client:
             order_type (str): The type of the order. Must be 'M' (market), 'L' (limit), 'I' (ioc), or 'P' (post only).
             amount (int): The amount of the order.
             price (int): The price of the order.
-            wlp_id (int, optional): The ID of the WLP. Defaults to 0.
+            seconds_until_expiration (int): Seconds until the order expires, default=3600
 
         Returns:
             dict: The response from the server.
@@ -259,6 +260,7 @@ class Client:
         decimal_price = price / 10 ** 18
         order_msg_version = 1
 
+        expiration_date_in_seconds = int(time.time()) + seconds_until_expiration
         order = CreateOrder(
             order_msg_version,
             pair_id=pair_id,
@@ -274,6 +276,7 @@ class Client:
             base_token_chain_id=pair["base_chain_id"],
             price_token_address=pair["price_id"],
             price_token_chain_id=pair["price_chain_id"],
+            expiration_date_in_seconds=expiration_date_in_seconds
         )
         data = order.data
         encoding = "hex"
