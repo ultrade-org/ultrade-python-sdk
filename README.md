@@ -66,8 +66,9 @@ To create a client, you must specify the `network`, which can be either `mainnet
 from ultrade import Client
 
 company_id = await Client.get_company_by_domain("app.ultrade.org")
+api_url = "api.ultrade.org"
 
-client = Client(network="testnet", company_id)
+client = Client(network="testnet", company_id=company_id, api_url=api_url)
 ```
 
 ### Creating a signer
