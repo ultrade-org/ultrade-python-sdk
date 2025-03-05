@@ -208,7 +208,7 @@ class Client:
         order_type: str,
         amount: int,
         price: int,
-        seconds_until_expiration: int = 3600,
+        seconds_until_expiration: int = 3660,
     ):
         """
         Creates an order using the provided order data.
