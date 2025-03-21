@@ -278,18 +278,18 @@ print(price_info)
 <details>
 <summary><strong>Price</strong></summary>
 
-| Field       | Type          | Description                                         |
-| ----------- | ------------- | --------------------------------------------------- |
-| `pairId`    | `int or None` | Market id.                                          |
-| `pair`      | `str or None` | Market symbol.                                      |
-| `askPrice`  | `str or None` | Ask price in atomic units.                          |
-| `askQty`    | `str or None` | Ask depth in atomic units.                          |
-| `bidPrice`  | `str or None` | Bid price in atomic units.                          |
-| `bidQty`    | `str or None` | Bid depth in atomic units.                          |
-| `lastPrice` | `str or None` | Last price in atomic units.                         |
-| `ts`        | `int or None` | UTC timestamp in microseconds.                      |
-| `u`         | `int or None` | The last sequence number of the order book update.  |
-| `U`         | `int or None` | The prev sequence number of the order book update.  |
+| Field       | Type          | Description                                        |
+| ----------- | ------------- | -------------------------------------------------- |
+| `pairId`    | `int or None` | Market id.                                         |
+| `pair`      | `str or None` | Market symbol.                                     |
+| `askPrice`  | `str or None` | Ask price in atomic units.                         |
+| `askQty`    | `str or None` | Ask depth in atomic units.                         |
+| `bidPrice`  | `str or None` | Bid price in atomic units.                         |
+| `bidQty`    | `str or None` | Bid depth in atomic units.                         |
+| `lastPrice` | `str or None` | Last price in atomic units.                        |
+| `ts`        | `int or None` | UTC timestamp in microseconds.                     |
+| `u`         | `int or None` | The last sequence number of the order book update. |
+| `U`         | `int or None` | The prev sequence number of the order book update. |
 
 </details>
 
@@ -371,15 +371,15 @@ List of `LastTrade` from `ultrade.types`
 <details>
 <summary>LastTrade</summary>
 
-| Field          | Type  | Description                                                                                                  |
-| -------------- | ----- | ------------------------------------------------------------------------------------------------------------ |
-| `price`        | `str` | The price at which the trade was executed (in atomic units).                                                 |
-| `amount`       | `str` | The amount of the asset traded (in atomic units).                                                            |
-| `createdAt`    | `str` | The timestamp indicating when the trade was executed, in ISO 8601 format (e.g., '2023-12-19T16:43:40.256Z'). |
-| `buy_user_id`  | `str` | The user ID or address of the buyer in the trade.                                                            |
-| `sell_user_id` | `str` | The user ID or address of the seller in the trade.                                                           |
-| `trade_side`   | `int` | An integer indicating the trade side. A value of `0` represents a buy, and `1` represents a sell.            |
-| `isBuyerMaker` | `bool`| Boolean indicating if the buyer is the maker of the trade.                                                   |
+| Field          | Type   | Description                                                                                                  |
+| -------------- | ------ | ------------------------------------------------------------------------------------------------------------ |
+| `price`        | `str`  | The price at which the trade was executed (in atomic units).                                                 |
+| `amount`       | `str`  | The amount of the asset traded (in atomic units).                                                            |
+| `createdAt`    | `str`  | The timestamp indicating when the trade was executed, in ISO 8601 format (e.g., '2023-12-19T16:43:40.256Z'). |
+| `buy_user_id`  | `str`  | The user ID or address of the buyer in the trade.                                                            |
+| `sell_user_id` | `str`  | The user ID or address of the seller in the trade.                                                           |
+| `trade_side`   | `int`  | An integer indicating the trade side. A value of `0` represents a buy, and `1` represents a sell.            |
+| `isBuyerMaker` | `bool` | Boolean indicating if the buyer is the maker of the trade.                                                   |
 
 </details>
 
@@ -523,7 +523,9 @@ Below are methods that require the [login function](#logging-in) to be executed
 | [get_orders](#get_orders) | Retrieves a list of logged user orders.
 | [get_wallet_transactions](#get_wallet_transactions) | Returns a list of wallet transactions and it statuses (deposits/withdrawals) for the logged-in user. |
 | [create_order](#create_order) | Creates an order on the Ultrade platform. |
+| [create_bulk_orders](#create_bulk_orders) | Creates multiple orders in a single batch. |
 | [cancel_order](#cancel_order) | Cancels an existing order on the Ultrade platform. |
+| [cancel_bulk_orders](#cancel_bulk_orders) | Cancels multiple orders on the Ultrade platform. |
 | [deposit](#deposit) | Deposit a specified amont of tokens to the Token Manager Contract. |
 | [withdraw](#withdraw) | Withdraws a specified amount of tokens to a designated recipient. |
 | [subscribe](#subscribe) | Subscribes the client to various websocket streams. |
@@ -765,14 +767,14 @@ except Exception as e:
 
 The `create_order` method is used to create a new order on the Ultrade platform. This method allows you to specify various parameters for the order, including the type, side, amount, and price.
 
-| Parameter                       | Type  | Description                                                              |
-| --------------------------------| ----- | ------------------------------------------------------------------------ |
-| `pair_id`                       | `int` | The ID of the trading pair.                                              |
-| `order_side`                    | `str` | The side of the order, 'B' (buy) or 'S' (sell).                          |
-| `order_type`                    | `str` | The type of the order: 'M' (market), 'L' (limit), 'I' (IOC), 'P' (post). |
-| `amount`                        | `int` | The amount of tokens to buy or sell in atomic units.                     |
-| `price`                         | `int` | The price is in factored units, equals decimalPrice * 10 ^ 18.           |
-| `seconds_until_expiration`      | `int` | Seconds until the order expires, default=3600.                           |
+| Parameter                  | Type  | Description                                                              |
+| -------------------------- | ----- | ------------------------------------------------------------------------ |
+| `pair_id`                  | `int` | The ID of the trading pair.                                              |
+| `order_side`               | `str` | The side of the order, 'B' (buy) or 'S' (sell).                          |
+| `order_type`               | `str` | The type of the order: 'M' (market), 'L' (limit), 'I' (IOC), 'P' (post). |
+| `amount`                   | `int` | The amount of tokens to buy or sell in atomic units.                     |
+| `price`                    | `int` | The price is in factored units, equals decimalPrice \* 10 ^ 18.          |
+| `seconds_until_expiration` | `int` | Seconds until the order expires, default=3600.                           |
 
 ```python
 pair = await client.get_pair_info("algo_moon")
@@ -794,6 +796,59 @@ Raises:
 `ValueError: If the price does not meet the minimum price increment.`
 `ValueError: If there are insufficient funds in the price currency balance to execute the buy order.`
 `ValueError: If there are insufficient funds in the base currency balance to execute the sell order.`
+
+---
+
+### create_bulk_orders
+
+The `create_bulk_orders` method is used to create multiple orders in a single batch operation on the Ultrade platform. It takes a list of order objects and sends them one by one using the same logic as `create_order`.
+
+Each order in the list must include the same required parameters as `create_order`.
+
+| Parameter                     | Type         | Description                                                               |
+| ----------------------------- | ------------ | ------------------------------------------------------------------------- |
+| `orders`                      | `list[dict]` | A list of order dictionaries. Each dictionary must contain the following: |
+| ├─ `pair_id`                  | `int`        | The ID of the trading pair.                                               |
+| ├─ `order_side`               | `str`        | The side of the order: 'B' (buy) or 'S' (sell).                           |
+| ├─ `order_type`               | `str`        | The type of the order: 'M', 'L', 'I', or 'P'.                             |
+| ├─ `amount`                   | `int`        | The amount of tokens to buy or sell in atomic units.                      |
+| ├─ `price`                    | `int`        | The price in factored units (decimalPrice \* 10^18).                      |
+| └─ `seconds_until_expiration` | `int`        | _(Optional)_ Time in seconds until the order expires. Default is 3660.    |
+
+#### Example
+
+```python
+pair = await client.get_pair_info("algo_moon")
+
+orders = [
+    {
+        "pair_id": pair["id"],
+        "order_side": "B",
+        "order_type": "L",
+        "amount": 1000000,
+        "price": 1500000000000000000
+    },
+    {
+        "pair_id": pair["id"],
+        "order_side": "S",
+        "order_type": "L",
+        "amount": 2000000,
+        "price": 1600000000000000000
+    }
+]
+
+try:
+    await client.create_bulk_orders(orders)
+except Exception as e:
+    print(f"Error creating bulk orders: {str(e)}")
+```
+
+This function does not return a value.
+
+**Raises:**
+
+- `ValueError`: If any order has invalid parameters.
+- `Exception`: If there is an error in the response for any order.
 
 ---
 
@@ -821,7 +876,37 @@ try:
     print(f"Order with ID {order_id} has been successfully canceled.")
 except Exception as e:
     print(f"Error canceling order with ID {order_id}: {str(e)}")
+```
 
+---
+
+#### cancel_bulk_orders
+
+The `cancel_bulk_orders` method is used to cancel multiple orders at once on the Ultrade platform. This method requires the user to be logged in and each order must have a valid ID for cancellation.
+
+| Parameter   | Type        | Description                          |
+| ----------- | ----------- | ------------------------------------ |
+| `order_ids` | `list[int]` | A list of order IDs to be cancelled. |
+| `pair_id`   | `list[int]` | A trading pair ID.                   |
+
+To cancel multiple orders, provide pair ID and a list of order IDs from this pair. The method checks if the user is logged in before proceeding. It is asynchronous and must be awaited.
+
+Returns: void if orders are successfully canceled.
+
+Raises:
+
+- `Exception`: If there is an error in the response from the server.
+- `Exception`: If any of the provided orders are not found.
+
+```python
+orders = await client.get_orders_with_trades()
+order_ids = [order["id"] for order in orders[:5]]  # cancel the first 5 orders
+
+try:
+    await client.cancel_bulk_orders(order_ids)
+    print(f"Successfully canceled orders with IDs: {', '.join(map(str, order_ids))}")
+except Exception as e:
+    print(f"Error canceling orders with IDs {', '.join(map(str, order_ids))}: {str(e)}")
 ```
 
 ---
@@ -845,17 +930,17 @@ The `subscribe` method subscribes the client to various WebSocket streams based 
 
 <strong>Stream Identifiers in `socket_options`:</strong>
 
-| Stream/ID                 | Events                  | Description                                                                                |
-| ------------------------- | ------------------------| ------------------------------------------------------------------------------------------ |
-| `QUOTE` - 1               | `quote`                 | Real-time quotes for a trading pair. (ask/bid)                                             |
-| `LAST_PRICE` - 2          | `lastPrice`             | The latest price of the trading pair.                                                      |
-| `DEPTH` - 3               | `depth`                 | The depth of the order book.                                                               |
-| `ORDERS` - 5              | `order`                 | Real-time updates of orders.                                                               |
-| `TRADES` - 6              | `lastTrade`, `userTrade`| `lastTrade`: Info about last executed trade. <br>`userTrade`: info about last user trade   |
-| `MAINTENANCE` - 7         | `maintenance`           | Notifications of maintenance events                                                        |
-| `WALLET_TRANSACTIONS` - 8 | `walletTransaction`     | Updates on wallet transactions (deposits, withdraws)                                       |
-| `ALL_STAT` - 9            | `allStat`               | Statistics about all trading pairs.                                                        |
-| `CODEX_BALANCES` - 10     | `codexBalances`         | Balance information of your login address.                                                 |
+| Stream/ID                 | Events                   | Description                                                                              |
+| ------------------------- | ------------------------ | ---------------------------------------------------------------------------------------- |
+| `QUOTE` - 1               | `quote`                  | Real-time quotes for a trading pair. (ask/bid)                                           |
+| `LAST_PRICE` - 2          | `lastPrice`              | The latest price of the trading pair.                                                    |
+| `DEPTH` - 3               | `depth`                  | The depth of the order book.                                                             |
+| `ORDERS` - 5              | `order`                  | Real-time updates of orders.                                                             |
+| `TRADES` - 6              | `lastTrade`, `userTrade` | `lastTrade`: Info about last executed trade. <br>`userTrade`: info about last user trade |
+| `MAINTENANCE` - 7         | `maintenance`            | Notifications of maintenance events                                                      |
+| `WALLET_TRANSACTIONS` - 8 | `walletTransaction`      | Updates on wallet transactions (deposits, withdraws)                                     |
+| `ALL_STAT` - 9            | `allStat`                | Statistics about all trading pairs.                                                      |
+| `CODEX_BALANCES` - 10     | `codexBalances`          | Balance information of your login address.                                               |
 
 <strong>`options` Parameter:</strong>
 

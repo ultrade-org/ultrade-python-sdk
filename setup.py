@@ -9,7 +9,7 @@ required_packages = (this_directory / "requirements.txt").read_text().splitlines
 
 setuptools.setup(
     name="ultrade-sdk",
-    version="0.3.12",
+    version="0.3.13",
     license="MIT",
     description="This SDK provides interface that helps making trading operations within the Ultrade network easier",
     long_description=long_description,
