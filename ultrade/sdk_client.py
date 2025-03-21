@@ -317,40 +317,36 @@ class Client:
         Returns:
             list[dict]: List of responses from the server.
         """
-        url = f"{self.__api_url}/market/order"
-        async with aiohttp.ClientSession(headers=self.__headers) as session:
-            results = []
-            for order in orders:
-                payload = await self._build_order_payload(
-                    order["pair_id"],
-                    order["order_side"],
-                    order["order_type"],
-                    order["amount"],
-                    order["price"],
-                    order.get("seconds_until_expiration", 3660),
+        url = f"{self.__api_url}/market/orders"
+        signed_order_list = []
+        for order in orders:
+            signed_order = await self._build_order_payload(
+                order["pair_id"],
+                order["order_side"],
+                order["order_type"],
+                order["amount"],
+                order["price"],
+                order.get("seconds_until_expiration", 3660),
                 )
-                async with session.post(url, json=payload) as resp:
-                    response = await resp.json()
-                    if "error" in response:
-                        results.append({"error": response})
-                    else:
-                        results.append(response)
-            return results
+            signed_order_list.append(signed_order)
 
-    def _build_cancel_order_payload(self, order_id):
+        async with aiohttp.ClientSession(headers=self.__headers) as session:
+            async with session.post(url, json={ "arrayData": signed_order_list }) as resp:
+                response = await resp.json()
+                if "error" in response:
+                    raise Exception(response)
+            return response
+
+    def _build_cancel_order_payload(self, data):
         auth_method = self._check_auth_method()
 
         if auth_method == AuthMethod.TRADING_KEY:
-            login_address = self._trading_key_data["address"]
+            # login_address = self._trading_key_data["address"]
             signer = self._trading_key_signer
         else:
-            login_address = self._login_user.address
+            # login_address = self._login_user.address
             signer = self._login_user
 
-        data = {
-            "orderId": order_id,
-            "address": login_address,
-        }
         message = toJson(data)
         message_bytes = message.encode("utf-8")
         signature = signer.sign_data(message_bytes)
@@ -374,7 +370,7 @@ class Client:
 
         """
         self.__check_is_logged_in()
-        body = self._build_cancel_order_payload(order_id)
+        body = self._build_cancel_order_payload({ "orderId": order_id })
         url = f"{self.__api_url}/market/order"
 
         async with aiohttp.ClientSession(headers=self.__headers) as session:
@@ -386,7 +382,7 @@ class Client:
                     raise Exception(response)
                 return response
 
-    async def cancel_bulk_orders(self, order_ids: list[int]) -> list:
+    async def cancel_bulk_orders(self, order_ids: list[int], pair_id: str) -> list:
         """
         Cancels multiple orders by their IDs.
 
@@ -397,21 +393,17 @@ class Client:
             list: A list of results for each cancel attempt.
         """
         self.__check_is_logged_in()
-        url = f"{self.__api_url}/market/order"
-        results = []
+        body = self._build_cancel_order_payload({ "orderIds": order_ids, "pairId": pair_id })
+        url = f"{self.__api_url}/market/orders"
 
         async with aiohttp.ClientSession(headers=self.__headers) as session:
-            for order_id in order_ids:
-                body = self._build_cancel_order_payload(order_id)
-                async with session.delete(url, json=body) as resp:
-                    response = await resp.json(content_type=None)
-                    results.append({
-                        "order_id": order_id,
-                        "success": response is None or "error" not in response,
-                        "response": response,
-                    })
-
-        return results
+            async with session.delete(url, json=body) as resp:
+                response = await resp.json(content_type=None)
+                if response is None:
+                    return
+                if "error" in response:
+                    raise Exception(response)
+                return response
 
     async def get_balances(self) -> List[Balance]:
         """
