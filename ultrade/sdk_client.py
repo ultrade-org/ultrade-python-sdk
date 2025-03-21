@@ -201,6 +201,73 @@ class Client:
         if not self.is_logged_in():
             raise Exception("You need to login or specify trading key first")
 
+    async def _build_order_payload(
+        self,
+        pair_id: int,
+        order_side: str,
+        order_type: str,
+        amount: int,
+        price: int,
+        seconds_until_expiration: int
+    ):
+        self.__check_is_logged_in()
+
+        if order_side not in ["B", "S"]:
+            raise ValueError("order_side must be 'B' (buy) or 'S' (sell)")
+
+        if order_type not in ["M", "L", "I", "P"]:
+            raise ValueError("order_type must be 'M' (market), 'L' (limit), 'I' (ioc), or 'P' (post only)")
+
+        auth_method = self._check_auth_method()
+        if auth_method == AuthMethod.TRADING_KEY:
+            login_address = self._trading_key_data["address"]
+            login_chain_id = get_wh_id_by_address(login_address)
+            signer = self._trading_key_signer
+        else:
+            login_address = self._login_user.address
+            login_chain_id = self._login_user.wormhole_chain_id
+            signer = self._login_user
+
+        pair = await self.get_pair_info(pair_id)
+        if not pair:
+            raise Exception(f"Pair with id {pair_id} not found")
+
+        decimal_price = price / 10 ** 18
+        order_msg_version = 1
+        expiration_date_in_seconds = int(time.time()) + seconds_until_expiration
+
+        order = CreateOrder(
+            order_msg_version,
+            pair_id=pair_id,
+            company_id=self._company_id,
+            login_address=login_address,
+            login_chain_id=login_chain_id,
+            order_side=order_side,
+            order_type=order_type,
+            amount=amount,
+            price=price,
+            decimal_price=decimal_price,
+            base_token_address=pair["base_id"],
+            base_token_chain_id=pair["base_chain_id"],
+            price_token_address=pair["price_id"],
+            price_token_chain_id=pair["price_chain_id"],
+            expiration_date_in_seconds=expiration_date_in_seconds
+        )
+
+        data = order.data
+        encoding = "hex"
+        message_bytes = get_order_bytes(data)
+        message = message_bytes.hex()
+        signature = signer.sign_data(message_bytes)
+        signature_hex = signature.hex() if isinstance(signature, bytes) else signature
+
+        return {
+            "data": data,
+            "encoding": encoding,
+            "message": message,
+            "signature": signature_hex,
+        }
+
     async def create_order(
         self,
         pair_id: int,
@@ -228,77 +295,68 @@ class Client:
             ValueError: If the order_side or order_type is invalid.
             Exception: If there is an error in the response.
         """
-        self.__check_is_logged_in()
-        if order_side not in ["B", "S"]:
-            raise ValueError("order_side must be 'B' (buy) or 'S' (sell)")
-
-        if order_type not in ["M", "L", "I", "P"]:
-            raise ValueError(
-                "order_type must be 'M' (market), 'L' (limit), 'I' (ioc), or 'P' (post only)"
-            )
-        # self.__check_maintenance_mode()
-        auth_method = self._check_auth_method()
-
-        signer = None
-        login_address = None
-        login_chain_id = None
-
-        if auth_method == AuthMethod.TRADING_KEY:
-            login_address = self._trading_key_data["address"]
-            login_chain_id = get_wh_id_by_address(login_address)
-            signer = self._trading_key_signer
-        else:
-            login_address = self._login_user.address
-            login_chain_id = self._login_user.wormhole_chain_id
-            signer = self._login_user
-
-        pair = await self.get_pair_info(pair_id)
-
-        if not pair:
-            raise Exception(f"Pair with id {pair_id} not found")
-
-        decimal_price = price / 10 ** 18
-        order_msg_version = 1
-
-        expiration_date_in_seconds = int(time.time()) + seconds_until_expiration
-        order = CreateOrder(
-            order_msg_version,
-            pair_id=pair_id,
-            company_id=self._company_id,
-            login_address=login_address,
-            login_chain_id=login_chain_id,
-            order_side=order_side,
-            order_type=order_type,
-            amount=amount,
-            price=price,
-            decimal_price=decimal_price,
-            base_token_address=pair["base_id"],
-            base_token_chain_id=pair["base_chain_id"],
-            price_token_address=pair["price_id"],
-            price_token_chain_id=pair["price_chain_id"],
-            expiration_date_in_seconds=expiration_date_in_seconds
+        payload = await self._build_order_payload(
+            pair_id, order_side, order_type, amount, price, seconds_until_expiration
         )
-        data = order.data
-        encoding = "hex"
-        message_bytes = get_order_bytes(data)
-        message = message_bytes.hex()
-        signature = signer.sign_data(message_bytes)
-        signature_hex = signature.hex() if isinstance(signature, bytes) else signature
         url = f"{self.__api_url}/market/order"
         async with aiohttp.ClientSession(headers=self.__headers) as session:
-            async with session.post(
-                url,
-                json={
-                    "data": data,
-                    "encoding": encoding,
-                    "message": message,
-                    "signature": signature_hex,
-                },
-            ) as resp:
+            async with session.post(url, json=payload) as resp:
                 response = await resp.json()
                 if "error" in response:
                     raise Exception(response)
                 return response
+
+    async def create_bulk_orders(self, orders: list[dict]) -> list[dict]:
+        """
+        Creates multiple orders in a single batch.
+
+        Args:
+            orders (list[dict]): List of order dicts with keys:
+                pair_id, order_side, order_type, amount, price, seconds_until_expiration (optional)
+
+        Returns:
+            list[dict]: List of responses from the server.
+        """
+        url = f"{self.__api_url}/market/order"
+        async with aiohttp.ClientSession(headers=self.__headers) as session:
+            results = []
+            for order in orders:
+                payload = await self._build_order_payload(
+                    order["pair_id"],
+                    order["order_side"],
+                    order["order_type"],
+                    order["amount"],
+                    order["price"],
+                    order.get("seconds_until_expiration", 3660),
+                )
+                async with session.post(url, json=payload) as resp:
+                    response = await resp.json()
+                    if "error" in response:
+                        results.append({"error": response})
+                    else:
+                        results.append(response)
+            return results
+
+    def _build_cancel_order_payload(self, order_id):
+        auth_method = self._check_auth_method()
+
+        if auth_method == AuthMethod.TRADING_KEY:
+            login_address = self._trading_key_data["address"]
+            signer = self._trading_key_signer
+        else:
+            login_address = self._login_user.address
+            signer = self._login_user
+
+        data = {
+            "orderId": order_id,
+            "address": login_address,
+        }
+        message = toJson(data)
+        message_bytes = message.encode("utf-8")
+        signature = signer.sign_data(message_bytes)
+        signature_hex = signature.hex() if isinstance(signature, bytes) else signature
+
+        return {"signature": signature_hex, "data": data}
 
     async def cancel_order(self, order_id) -> None:
         """
@@ -315,32 +373,10 @@ class Client:
             Exception: {'statusCode': 404, 'message': 'Order not found', 'error': 'Not Found'}
 
         """
-
         self.__check_is_logged_in()
-        # self.__check_maintenance_mode()
-
-        signer = None
-        login_address = None
-
-        auth_method = self._check_auth_method()
-
-        if auth_method == AuthMethod.TRADING_KEY:
-            login_address = self._trading_key_data["address"]
-            signer = self._trading_key_signer
-        else:
-            signer = self._login_user
-            login_address = self._login_user.address
-
-        data = {
-            "orderId": order_id,
-            "address": login_address,
-        }
-        message = toJson(data)
-        message_bytes = message.encode("utf-8")
-        signature = signer.sign_data(message_bytes)
-        signature_hex = signature.hex() if isinstance(signature, bytes) else signature
-        body = {"signature": signature_hex, "data": data}
+        body = self._build_cancel_order_payload(order_id)
         url = f"{self.__api_url}/market/order"
+
         async with aiohttp.ClientSession(headers=self.__headers) as session:
             async with session.delete(url, json=body) as resp:
                 response = await resp.json(content_type=None)
@@ -348,8 +384,34 @@ class Client:
                     return
                 if "error" in response:
                     raise Exception(response)
-                else:
-                    return response
+                return response
+
+    async def cancel_bulk_orders(self, order_ids: list[int]) -> list:
+        """
+        Cancels multiple orders by their IDs.
+
+        Args:
+            order_ids (list[int]): A list of order IDs to cancel.
+
+        Returns:
+            list: A list of results for each cancel attempt.
+        """
+        self.__check_is_logged_in()
+        url = f"{self.__api_url}/market/order"
+        results = []
+
+        async with aiohttp.ClientSession(headers=self.__headers) as session:
+            for order_id in order_ids:
+                body = self._build_cancel_order_payload(order_id)
+                async with session.delete(url, json=body) as resp:
+                    response = await resp.json(content_type=None)
+                    results.append({
+                        "order_id": order_id,
+                        "success": response is None or "error" not in response,
+                        "response": response,
+                    })
+
+        return results
 
     async def get_balances(self) -> List[Balance]:
         """

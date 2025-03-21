@@ -523,7 +523,9 @@ Below are methods that require the [login function](#logging-in) to be executed
 | [get_orders](#get_orders) | Retrieves a list of logged user orders.
 | [get_wallet_transactions](#get_wallet_transactions) | Returns a list of wallet transactions and it statuses (deposits/withdrawals) for the logged-in user. |
 | [create_order](#create_order) | Creates an order on the Ultrade platform. |
+| [create_bulk_orders](#create_bulk_orders) |  Creates multiple orders in a single batch. |
 | [cancel_order](#cancel_order) | Cancels an existing order on the Ultrade platform. |
+| [cancel_bulk_orders](#cancel_bulk_orders) | Cancels multiple orders on the Ultrade platform. |
 | [deposit](#deposit) | Deposit a specified amont of tokens to the Token Manager Contract. |
 | [withdraw](#withdraw) | Withdraws a specified amount of tokens to a designated recipient. |
 | [subscribe](#subscribe) | Subscribes the client to various websocket streams. |
@@ -797,6 +799,59 @@ Raises:
 
 ---
 
+### create_bulk_orders
+
+The `create_bulk_orders` method is used to create multiple orders in a single batch operation on the Ultrade platform. It takes a list of order objects and sends them one by one using the same logic as `create_order`.
+
+Each order in the list must include the same required parameters as `create_order`.
+
+| Parameter                      | Type         | Description                                                               |
+|-------------------------------|--------------|---------------------------------------------------------------------------|
+| `orders`                      | `list[dict]` | A list of order dictionaries. Each dictionary must contain the following: |
+| ├─ `pair_id`                  | `int`        | The ID of the trading pair.                                               |
+| ├─ `order_side`              | `str`        | The side of the order: 'B' (buy) or 'S' (sell).                           |
+| ├─ `order_type`              | `str`        | The type of the order: 'M', 'L', 'I', or 'P'.                             |
+| ├─ `amount`                  | `int`        | The amount of tokens to buy or sell in atomic units.                      |
+| ├─ `price`                   | `int`        | The price in factored units (decimalPrice * 10^18).                       |
+| └─ `seconds_until_expiration`| `int`        | *(Optional)* Time in seconds until the order expires. Default is 3660.    |
+
+#### Example
+
+```python
+pair = await client.get_pair_info("algo_moon")
+
+orders = [
+    {
+        "pair_id": pair["id"],
+        "order_side": "B",
+        "order_type": "L",
+        "amount": 1000000,
+        "price": 1500000000000000000
+    },
+    {
+        "pair_id": pair["id"],
+        "order_side": "S",
+        "order_type": "L",
+        "amount": 2000000,
+        "price": 1600000000000000000
+    }
+]
+
+try:
+    await client.create_bulk_orders(orders)
+except Exception as e:
+    print(f"Error creating bulk orders: {str(e)}")
+```
+
+This function does not return a value.
+
+**Raises:**
+
+- `ValueError`: If any order has invalid parameters.
+- `Exception`: If there is an error in the response for any order.
+
+---
+
 #### cancel_order
 
 The `cancel_order` method is used to cancel an existing order on the Ultrade platform. This method requires the user to be logged in and have a valid order to cancel.
@@ -821,7 +876,35 @@ try:
     print(f"Order with ID {order_id} has been successfully canceled.")
 except Exception as e:
     print(f"Error canceling order with ID {order_id}: {str(e)}")
+```
 
+---
+
+#### cancel_bulk_orders
+
+The `cancel_bulk_orders` method is used to cancel multiple orders at once on the Ultrade platform. This method requires the user to be logged in and each order must have a valid ID for cancellation.
+
+| Parameter  | Type          | Description                          |
+| ---------- | ------------- | ------------------------------------ |
+| `order_ids`| `list[int]`   | A list of order IDs to be cancelled. |
+
+To cancel multiple orders, provide a list of order IDs you wish to cancel. The method checks if the user is logged in before proceeding. It is asynchronous and must be awaited.
+
+Returns: void if orders are successfully canceled.
+
+Raises:
+- `Exception`: If there is an error in the response from the server.
+- `Exception`: If any of the provided orders are not found.
+
+```python
+orders = await client.get_orders_with_trades()
+order_ids = [order["id"] for order in orders[:5]]  # cancel the first 5 orders
+
+try:
+    await client.cancel_bulk_orders(order_ids)
+    print(f"Successfully canceled orders with IDs: {', '.join(map(str, order_ids))}")
+except Exception as e:
+    print(f"Error canceling orders with IDs {', '.join(map(str, order_ids))}: {str(e)}")
 ```
 
 ---
