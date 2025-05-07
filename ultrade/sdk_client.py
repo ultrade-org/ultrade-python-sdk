@@ -25,6 +25,7 @@ from .signers.main import Signer
 from .utils.encode import get_order_bytes, make_withdraw_msg
 from typing import Literal, Optional, List, Dict
 import time
+from urllib.parse import urlparse, urlunparse
 
 OPTIONS = socket_options
 
@@ -65,7 +66,20 @@ class Client:
         ws_base_url = network_constants["websocket_url"]
         base_url = network_constants["api_url"]
 
-        self.__api_url = self.__options.get("api_url", base_url).rstrip("/")
+        api_url = self.__options.get("api_url", base_url).rstrip("/")
+        parsed = urlparse(api_url)
+
+        if parsed.username:
+            self.__private_api_key = parsed.username
+            clean_netloc = parsed.hostname
+            if parsed.port:
+                clean_netloc += f":{parsed.port}"
+            clean_url = urlunparse(parsed._replace(netloc=clean_netloc))
+            self.__api_url = clean_url
+        else:
+            self.__private_api_key = None
+            self.__api_url = api_url
+
         self.__algod_node = self.__options.get("algod_node", algod_base_url).rstrip("/")
         self.__algod_indexer = self.__options.get(
             "algod_indexer", indexer_base_url
@@ -108,9 +122,13 @@ class Client:
         if self._login_user and self._token:
             headers["X-Wallet-Address"] = self._login_user.address
             headers["X-Wallet-Token"] = self._token
+
         if self._trading_key_data:
             headers["X-Trading-Key"] = self._trading_key_data["trading_key"]
             headers["X-Wallet-Address"] = self._trading_key_data["address"]
+        if self.__private_api_key:
+            headers["x-api-key"] = self.__private_api_key
+
         return headers
 
     def __disconnect_login_user(self):
