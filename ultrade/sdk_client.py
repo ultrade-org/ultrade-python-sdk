@@ -104,20 +104,20 @@ class Client:
 
     async def __fetch_tmc_configuration(self):
         url = f"{self.__api_url}/market/chains"
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(self.__no_auth_headers) as session:
             async with session.get(url) as resp:
                 data = await resp.json()
                 return data
 
     async def __get_codex_app_id(self):
         url = f"{self.__api_url}/market/codex-app-id"
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(self.__no_auth_headers) as session:
             async with session.get(url) as resp:
                 app_id = await resp.text()
                 return int(app_id)
 
     @property
-    def __headers(self):
+    def __auth_headers(self):
         headers = {}
         if self._login_user and self._token:
             headers["X-Wallet-Address"] = self._login_user.address
@@ -126,6 +126,14 @@ class Client:
         if self._trading_key_data:
             headers["X-Trading-Key"] = self._trading_key_data["trading_key"]
             headers["X-Wallet-Address"] = self._trading_key_data["address"]
+        if self.__private_api_key:
+            headers["x-api-key"] = self.__private_api_key
+
+        return headers
+
+    @property
+    def __no_auth_headers(self):
+        headers = {}
         if self.__private_api_key:
             headers["x-api-key"] = self.__private_api_key
 
@@ -194,6 +202,8 @@ class Client:
         headers = {
             "CompanyId": str(self._company_id),
         }
+        if self.__private_api_key:
+            headers["x-api-key"] = self.__private_api_key
         async with aiohttp.ClientSession(headers=headers) as session:
             url = f"{self.__api_url}/wallet/signin"
             async with session.put(
@@ -317,7 +327,7 @@ class Client:
             pair_id, order_side, order_type, amount, price, seconds_until_expiration
         )
         url = f"{self.__api_url}/market/order"
-        async with aiohttp.ClientSession(headers=self.__headers) as session:
+        async with aiohttp.ClientSession(headers=self.__auth_headers) as session:
             async with session.post(url, json=payload) as resp:
                 response = await resp.json()
                 if "error" in response:
@@ -348,7 +358,7 @@ class Client:
                 )
             signed_order_list.append(signed_order)
 
-        async with aiohttp.ClientSession(headers=self.__headers) as session:
+        async with aiohttp.ClientSession(headers=self.__auth_headers) as session:
             async with session.post(url, json={ "arrayData": signed_order_list }) as resp:
                 response = await resp.json()
                 if "error" in response:
@@ -391,7 +401,7 @@ class Client:
         body = self._build_cancel_order_payload({ "orderId": order_id })
         url = f"{self.__api_url}/market/order"
 
-        async with aiohttp.ClientSession(headers=self.__headers) as session:
+        async with aiohttp.ClientSession(headers=self.__auth_headers) as session:
             async with session.delete(url, json=body) as resp:
                 response = await resp.json(content_type=None)
                 if response is None:
@@ -414,7 +424,7 @@ class Client:
         body = self._build_cancel_order_payload({ "orderIds": order_ids, "pairId": pair_id })
         url = f"{self.__api_url}/market/orders"
 
-        async with aiohttp.ClientSession(headers=self.__headers) as session:
+        async with aiohttp.ClientSession(headers=self.__auth_headers) as session:
             async with session.delete(url, json=body) as resp:
                 response = await resp.json(content_type=None)
                 if response is None:
@@ -440,7 +450,7 @@ class Client:
         """
         self.__check_is_logged_in()
         url = f"{self.__api_url}/market/balances"
-        async with aiohttp.ClientSession(headers=self.__headers) as session:
+        async with aiohttp.ClientSession(headers=self.__auth_headers) as session:
             async with session.get(url) as resp:
                 data = await resp.json()
                 return data
@@ -471,7 +481,7 @@ class Client:
         url = f"{self.__api_url}/market/orders-with-trades?address={login_address}&status={status_value}"
         if symbol:
             url += f"&symbol={symbol}"
-        async with aiohttp.ClientSession(headers=self.__headers) as session:
+        async with aiohttp.ClientSession(headers=self.__auth_headers) as session:
             async with session.get(url) as resp:
                 data = await resp.json()
                 return data
@@ -510,7 +520,7 @@ class Client:
         }
         query_params = {k: v for k, v in query_params.items() if v is not None}
         url = f"{self.__api_url}/wallet/transactions"
-        async with aiohttp.ClientSession(headers=self.__headers) as session:
+        async with aiohttp.ClientSession(headers=self.__auth_headers) as session:
             async with session.get(url, params=query_params) as resp:
                 data = await resp.json()
                 await session.close()
@@ -577,7 +587,7 @@ class Client:
         signature = signer.sign_data(message_bytes)
         signature_hex = signature.hex() if isinstance(signature, bytes) else signature
         url = f"{self.__api_url}/wallet/withdraw"
-        async with aiohttp.ClientSession(headers=self.__headers) as session:
+        async with aiohttp.ClientSession(headers=self.__auth_headers) as session:
             async with session.post(
                 url,
                 json={
@@ -716,7 +726,7 @@ class Client:
         Raises:
             aiohttp.ClientError: If an error occurs during the HTTP request.
         """
-        session = aiohttp.ClientSession()
+        session = aiohttp.ClientSession(headers=self.__auth_headers)
         query = "" if self._company_id is None else f"?companyId={self._company_id}"
         url = f"{self.__api_url}/market/markets{query}"
         async with session.get(url) as resp:
@@ -736,7 +746,7 @@ class Client:
             dict: PairInfo.
         """
 
-        session = aiohttp.ClientSession()
+        session = aiohttp.ClientSession(self.__no_auth_headers)
         url = f"{self.__api_url}/market/market?symbol={symbol}"
         async with session.get(url) as resp:
             resp.raise_for_status()
@@ -752,7 +762,7 @@ class Client:
         Returns:
             int: The round-trip latency in milliseconds.
         """
-        session = aiohttp.ClientSession()
+        session = aiohttp.ClientSession(self.__no_auth_headers)
         url = f"{self.__api_url}/system/time"
         async with session.get(url) as resp:
             resp.raise_for_status()
@@ -771,7 +781,7 @@ class Client:
         Returns:
             dict: A dictionary containing price information like the current ask, bid, and last trade price.
         """
-        session = aiohttp.ClientSession()
+        session = aiohttp.ClientSession(self.__no_auth_headers)
         url = f"{self.__api_url}/market/price?symbol={symbol}"
         async with session.get(url) as resp:
             data = await resp.json()
@@ -789,7 +799,7 @@ class Client:
         Returns:
             dict: A dictionary representing the order book with lists of bids and asks.
         """
-        session = aiohttp.ClientSession()
+        session = aiohttp.ClientSession(self.__no_auth_headers)
         url = f"{self.__api_url}/market/depth?symbol={symbol}&depth={depth}"
         async with session.get(url) as resp:
             data = await resp.json()
@@ -806,7 +816,7 @@ class Client:
         Returns:
             list: A list of dictionaries, each containing a 'pairKey' that matches the provided mask.
         """
-        session = aiohttp.ClientSession()
+        session = aiohttp.ClientSession(self.__no_auth_headers)
         url = f"{self.__api_url}/market/symbols?mask={mask}"
         async with session.get(url) as resp:
             data = await resp.json()
@@ -824,7 +834,7 @@ class Client:
             LastTrade
             list: A list of the most recent trades for the specified trading pair.
         """
-        session = aiohttp.ClientSession()
+        session = aiohttp.ClientSession(self.__no_auth_headers)
         url = f"{self.__api_url}/market/last-trades?symbol={symbol}"
         async with session.get(url) as resp:
             data = await resp.json()
@@ -842,7 +852,7 @@ class Client:
             dict: A dictionary containing detailed information about the specified order.
         """
         self.__check_is_logged_in()
-        session = aiohttp.ClientSession(headers=self.__headers)
+        session = aiohttp.ClientSession(headers=self.__auth_headers)
         url = f"{self.__api_url}/market/order/{order_id}"
         async with session.get(url) as resp:
             data = await resp.json()
@@ -866,7 +876,11 @@ class Client:
                                         if an error occurs during the API request.
         """
         domain = domain.replace("https://", "").replace("http://", "").rstrip("/")
+
         headers = {"wl-domain": domain}
+        if self.__private_api_key:
+            headers["x-api-key"] = self.__private_api_key
+
         url = f"{self.__api_url}/market/settings"
         session = aiohttp.ClientSession()
         async with session.get(url, headers=headers) as resp:
@@ -897,7 +911,7 @@ class Client:
             dict: A dictionary containing the CCTP assets.
         """
         url = f"{self.__api_url}/market/cctp-assets"
-        async with aiohttp.ClientSession(headers=self.__headers) as session:
+        async with aiohttp.ClientSession(headers=self.__auth_headers) as session:
             async with session.get(url) as resp:
                 data = await resp.json()
                 return data
@@ -910,7 +924,7 @@ class Client:
             dict: A dictionary containing the unified CCTP assets.
         """
         url = f"{self.__api_url}/market/cctp-unified-assets"
-        async with aiohttp.ClientSession(headers=self.__headers) as session:
+        async with aiohttp.ClientSession(headers=self.__auth_headers) as session:
             async with session.get(url) as resp:
                 data = await resp.json()
                 return data
@@ -927,7 +941,7 @@ class Client:
         - isGas (bool): Whether the asset is gas.
         """
         url = f"{self.__api_url}/market/assets"
-        async with aiohttp.ClientSession(headers=self.__headers) as session:
+        async with aiohttp.ClientSession(headers=self.__auth_headers) as session:
             async with session.get(url) as resp:
                 data = await resp.json()
                 return data
@@ -962,7 +976,7 @@ class Client:
         }
         query_params = {k: v for k, v in query_params.items() if v is not None}
         url = f"{self.__api_url}/market/orders"
-        async with aiohttp.ClientSession(headers=self.__headers) as session:
+        async with aiohttp.ClientSession(headers=self.__auth_headers) as session:
             async with session.get(url, params=query_params) as resp:
                 data = await resp.json()
                 await session.close()
