@@ -104,14 +104,14 @@ class Client:
 
     async def __fetch_tmc_configuration(self):
         url = f"{self.__api_url}/market/chains"
-        async with aiohttp.ClientSession(self.__no_auth_headers) as session:
+        async with aiohttp.ClientSession(headers=self.__no_auth_headers) as session:
             async with session.get(url) as resp:
                 data = await resp.json()
                 return data
 
     async def __get_codex_app_id(self):
         url = f"{self.__api_url}/market/codex-app-id"
-        async with aiohttp.ClientSession(self.__no_auth_headers) as session:
+        async with aiohttp.ClientSession(headers=self.__no_auth_headers) as session:
             async with session.get(url) as resp:
                 app_id = await resp.text()
                 return int(app_id)
@@ -746,7 +746,7 @@ class Client:
             dict: PairInfo.
         """
 
-        session = aiohttp.ClientSession(self.__no_auth_headers)
+        session = aiohttp.ClientSession(headers=self.__no_auth_headers)
         url = f"{self.__api_url}/market/market?symbol={symbol}"
         async with session.get(url) as resp:
             resp.raise_for_status()
@@ -762,7 +762,7 @@ class Client:
         Returns:
             int: The round-trip latency in milliseconds.
         """
-        session = aiohttp.ClientSession(self.__no_auth_headers)
+        session = aiohttp.ClientSession(headers=self.__no_auth_headers)
         url = f"{self.__api_url}/system/time"
         async with session.get(url) as resp:
             resp.raise_for_status()
@@ -781,7 +781,7 @@ class Client:
         Returns:
             dict: A dictionary containing price information like the current ask, bid, and last trade price.
         """
-        session = aiohttp.ClientSession(self.__no_auth_headers)
+        session = aiohttp.ClientSession(headers=self.__no_auth_headers)
         url = f"{self.__api_url}/market/price?symbol={symbol}"
         async with session.get(url) as resp:
             data = await resp.json()
@@ -799,7 +799,7 @@ class Client:
         Returns:
             dict: A dictionary representing the order book with lists of bids and asks.
         """
-        session = aiohttp.ClientSession(self.__no_auth_headers)
+        session = aiohttp.ClientSession(headers=self.__no_auth_headers)
         url = f"{self.__api_url}/market/depth?symbol={symbol}&depth={depth}"
         async with session.get(url) as resp:
             data = await resp.json()
@@ -816,7 +816,7 @@ class Client:
         Returns:
             list: A list of dictionaries, each containing a 'pairKey' that matches the provided mask.
         """
-        session = aiohttp.ClientSession(self.__no_auth_headers)
+        session = aiohttp.ClientSession(headers=self.__no_auth_headers)
         url = f"{self.__api_url}/market/symbols?mask={mask}"
         async with session.get(url) as resp:
             data = await resp.json()
@@ -834,7 +834,7 @@ class Client:
             LastTrade
             list: A list of the most recent trades for the specified trading pair.
         """
-        session = aiohttp.ClientSession(self.__no_auth_headers)
+        session = aiohttp.ClientSession(headers=self.__no_auth_headers)
         url = f"{self.__api_url}/market/last-trades?symbol={symbol}"
         async with session.get(url) as resp:
             data = await resp.json()
