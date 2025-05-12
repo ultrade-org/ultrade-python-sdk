@@ -127,7 +127,7 @@ class Client:
             headers["X-Trading-Key"] = self._trading_key_data["trading_key"]
             headers["X-Wallet-Address"] = self._trading_key_data["address"]
         if self.__private_api_key:
-            headers["x-api-key"] = self.__private_api_key
+            headers["X-API-Key"] = self.__private_api_key
 
         return headers
 
@@ -135,7 +135,7 @@ class Client:
     def __no_auth_headers(self):
         headers = {}
         if self.__private_api_key:
-            headers["x-api-key"] = self.__private_api_key
+            headers["X-API-Key"] = self.__private_api_key
 
         return headers
 
@@ -203,7 +203,7 @@ class Client:
             "CompanyId": str(self._company_id),
         }
         if self.__private_api_key:
-            headers["x-api-key"] = self.__private_api_key
+            headers["X-API-Key"] = self.__private_api_key
         async with aiohttp.ClientSession(headers=headers) as session:
             url = f"{self.__api_url}/wallet/signin"
             async with session.put(
@@ -879,7 +879,7 @@ class Client:
 
         headers = {"wl-domain": domain}
         if self.__private_api_key:
-            headers["x-api-key"] = self.__private_api_key
+            headers["X-API-Key"] = self.__private_api_key
 
         url = f"{self.__api_url}/market/settings"
         session = aiohttp.ClientSession()
