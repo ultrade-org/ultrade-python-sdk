@@ -26,6 +26,7 @@ from .utils.encode import get_order_bytes, make_withdraw_msg
 from typing import Literal, Optional, List, Dict
 import time
 from urllib.parse import urlparse, urlunparse
+import random
 
 OPTIONS = socket_options
 
@@ -559,6 +560,7 @@ class Client:
 
         recipient_chain_id = token_chain_id
         fee = int(amount * 0.01)  # 1% fee hadrcode, temporary solution
+        random_number = random.randint(1, 2**53 - 1)
 
         data = {
             "loginAddress": signer.address,
@@ -569,6 +571,7 @@ class Client:
             "recipientChainId": recipient_chain_id,
             "isNative": is_native_token,
             "fee": fee,
+            "random": random_number
         }
 
         message_bytes = make_withdraw_msg(
@@ -580,6 +583,7 @@ class Client:
             token_address,
             is_native_token,
             fee,
+            random_number,
             data,
         )
 
