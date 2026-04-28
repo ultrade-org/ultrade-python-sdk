@@ -297,74 +297,211 @@ class Client:
             "signature": signature_hex,
         }
 
-    async def create_order(
+    async def _build_perp_order_payload(
         self,
         pair_id: int,
-        order_side: str,
-        order_type: str,
-        amount: int,
-        price: int,
+        pyth_id: str,
+        order_side: int,
+        order_type: int,
+        time_in_force: int,
+        flags: int,
+        size_lots: int,
+        limit_price: int,
+        target_leverage: int,
+        trigger_price: int = 0,
         seconds_until_expiration: int = 3660,
+        twap_end_time: int = 0,
+    ):
+        self.__check_is_logged_in()
+
+        auth_method = self._check_auth_method()
+        if auth_method == AuthMethod.TRADING_KEY:
+            login_address = self._trading_key_data["address"]
+            login_chain_id = get_wh_id_by_address(login_address)
+            signer = self._trading_key_signer
+        else:
+            login_address = self._login_user.address
+            login_chain_id = self._login_user.wormhole_chain_id
+            signer = self._login_user
+
+        random_number = random.randint(1, 2**53 - 1)
+        expiration_date_in_seconds = int(time.time()) + seconds_until_expiration
+
+        data = {
+            "address": login_address,
+            "chainId": login_chain_id,
+            "pythId": pyth_id,
+            "orderSide": order_side,
+            "orderType": order_type,
+            "timeInForce": time_in_force,
+            "flags": flags,
+            "sizeLots": str(size_lots),
+            "limitPrice": str(limit_price),
+            "triggerPrice": str(trigger_price),
+            "expiredTime": expiration_date_in_seconds,
+            "twapEndTime": twap_end_time,
+            "random": random_number,
+            "targetLev": target_leverage,
+            "pairId": pair_id,
+            "companyId": self._company_id,
+        }
+
+        msg_url = f"{self.__api_url}/market/order/perp/message"
+        async with aiohttp.ClientSession(headers=self.__auth_headers) as session:
+            async with session.post(msg_url, json={"data": data}) as resp:
+                msg_resp = await resp.json()
+                if not isinstance(msg_resp, dict) or "message" not in msg_resp:
+                    raise Exception(msg_resp)
+                message_hex = msg_resp["message"]
+
+        message_bytes = bytes.fromhex(message_hex)
+        signature = signer.sign_data(message_bytes)
+        signature_hex = signature.hex() if isinstance(signature, bytes) else signature
+
+        return {"message": message_hex, "signature": signature_hex}
+
+    async def create_order(
+        self,
+        pair_id: int = None,
+        order_side=None,
+        order_type=None,
+        amount: int = None,
+        price: int = None,
+        seconds_until_expiration: int = 3660,
+        market_type: Literal["spot", "perp"] = "spot",
+        *,
+        pyth_id: str = None,
+        time_in_force: int = None,
+        flags: int = 0,
+        size_lots: int = None,
+        limit_price: int = None,
+        trigger_price: int = 0,
+        twap_end_time: int = 0,
+        target_leverage: int = None,
     ):
         """
         Creates an order using the provided order data.
 
         Args:
-            pair_id (int): The ID of the trading pair.
-            order_side (str): The side of the order. Must be 'B' (buy) or 'S' (sell).
-            order_type (str): The type of the order. Must be 'M' (market), 'L' (limit), 'I' (ioc), or 'P' (post only).
+            market_type (str): "spot" or "perp". Defaults to "spot".
+            pair_id (int): The ID of the trading pair (both market types).
+            seconds_until_expiration (int): Seconds until the order expires, default=3660.
+
+        Spot-only:
+            order_side (str): 'B' (buy) or 'S' (sell).
+            order_type (str): 'M' (market), 'L' (limit), 'I' (ioc), or 'P' (post only).
             amount (int): The amount of the order.
-            price (int): The price of the order.
-            seconds_until_expiration (int): Seconds until the order expires, default=3600
+            price (int): The price of the order in factored units.
+
+        Perp-only (keyword args):
+            pyth_id (str): Pyth feed id for the perp pair.
+            order_side (int): Numeric perp order side.
+            order_type (int): Numeric perp order type.
+            time_in_force (int): Numeric time-in-force.
+            flags (int): Order flags bitmask.
+            size_lots (int): Order size in lots.
+            limit_price (int): Limit price (atomic).
+            trigger_price (int): Trigger price for stop orders (atomic).
+            twap_end_time (int): TWAP end timestamp in seconds.
+            target_leverage (int): Target leverage for isolated positions.
 
         Returns:
             dict: The response from the server.
-
-        Raises:
-            ValueError: If the order_side or order_type is invalid.
-            Exception: If there is an error in the response.
         """
-        payload = await self._build_order_payload(
-            pair_id, order_side, order_type, amount, price, seconds_until_expiration
-        )
-        url = f"{self.__api_url}/market/order"
+        if market_type == "perp":
+            payload = await self._build_perp_order_payload(
+                pair_id=pair_id,
+                pyth_id=pyth_id,
+                order_side=order_side,
+                order_type=order_type,
+                time_in_force=time_in_force,
+                flags=flags,
+                size_lots=size_lots,
+                limit_price=limit_price,
+                target_leverage=target_leverage,
+                trigger_price=trigger_price,
+                seconds_until_expiration=seconds_until_expiration,
+                twap_end_time=twap_end_time,
+            )
+            url = f"{self.__api_url}/market/order/perp"
+        elif market_type == "spot":
+            payload = await self._build_order_payload(
+                pair_id, order_side, order_type, amount, price, seconds_until_expiration
+            )
+            payload["type"] = "spot"
+            url = f"{self.__api_url}/market/order"
+        else:
+            raise ValueError("market_type must be 'spot' or 'perp'")
+
         async with aiohttp.ClientSession(headers=self.__auth_headers) as session:
             async with session.post(url, json=payload) as resp:
                 response = await resp.json()
-                if "error" in response:
+                if isinstance(response, dict) and "error" in response:
                     raise Exception(response)
                 return response
 
-    async def create_bulk_orders(self, orders: list[dict]) -> list[dict]:
+    async def create_bulk_orders(
+        self,
+        orders: list[dict],
+        market_type: Literal["spot", "perp"] = "spot",
+    ) -> list[dict]:
         """
-        Creates multiple orders in a single batch.
+        Creates multiple orders in a single batch. All orders in the batch must
+        be the same market_type.
 
         Args:
-            orders (list[dict]): List of order dicts with keys:
-                pair_id, order_side, order_type, amount, price, seconds_until_expiration (optional)
+            orders (list[dict]): List of order dicts. Keys depend on market_type:
+                spot: pair_id, order_side, order_type, amount, price, seconds_until_expiration (optional)
+                perp: pair_id, pyth_id, order_side, order_type, time_in_force, flags,
+                      size_lots, limit_price, target_leverage, trigger_price (opt),
+                      twap_end_time (opt), seconds_until_expiration (opt)
+            market_type (str): "spot" or "perp". Defaults to "spot".
 
         Returns:
             list[dict]: List of responses from the server.
         """
-        url = f"{self.__api_url}/market/orders"
-        signed_order_list = []
-        for order in orders:
-            signed_order = await self._build_order_payload(
-                order["pair_id"],
-                order["order_side"],
-                order["order_type"],
-                order["amount"],
-                order["price"],
-                order.get("seconds_until_expiration", 3660),
+        if market_type == "perp":
+            url = f"{self.__api_url}/market/orders/perp"
+            signed_order_list = []
+            for order in orders:
+                signed = await self._build_perp_order_payload(
+                    pair_id=order["pair_id"],
+                    pyth_id=order["pyth_id"],
+                    order_side=order["order_side"],
+                    order_type=order["order_type"],
+                    time_in_force=order["time_in_force"],
+                    flags=order.get("flags", 0),
+                    size_lots=order["size_lots"],
+                    limit_price=order["limit_price"],
+                    target_leverage=order["target_leverage"],
+                    trigger_price=order.get("trigger_price", 0),
+                    seconds_until_expiration=order.get("seconds_until_expiration", 3660),
+                    twap_end_time=order.get("twap_end_time", 0),
                 )
-            signed_order_list.append(signed_order)
+                signed_order_list.append(signed)
+        elif market_type == "spot":
+            url = f"{self.__api_url}/market/orders"
+            signed_order_list = []
+            for order in orders:
+                signed = await self._build_order_payload(
+                    order["pair_id"],
+                    order["order_side"],
+                    order["order_type"],
+                    order["amount"],
+                    order["price"],
+                    order.get("seconds_until_expiration", 3660),
+                )
+                signed["type"] = "spot"
+                signed_order_list.append(signed)
+        else:
+            raise ValueError("market_type must be 'spot' or 'perp'")
 
         async with aiohttp.ClientSession(headers=self.__auth_headers) as session:
-            async with session.post(url, json={ "arrayData": signed_order_list }) as resp:
+            async with session.post(url, json={"arrayData": signed_order_list}) as resp:
                 response = await resp.json()
-                if "error" in response:
+                if isinstance(response, dict) and "error" in response:
                     raise Exception(response)
-            return response
+                return response
 
     def _build_cancel_order_payload(self, data):
         auth_method = self._check_auth_method()
@@ -450,7 +587,7 @@ class Client:
             - lockedAmount (int) - locked amount of the token
         """
         self.__check_is_logged_in()
-        url = f"{self.__api_url}/market/balances"
+        url = f"{self.__api_url}/wallet/balances"
         async with aiohttp.ClientSession(headers=self.__auth_headers) as session:
             async with session.get(url) as resp:
                 data = await resp.json()
@@ -460,30 +597,34 @@ class Client:
         self, symbol=None, status=OrderStatus.OPEN_ORDER.value
     ) -> List[OrderWithTrade]:
         """
-        Returns the orders of the logged user.
+        Returns the orders of the logged user. Address is taken from the
+        authenticated session (X-Wallet-Address header).
 
         Args:
             symbol (str): The symbol of the pair.
-            status (OrderStatus): The status of the orders.
+            status (OrderStatus | int | list): The status(es) of the orders.
 
         Returns:
             List[OrderWithTrade]
         """
         self.__check_is_logged_in()
-        if isinstance(status, OrderStatus):
-            status_value = status.value
+
+        def _normalize(s):
+            if isinstance(s, OrderStatus):
+                return str(s.value)
+            return str(s)
+
+        if isinstance(status, (list, tuple)):
+            status_value = ",".join(_normalize(s) for s in status)
         else:
-            status_value = status
-        login_address = (
-            self._login_user.address
-            if self._login_user
-            else self._trading_key_data["address"]
-        )
-        url = f"{self.__api_url}/market/orders-with-trades?address={login_address}&status={status_value}"
+            status_value = _normalize(status)
+
+        params = {"status": status_value}
         if symbol:
-            url += f"&symbol={symbol}"
+            params["symbol"] = symbol
+        url = f"{self.__api_url}/market/orders"
         async with aiohttp.ClientSession(headers=self.__auth_headers) as session:
-            async with session.get(url) as resp:
+            async with session.get(url, params=params) as resp:
                 data = await resp.json()
                 return data
 
@@ -985,3 +1126,230 @@ class Client:
                 data = await resp.json()
                 await session.close()
                 return data
+
+    # ---------- Perps ----------
+
+    async def get_positions(self) -> List[Dict]:
+        """Returns the open perp positions of the logged user."""
+        self.__check_is_logged_in()
+        url = f"{self.__api_url}/wallet/positions"
+        async with aiohttp.ClientSession(headers=self.__auth_headers) as session:
+            async with session.get(url) as resp:
+                return await resp.json()
+
+    async def get_equity(self) -> Dict:
+        """Returns spot/perp balance and margin equity for the logged user."""
+        self.__check_is_logged_in()
+        url = f"{self.__api_url}/wallet/equity"
+        async with aiohttp.ClientSession(headers=self.__auth_headers) as session:
+            async with session.get(url) as resp:
+                return await resp.json()
+
+    async def get_margin_assets(self) -> List[Dict]:
+        """Returns the user's margin asset balances."""
+        self.__check_is_logged_in()
+        url = f"{self.__api_url}/wallet/margin-assets"
+        async with aiohttp.ClientSession(headers=self.__auth_headers) as session:
+            async with session.get(url) as resp:
+                return await resp.json()
+
+    async def get_margin_assets_usd_value(self) -> Dict:
+        """Returns the USD value of the user's margin assets portfolio."""
+        url = f"{self.__api_url}/wallet/margin-assets/usd-value"
+        async with aiohttp.ClientSession(headers=self.__auth_headers) as session:
+            async with session.get(url) as resp:
+                return await resp.json()
+
+    async def mark_margin_assets_to_now(self) -> Dict:
+        """Marks the user's margin positions to the current price."""
+        self.__check_is_logged_in()
+        url = f"{self.__api_url}/wallet/margin-assets/mark-to-now"
+        async with aiohttp.ClientSession(headers=self.__auth_headers) as session:
+            async with session.get(url) as resp:
+                return await resp.json()
+
+    async def get_market_margin_assets(self) -> List[Dict]:
+        """Returns the list of margin assets supported by the market."""
+        url = f"{self.__api_url}/market/margin-assets"
+        async with aiohttp.ClientSession(headers=self.__auth_headers) as session:
+            async with session.get(url) as resp:
+                return await resp.json()
+
+    async def _build_transfer_payload(
+        self,
+        token_amount: int,
+        token_index: str,
+        token_chain_id: int,
+        recipient: Optional[str] = None,
+        recipient_chain_id: Optional[int] = None,
+        seconds_until_expiration: int = 3660,
+    ) -> Dict:
+        """Builds a signed transfer payload via /wallet/transfer/message."""
+        self.__check_is_logged_in()
+        auth_method = self._check_auth_method()
+        if auth_method == AuthMethod.TRADING_KEY:
+            raise Exception("Trading key can't transfer, use set_login_user method")
+        signer = self._login_user
+
+        login_address = signer.address
+        login_chain_id = signer.wormhole_chain_id
+        rcpt = recipient if recipient is not None else login_address
+        rcpt_chain = recipient_chain_id if recipient_chain_id is not None else login_chain_id
+        expired_date = int(time.time()) + seconds_until_expiration
+        random_number = random.randint(1, 2**53 - 1)
+
+        data = {
+            "loginAddress": login_address,
+            "loginChainId": login_chain_id,
+            "tokenAmount": str(token_amount),
+            "tokenIndex": token_index,
+            "tokenChainId": token_chain_id,
+            "recipient": rcpt,
+            "recipientChainId": rcpt_chain,
+            "expiredDate": expired_date,
+            "random": random_number,
+        }
+
+        msg_url = f"{self.__api_url}/wallet/transfer/message"
+        async with aiohttp.ClientSession(headers=self.__auth_headers) as session:
+            async with session.post(msg_url, json={"data": data}) as resp:
+                msg_resp = await resp.json()
+                if not isinstance(msg_resp, dict) or "message" not in msg_resp:
+                    raise Exception(msg_resp)
+                message_hex = msg_resp["message"]
+
+        message_bytes = bytes.fromhex(message_hex)
+        signature = signer.sign_data(message_bytes)
+        signature_hex = signature.hex() if isinstance(signature, bytes) else signature
+        return {"message": message_hex, "signature": signature_hex}
+
+    async def _post_margin_asset_action(self, action: str, payload: Dict) -> Dict:
+        url = f"{self.__api_url}/wallet/margin-asset/{action}"
+        async with aiohttp.ClientSession(headers=self.__auth_headers) as session:
+            async with session.post(url, json=payload) as resp:
+                response = await resp.json()
+                if isinstance(response, dict) and "error" in response:
+                    raise Exception(response)
+                return response
+
+    async def deposit_margin_asset(
+        self,
+        token_amount: int,
+        token_index: str,
+        token_chain_id: int,
+        seconds_until_expiration: int = 3660,
+    ) -> Dict:
+        """Deposit margin collateral for perps trading."""
+        payload = await self._build_transfer_payload(
+            token_amount, token_index, token_chain_id,
+            seconds_until_expiration=seconds_until_expiration,
+        )
+        return await self._post_margin_asset_action("deposit", payload)
+
+    async def withdraw_margin_asset(
+        self,
+        token_amount: int,
+        token_index: str,
+        token_chain_id: int,
+        seconds_until_expiration: int = 3660,
+    ) -> Dict:
+        """Withdraw margin collateral from perps trading."""
+        payload = await self._build_transfer_payload(
+            token_amount, token_index, token_chain_id,
+            seconds_until_expiration=seconds_until_expiration,
+        )
+        return await self._post_margin_asset_action("withdraw", payload)
+
+    async def borrow_margin_asset(
+        self,
+        token_amount: int,
+        token_index: str,
+        token_chain_id: int,
+        seconds_until_expiration: int = 3660,
+    ) -> Dict:
+        """Borrow a margin asset against existing collateral."""
+        payload = await self._build_transfer_payload(
+            token_amount, token_index, token_chain_id,
+            seconds_until_expiration=seconds_until_expiration,
+        )
+        return await self._post_margin_asset_action("borrow", payload)
+
+    async def repay_margin_asset(
+        self,
+        token_amount: int,
+        token_index: str,
+        token_chain_id: int,
+        seconds_until_expiration: int = 3660,
+    ) -> Dict:
+        """Repay a borrowed margin asset."""
+        payload = await self._build_transfer_payload(
+            token_amount, token_index, token_chain_id,
+            seconds_until_expiration=seconds_until_expiration,
+        )
+        return await self._post_margin_asset_action("repay", payload)
+
+    async def replace_orders(
+        self,
+        replacements: list[dict],
+        market_type: Literal["spot", "perp"] = "spot",
+    ) -> List[Dict]:
+        """
+        Replace (amend) one or more existing orders. Each replacement cancels
+        the old order and submits a new one atomically.
+
+        Args:
+            replacements (list[dict]): List of replacement dicts. Each must contain:
+                old_order_id (int): The id of the order to replace.
+                Plus order parameters matching the market_type, exactly as accepted by
+                create_order (spot: pair_id/order_side/order_type/amount/price/...,
+                perp: pair_id/pyth_id/order_side/order_type/time_in_force/...).
+            market_type (str): "spot" or "perp". Defaults to "spot".
+
+        Returns:
+            list of dict: Results from the server.
+        """
+        if market_type == "perp":
+            url = f"{self.__api_url}/market/orders/perp/replace"
+        elif market_type == "spot":
+            url = f"{self.__api_url}/market/orders/replace"
+        else:
+            raise ValueError("market_type must be 'spot' or 'perp'")
+
+        array_data = []
+        for r in replacements:
+            old_order_id = r["old_order_id"]
+            if market_type == "perp":
+                signed = await self._build_perp_order_payload(
+                    pair_id=r["pair_id"],
+                    pyth_id=r["pyth_id"],
+                    order_side=r["order_side"],
+                    order_type=r["order_type"],
+                    time_in_force=r["time_in_force"],
+                    flags=r.get("flags", 0),
+                    size_lots=r["size_lots"],
+                    limit_price=r["limit_price"],
+                    target_leverage=r["target_leverage"],
+                    trigger_price=r.get("trigger_price", 0),
+                    seconds_until_expiration=r.get("seconds_until_expiration", 3660),
+                    twap_end_time=r.get("twap_end_time", 0),
+                )
+            else:
+                signed = await self._build_order_payload(
+                    r["pair_id"],
+                    r["order_side"],
+                    r["order_type"],
+                    r["amount"],
+                    r["price"],
+                    r.get("seconds_until_expiration", 3660),
+                )
+                signed = {"message": signed["message"], "signature": signed["signature"]}
+            signed["oldOrderId"] = old_order_id
+            signed["type"] = "perp" if market_type == "perp" else "spot"
+            array_data.append(signed)
+
+        async with aiohttp.ClientSession(headers=self.__auth_headers) as session:
+            async with session.post(url, json={"arrayData": array_data}) as resp:
+                response = await resp.json()
+                if isinstance(response, dict) and "error" in response:
+                    raise Exception(response)
+                return response
