@@ -423,16 +423,16 @@ class Client:
                 seconds_until_expiration=seconds_until_expiration,
                 twap_end_time=twap_end_time,
             )
-            url = f"{self.__api_url}/market/order/perp"
+            payload["type"] = "perp"
         elif market_type == "spot":
             payload = await self._build_order_payload(
                 pair_id, order_side, order_type, amount, price, seconds_until_expiration
             )
             payload["type"] = "spot"
-            url = f"{self.__api_url}/market/order"
         else:
             raise ValueError("market_type must be 'spot' or 'perp'")
 
+        url = f"{self.__api_url}/market/order"
         async with aiohttp.ClientSession(headers=self.__auth_headers) as session:
             async with session.post(url, json=payload) as resp:
                 response = await resp.json()
@@ -461,7 +461,6 @@ class Client:
             list[dict]: List of responses from the server.
         """
         if market_type == "perp":
-            url = f"{self.__api_url}/market/orders/perp"
             signed_order_list = []
             for order in orders:
                 signed = await self._build_perp_order_payload(
@@ -478,9 +477,9 @@ class Client:
                     seconds_until_expiration=order.get("seconds_until_expiration", 3660),
                     twap_end_time=order.get("twap_end_time", 0),
                 )
+                signed["type"] = "perp"
                 signed_order_list.append(signed)
         elif market_type == "spot":
-            url = f"{self.__api_url}/market/orders"
             signed_order_list = []
             for order in orders:
                 signed = await self._build_order_payload(
@@ -496,6 +495,7 @@ class Client:
         else:
             raise ValueError("market_type must be 'spot' or 'perp'")
 
+        url = f"{self.__api_url}/market/orders"
         async with aiohttp.ClientSession(headers=self.__auth_headers) as session:
             async with session.post(url, json={"arrayData": signed_order_list}) as resp:
                 response = await resp.json()
@@ -1308,13 +1308,10 @@ class Client:
         Returns:
             list of dict: Results from the server.
         """
-        if market_type == "perp":
-            url = f"{self.__api_url}/market/orders/perp/replace"
-        elif market_type == "spot":
-            url = f"{self.__api_url}/market/orders/replace"
-        else:
+        if market_type not in ("spot", "perp"):
             raise ValueError("market_type must be 'spot' or 'perp'")
 
+        url = f"{self.__api_url}/market/orders/replace"
         array_data = []
         for r in replacements:
             old_order_id = r["old_order_id"]

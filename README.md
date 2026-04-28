@@ -808,7 +808,7 @@ The `create_order` method creates a new spot or perp order on the Ultrade platfo
 | `twap_end_time`   | `int` | TWAP end timestamp in seconds. Default `0`.                  |
 | `target_leverage` | `int` | Target leverage for isolated positions.                      |
 
-For perp orders the SDK calls `POST /market/order/perp/message` to obtain the encoded message, signs it locally, and submits the signed payload to `POST /market/order/perp`.
+For perp orders the SDK calls `POST /market/order/perp/message` to obtain the encoded message, signs it locally, and submits the signed payload to `POST /market/order` with `type: "perp"` in the body. Spot and perp share the same submit URL; the `type` field tells the server how to route.
 
 ```python
 # Spot order
