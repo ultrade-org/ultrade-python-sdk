@@ -10,7 +10,6 @@ from .types import (
     Depth,
     LastTrade,
     Network,
-    CreateOrder,
     Balance,
     OrderStatus,
     OrderWithTrade,
@@ -23,7 +22,7 @@ from .types import (
 )
 from .signers.main import Signer
 from .utils.encode import (
-    get_order_bytes,
+    make_spot_order_msg,
     make_withdraw_msg,
     make_transfer_msg,
     SPOT_TRANSFER_DOMAIN,
@@ -246,7 +245,9 @@ class Client:
         order_type: str,
         amount: int,
         price: int,
-        seconds_until_expiration: int
+        seconds_until_expiration: int,
+        max_total: Optional[int] = None,
+        order_flags: int = 0,
     ):
         self.__check_is_logged_in()
 
@@ -270,38 +271,39 @@ class Client:
         if not pair:
             raise Exception(f"Pair with id {pair_id} not found")
 
-        decimal_price = price / 10 ** 18
         order_msg_version = 1
         expiration_date_in_seconds = int(time.time()) + seconds_until_expiration
 
-        order = CreateOrder(
-            order_msg_version,
-            pair_id=pair_id,
-            company_id=self._company_id,
-            login_address=login_address,
-            login_chain_id=login_chain_id,
-            order_side=order_side,
-            order_type=order_type,
-            amount=amount,
-            price=price,
-            decimal_price=decimal_price,
-            base_token_address=pair["base_id"],
-            base_token_chain_id=pair["base_chain_id"],
-            price_token_address=pair["price_id"],
-            price_token_chain_id=pair["price_chain_id"],
-            expiration_date_in_seconds=expiration_date_in_seconds
-        )
+        # `amount` is size8 (humanAmount * 10^8) and `price` is price10
+        # (humanPrice * 10^10) for spot. maxTotal is humanTotal in size8 too,
+        # so maxTotal = humanAmount * humanPrice * 10^8 = amount*price / 10^10.
+        if max_total is None:
+            max_total = (int(amount) * int(price)) // (10 ** 10)
 
-        data = order.data
-        encoding = "hex"
-        message_bytes = get_order_bytes(data)
+        data = {
+            "version": order_msg_version,
+            "expiredTime": expiration_date_in_seconds,
+            "orderSide": order_side,
+            "price": price,
+            "amount": amount,
+            "orderType": order_type,
+            "address": login_address,
+            "chainId": login_chain_id,
+            "baseTokenAddress": pair["base_id"],
+            "baseTokenChainId": pair["base_chain_id"],
+            "priceTokenAddress": pair["price_id"],
+            "priceTokenChainId": pair["price_chain_id"],
+            "companyId": self._company_id,
+            "maxTotal": max_total,
+            "orderFlags": order_flags,
+        }
+
+        message_bytes = make_spot_order_msg(data)
         message = message_bytes.hex()
         signature = signer.sign_data(message_bytes)
         signature_hex = signature.hex() if isinstance(signature, bytes) else signature
 
         return {
-            "data": data,
-            "encoding": encoding,
             "message": message,
             "signature": signature_hex,
         }
@@ -358,10 +360,19 @@ class Client:
         msg_url = f"{self.__api_url}/market/order/perp/message"
         async with aiohttp.ClientSession(headers=self.__auth_headers) as session:
             async with session.post(msg_url, json={"data": data}) as resp:
-                msg_resp = await resp.json()
-                if not isinstance(msg_resp, dict) or "message" not in msg_resp:
-                    raise Exception(msg_resp)
-                message_hex = msg_resp["message"]
+                # The perp message endpoint returns the raw hex string with
+                # text/html content-type; the spot one wraps with {message: hex}.
+                body = (await resp.text()).strip()
+                if resp.status >= 400:
+                    raise Exception(body)
+                if body.startswith("{"):
+                    import json
+                    parsed = json.loads(body)
+                    message_hex = parsed["message"]
+                elif body.startswith('"') and body.endswith('"'):
+                    message_hex = body[1:-1]
+                else:
+                    message_hex = body
 
         message_bytes = bytes.fromhex(message_hex)
         signature = signer.sign_data(message_bytes)
@@ -676,10 +687,14 @@ class Client:
                 data = await resp.json()
                 await session.close()
 
-        for transaction in data:
-            transaction.pop("vaa_message", None)
+        # The endpoint now returns {items: [...], ...}; fall back to a bare list.
+        items = data["items"] if isinstance(data, dict) and "items" in data else data
+        if isinstance(items, list):
+            for transaction in items:
+                if isinstance(transaction, dict):
+                    transaction.pop("vaa_message", None)
 
-        return data
+        return items
 
     async def withdraw(
         self,

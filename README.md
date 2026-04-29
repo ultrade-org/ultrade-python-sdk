@@ -786,12 +786,14 @@ The `create_order` method creates a new spot or perp order on the Ultrade platfo
 
 **Spot-only parameters:**
 
-| Parameter    | Type  | Description                                                              |
-| ------------ | ----- | ------------------------------------------------------------------------ |
-| `order_side` | `str` | `'B'` (buy) or `'S'` (sell).                                              |
-| `order_type` | `str` | `'M'` (market), `'L'` (limit), `'I'` (IOC), `'P'` (post only).            |
-| `amount`     | `int` | Amount of tokens in atomic units.                                        |
-| `price`      | `int` | Price in factored units (decimalPrice \* 10^18).                         |
+| Parameter     | Type  | Description                                                                                    |
+| ------------- | ----- | ---------------------------------------------------------------------------------------------- |
+| `order_side`  | `str` | `'B'` (buy) or `'S'` (sell).                                                                    |
+| `order_type`  | `str` | `'M'` (market), `'L'` (limit), `'I'` (IOC), `'P'` (post only).                                  |
+| `amount`      | `int` | Order size as **size8** = `humanAmount * 10^8`. Independent of pair decimals.                  |
+| `price`       | `int` | Limit price as **price10** = `humanPrice * 10^10`. Independent of pair decimals.               |
+| `max_total`   | `int` | _(Optional)_ Cap on total in size8 of the price asset. Defaults to `amount * price / 10^10`.   |
+| `order_flags` | `int` | _(Optional)_ Order flags bitmask. Defaults to `0`.                                              |
 
 **Perp-only parameters (keyword-only):**
 
@@ -811,14 +813,15 @@ The `create_order` method creates a new spot or perp order on the Ultrade platfo
 For perp orders the SDK calls `POST /market/order/perp/message` to obtain the encoded message, signs it locally, and submits the signed payload to `POST /market/order` with `type: "perp"` in the body. Spot and perp share the same submit URL; the `type` field tells the server how to route.
 
 ```python
-# Spot order
-pair = await client.get_pair_info("algo_moon")
+# Spot order: buy 1 AVAX at 10 USDC.
+# amount = 1 * 10^8 (size8); price = 10 * 10^10 (price10)
+pair = await client.get_pair_info("avax_usdc")
 await client.create_order(
     pair_id=pair["id"],
     order_side="B",
     order_type="L",
-    amount=3000000,
-    price=1500000000000000000,
+    amount=100_000_000,
+    price=100_000_000_000,
 )
 
 # Perp order
@@ -846,16 +849,16 @@ The `create_bulk_orders` method creates multiple orders in a single batch. All o
 
 | Parameter     | Type                       | Description                                                                |
 | ------------- | -------------------------- | -------------------------------------------------------------------------- |
-| `orders`      | `list[dict]`               | List of order dicts. Keys per dict match `create_order`'s parameters for the chosen `market_type`. |
+| `orders`      | `list[dict]`               | List of order dicts. Keys per dict match `create_order`'s parameters for the chosen `market_type` (e.g. `amount` is size8, `price` is price10 for spot). |
 | `market_type` | `'spot' \| 'perp'`         | Market type. Defaults to `'spot'`.                                          |
 
 #### Example
 
 ```python
-# Spot bulk
+# Spot bulk: amount in size8, price in price10
 orders = [
-    {"pair_id": 1, "order_side": "B", "order_type": "L", "amount": 1000000, "price": 1500000000000000000},
-    {"pair_id": 1, "order_side": "S", "order_type": "L", "amount": 2000000, "price": 1600000000000000000},
+    {"pair_id": 19, "order_side": "B", "order_type": "L", "amount": 100_000_000, "price": 100_000_000_000},
+    {"pair_id": 19, "order_side": "S", "order_type": "L", "amount": 200_000_000, "price": 110_000_000_000},
 ]
 await client.create_bulk_orders(orders)
 
@@ -886,11 +889,11 @@ The `replace_orders` method atomically cancels one or more existing orders and s
 await client.replace_orders([
     {
         "old_order_id": 12345,
-        "pair_id": 1,
+        "pair_id": 19,
         "order_side": "B",
         "order_type": "L",
-        "amount": 1000000,
-        "price": 1700000000000000000,
+        "amount": 100_000_000,    # size8
+        "price": 110_000_000_000, # price10
     },
 ])
 ```
