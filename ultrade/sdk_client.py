@@ -22,7 +22,16 @@ from .types import (
     AuthMethod,
 )
 from .signers.main import Signer
-from .utils.encode import get_order_bytes, make_withdraw_msg
+from .utils.encode import (
+    get_order_bytes,
+    make_withdraw_msg,
+    make_transfer_msg,
+    SPOT_TRANSFER_DOMAIN,
+    MM_DEPOSIT_DOMAIN,
+    MM_WITHDRAW_DOMAIN,
+    MM_BORROW_DOMAIN,
+    MM_REPAY_DOMAIN,
+)
 from typing import Literal, Optional, List, Dict
 import time
 from urllib.parse import urlparse, urlunparse
@@ -1177,14 +1186,17 @@ class Client:
 
     async def _build_transfer_payload(
         self,
+        domain: str,
         token_amount: int,
         token_index: str,
         token_chain_id: int,
         recipient: Optional[str] = None,
         recipient_chain_id: Optional[int] = None,
-        seconds_until_expiration: int = 3660,
+        seconds_until_expiration: int = 60,
     ) -> Dict:
-        """Builds a signed transfer payload via /wallet/transfer/message."""
+        """Builds a signed transfer payload locally with the given domain prefix.
+        The domain selects which on-chain action the message is valid for
+        (e.g. MM_DEPOSIT_V1 vs MM_WITHDRAW_V1)."""
         self.__check_is_logged_in()
         auth_method = self._check_auth_method()
         if auth_method == AuthMethod.TRADING_KEY:
@@ -1196,29 +1208,19 @@ class Client:
         rcpt = recipient if recipient is not None else login_address
         rcpt_chain = recipient_chain_id if recipient_chain_id is not None else login_chain_id
         expired_date = int(time.time()) + seconds_until_expiration
-        random_number = random.randint(1, 2**53 - 1)
 
-        data = {
-            "loginAddress": login_address,
-            "loginChainId": login_chain_id,
-            "tokenAmount": str(token_amount),
-            "tokenIndex": token_index,
-            "tokenChainId": token_chain_id,
-            "recipient": rcpt,
-            "recipientChainId": rcpt_chain,
-            "expiredDate": expired_date,
-            "random": random_number,
-        }
-
-        msg_url = f"{self.__api_url}/wallet/transfer/message"
-        async with aiohttp.ClientSession(headers=self.__auth_headers) as session:
-            async with session.post(msg_url, json={"data": data}) as resp:
-                msg_resp = await resp.json()
-                if not isinstance(msg_resp, dict) or "message" not in msg_resp:
-                    raise Exception(msg_resp)
-                message_hex = msg_resp["message"]
-
-        message_bytes = bytes.fromhex(message_hex)
+        message_bytes = make_transfer_msg(
+            domain=domain,
+            login_address=login_address,
+            login_chain_id=login_chain_id,
+            recipient=rcpt,
+            recipient_chain_id=rcpt_chain,
+            token_amount=token_amount,
+            token_index=token_index,
+            token_chain_id=token_chain_id,
+            expired_date=expired_date,
+        )
+        message_hex = message_bytes.hex()
         signature = signer.sign_data(message_bytes)
         signature_hex = signature.hex() if isinstance(signature, bytes) else signature
         return {"message": message_hex, "signature": signature_hex}
@@ -1237,11 +1239,11 @@ class Client:
         token_amount: int,
         token_index: str,
         token_chain_id: int,
-        seconds_until_expiration: int = 3660,
+        seconds_until_expiration: int = 60,
     ) -> Dict:
         """Deposit margin collateral for perps trading."""
         payload = await self._build_transfer_payload(
-            token_amount, token_index, token_chain_id,
+            MM_DEPOSIT_DOMAIN, token_amount, token_index, token_chain_id,
             seconds_until_expiration=seconds_until_expiration,
         )
         return await self._post_margin_asset_action("deposit", payload)
@@ -1251,11 +1253,11 @@ class Client:
         token_amount: int,
         token_index: str,
         token_chain_id: int,
-        seconds_until_expiration: int = 3660,
+        seconds_until_expiration: int = 60,
     ) -> Dict:
         """Withdraw margin collateral from perps trading."""
         payload = await self._build_transfer_payload(
-            token_amount, token_index, token_chain_id,
+            MM_WITHDRAW_DOMAIN, token_amount, token_index, token_chain_id,
             seconds_until_expiration=seconds_until_expiration,
         )
         return await self._post_margin_asset_action("withdraw", payload)
@@ -1265,11 +1267,11 @@ class Client:
         token_amount: int,
         token_index: str,
         token_chain_id: int,
-        seconds_until_expiration: int = 3660,
+        seconds_until_expiration: int = 60,
     ) -> Dict:
         """Borrow a margin asset against existing collateral."""
         payload = await self._build_transfer_payload(
-            token_amount, token_index, token_chain_id,
+            MM_BORROW_DOMAIN, token_amount, token_index, token_chain_id,
             seconds_until_expiration=seconds_until_expiration,
         )
         return await self._post_margin_asset_action("borrow", payload)
@@ -1279,11 +1281,11 @@ class Client:
         token_amount: int,
         token_index: str,
         token_chain_id: int,
-        seconds_until_expiration: int = 3660,
+        seconds_until_expiration: int = 60,
     ) -> Dict:
         """Repay a borrowed margin asset."""
         payload = await self._build_transfer_payload(
-            token_amount, token_index, token_chain_id,
+            MM_REPAY_DOMAIN, token_amount, token_index, token_chain_id,
             seconds_until_expiration=seconds_until_expiration,
         )
         return await self._post_margin_asset_action("repay", payload)

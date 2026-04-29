@@ -191,6 +191,54 @@ def make_withdraw_msg(
     return bytes(message_bytes)
 
 
+# Domain prefixes that match the on-chain contract verification for the
+# wallet/margin-asset action endpoints. Must stay byte-for-byte identical.
+SPOT_TRANSFER_DOMAIN = "SPOT_TRANSFER_V1"
+MM_DEPOSIT_DOMAIN = "MM_DEPOSIT_V1"
+MM_WITHDRAW_DOMAIN = "MM_WITHDRAW_V1"
+MM_BORROW_DOMAIN = "MM_BORROW_V1"
+MM_REPAY_DOMAIN = "MM_REPAY_V1"
+
+
+def make_transfer_msg(
+    domain: str,
+    login_address: str,
+    login_chain_id: int,
+    recipient: str,
+    recipient_chain_id: int,
+    token_amount: int,
+    token_index: Union[str, int],
+    token_chain_id: int,
+    expired_date: int,
+) -> bytes:
+    """
+    Build the 144-byte TransferIntent message preceded by an ASCII domain
+    prefix, matching `makeTransferMsg` in the JS SDK.
+    Layout: domain | login(32) | login_chain(8) | recip(32) | recip_chain(8)
+            | token(32) | token_chain(8) | amount(16) | expiry(8)
+    """
+    parts = bytearray()
+    parts.extend(domain.encode("utf-8"))
+    parts.extend(
+        normalize_address(login_address, determine_address_type(login_chain_id, False))
+    )
+    parts.extend(login_chain_id.to_bytes(8, "big"))
+    parts.extend(
+        normalize_address(recipient, determine_address_type(recipient_chain_id, False))
+    )
+    parts.extend(recipient_chain_id.to_bytes(8, "big"))
+    parts.extend(
+        normalize_address(
+            token_index,
+            determine_address_type(token_chain_id, True, token_index),
+        )
+    )
+    parts.extend(token_chain_id.to_bytes(8, "big"))
+    parts.extend(int(token_amount).to_bytes(16, "big"))
+    parts.extend(int(expired_date).to_bytes(8, "big"))
+    return bytes(parts)
+
+
 def get_account_balance_box_name(
     login_address: str,
     login_chain_id: int,
