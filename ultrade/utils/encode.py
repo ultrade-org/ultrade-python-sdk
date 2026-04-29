@@ -88,52 +88,6 @@ def make_signing_message(json_data, data):
     return get_utf8_encoded_data(json_data) + base64.b64encode(data)
 
 
-def get_order_bytes(
-    data: dict,
-) -> bytes:
-    order = bytearray()
-    order.extend(data["version"].to_bytes(2, "big"))
-    order.extend(data["expiredTime"].to_bytes(4, "big"))
-    order.extend(data["orderSide"].encode())
-    order.extend(eth_abi.encode(["uint256"], [data["price"]]))
-    order.extend(eth_abi.encode(["uint256"], [data["amount"]]))
-    order.extend(data["orderType"].encode())
-    order.extend(
-        normalize_address(
-            data["address"], determine_address_type(data["chainId"], False)
-        )
-    )
-    order.extend(data["chainId"].to_bytes(2, "big"))
-    order.extend(
-        normalize_address(
-            data["baseTokenAddress"],
-            determine_address_type(
-                data["baseTokenChainId"], True, data["baseTokenAddress"]
-            ),
-        )
-    )
-    order.extend(data["baseTokenChainId"].to_bytes(4, "big"))
-    order.extend(
-        normalize_address(
-            data["priceTokenAddress"],
-            determine_address_type(
-                data["priceTokenChainId"], True, data["priceTokenAddress"]
-            ),
-        )
-    )
-    order.extend(data["priceTokenChainId"].to_bytes(4, "big"))
-    order.extend(data["companyId"].to_bytes(2, "big"))
-    random_8bytes = generate_random_8bytes()
-    order.extend(random_8bytes)
-    order.extend(struct.pack('>d', data["decimalPrice"]))
-    order.extend(b'\x00' * 50)
-
-    base64_order = base64.b64encode(bytes(order))
-    message_bytes = bytearray(base64_order)
-
-    return bytes(message_bytes)
-
-
 def make_withdraw_msg(
     login_address: str,
     login_chain_id: int,
@@ -189,6 +143,102 @@ def make_withdraw_msg(
 
     message_bytes = make_signing_message(json_data, data_bytes)
     return bytes(message_bytes)
+
+
+SPOT_ORDER_BYTES_LENGTH = 141
+
+
+def make_spot_order_msg(data: dict) -> bytes:
+    """
+    Build the 141-byte spot CreateOrder message that matches the server's
+    `makeCreateOrderMsg` in @ultrade/shared. Layout:
+      version(2) | expiredTime(4) | orderSide(1) | price(8) | amount(8)
+      | orderType(1) | address(32) | chainId(2)
+      | baseTokenAddress(32) | baseTokenChainId(4)
+      | priceTokenAddress(32) | priceTokenChainId(4)
+      | companyId(2) | maxTotal(8) | orderFlags(1)
+    """
+    parts = bytearray()
+    parts.extend(int(data["version"]).to_bytes(2, "big"))
+    parts.extend(int(data["expiredTime"]).to_bytes(4, "big"))
+    parts.extend(data["orderSide"].encode("ascii")[:1])
+    parts.extend(int(data["price"]).to_bytes(8, "big"))
+    parts.extend(int(data["amount"]).to_bytes(8, "big"))
+    parts.extend(data["orderType"].encode("ascii")[:1])
+    parts.extend(
+        normalize_address(data["address"], determine_address_type(data["chainId"], False))
+    )
+    parts.extend(int(data["chainId"]).to_bytes(2, "big"))
+    parts.extend(
+        normalize_address(
+            data["baseTokenAddress"],
+            determine_address_type(data["baseTokenChainId"], True, data["baseTokenAddress"]),
+        )
+    )
+    parts.extend(int(data["baseTokenChainId"]).to_bytes(4, "big"))
+    parts.extend(
+        normalize_address(
+            data["priceTokenAddress"],
+            determine_address_type(data["priceTokenChainId"], True, data["priceTokenAddress"]),
+        )
+    )
+    parts.extend(int(data["priceTokenChainId"]).to_bytes(4, "big"))
+    parts.extend(int(data["companyId"]).to_bytes(2, "big"))
+    parts.extend(int(data["maxTotal"]).to_bytes(8, "big"))
+    parts.extend(int(data["orderFlags"]).to_bytes(1, "big"))
+    if len(parts) != SPOT_ORDER_BYTES_LENGTH:
+        raise ValueError(
+            f"Spot order message must be {SPOT_ORDER_BYTES_LENGTH} bytes, got {len(parts)}"
+        )
+    return bytes(parts)
+
+
+# Domain prefixes that match the on-chain contract verification for the
+# wallet/margin-asset action endpoints. Must stay byte-for-byte identical.
+SPOT_TRANSFER_DOMAIN = "SPOT_TRANSFER_V1"
+MM_DEPOSIT_DOMAIN = "MM_DEPOSIT_V1"
+MM_WITHDRAW_DOMAIN = "MM_WITHDRAW_V1"
+MM_BORROW_DOMAIN = "MM_BORROW_V1"
+MM_REPAY_DOMAIN = "MM_REPAY_V1"
+
+
+def make_transfer_msg(
+    domain: str,
+    login_address: str,
+    login_chain_id: int,
+    recipient: str,
+    recipient_chain_id: int,
+    token_amount: int,
+    token_index: Union[str, int],
+    token_chain_id: int,
+    expired_date: int,
+) -> bytes:
+    """
+    Build the 144-byte TransferIntent message preceded by an ASCII domain
+    prefix, matching `makeTransferMsg` in the JS SDK.
+    Layout: domain | login(32) | login_chain(8) | recip(32) | recip_chain(8)
+            | token(32) | token_chain(8) | amount(16) | expiry(8)
+    """
+    parts = bytearray()
+    parts.extend(domain.encode("utf-8"))
+    parts.extend(
+        normalize_address(login_address, determine_address_type(login_chain_id, False))
+    )
+    parts.extend(login_chain_id.to_bytes(8, "big"))
+    parts.extend(
+        normalize_address(recipient, determine_address_type(recipient_chain_id, False))
+    )
+    parts.extend(recipient_chain_id.to_bytes(8, "big"))
+    parts.extend(
+        normalize_address(
+            token_index,
+            determine_address_type(token_chain_id, True, token_index),
+        )
+    )
+    parts.extend(token_chain_id.to_bytes(8, "big"))
+    parts.extend(int(token_amount).to_bytes(16, "big"))
+    parts.extend(int(expired_date).to_bytes(8, "big"))
+    return bytes(parts)
 
 
 def get_account_balance_box_name(

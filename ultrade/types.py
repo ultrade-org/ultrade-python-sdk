@@ -358,3 +358,46 @@ class AuthMethod(Enum):
     TRADING_KEY = 1
     LOGIN = 2
     NONE = 3
+
+
+class MarketType(Enum):
+    SPOT = "spot"
+    PERP = "perp"
+
+
+class Position(TypedDict, total=False):
+    accountAddress: str
+    positionSlot: int
+    marketSlot: int
+    direction: int
+    netSize: str
+    averageEntryPrice: str
+    lastFundingIndex: str
+    isolatedCollateral: str
+    isIsolated: bool
+    targetLeverage: int
+    fundingPayment: str
+    margin: str
+    notional: str
+    liquidationPrice: str
+    markPrice: str
+    totalPnl: str
+
+
+class Equity(TypedDict, total=False):
+    accountAddress: str
+    spotBalance: float
+    perpBalance: float
+    maintenanceMargin: float
+    unrealizedPnl: float
+    crossMarginRatio: float
+    crossAccountLeverage: float
+
+
+class MarginAsset(TypedDict, total=False):
+    codexAssetId: int
+    assetId: str
+    assetChain: int
+    assetSlot: int
+    amount: str
+    borrowAmount: str

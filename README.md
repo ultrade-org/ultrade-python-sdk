@@ -39,6 +39,22 @@ To install the `ultrade` package, you can use pip:
 pip install ultrade
 ```
 
+## Running tests against dev4
+
+`tests/dev4_test.py` runs an end-to-end suite against any testnet API URL (dev4 by default). It covers reads, margin-asset deposit, spot/perp create/replace/cancel, and bulks. All created orders are cancelled at teardown. Tests skip cleanly when env vars are unset.
+
+```bash
+export ULTRADE_DEV4_API_URL=https://api.dev4.ultradedev.net
+export ULTRADE_DEV4_EVM_KEY=<hex private key, no 0x>
+# Optional, default avax_usdc / btc_usd
+export ULTRADE_DEV4_SPOT_PAIR=avax_usdc
+export ULTRADE_DEV4_PERP_PAIR=btc_usd
+
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -p asyncio tests/dev4_test.py -v
+```
+
+The account needs USDC and the spot pair's base token in spot balance. To exercise perp creation, the account also needs perp margin (deposit USDC via `deposit_margin_asset` or run `TestMarginAsset::test_deposit_one_usdc`). If the deposit fails with `fee too small`, bump the dev4 Redis budget on the server: `redis-cli set depositCa:extraTxns 20`.
+
 ## Quick start
 
 ### Structure
@@ -522,12 +538,23 @@ Below are methods that require the [login function](#logging-in) to be executed
 | [get_orders_with_trades](#get_orders_with_trades) | Retrieves a list of orders along with their trade details for the logged-in user. |
 | [get_orders](#get_orders) | Retrieves a list of logged user orders.
 | [get_wallet_transactions](#get_wallet_transactions) | Returns a list of wallet transactions and it statuses (deposits/withdrawals) for the logged-in user. |
-| [create_order](#create_order) | Creates an order on the Ultrade platform. |
-| [create_bulk_orders](#create_bulk_orders) | Creates multiple orders in a single batch. |
+| [create_order](#create_order) | Creates a spot or perp order on the Ultrade platform. |
+| [create_bulk_orders](#create_bulk_orders) | Creates multiple orders in a single batch (spot or perp). |
+| [replace_orders](#replace_orders) | Atomically replaces (amends) one or more existing orders. |
 | [cancel_order](#cancel_order) | Cancels an existing order on the Ultrade platform. |
 | [cancel_bulk_orders](#cancel_bulk_orders) | Cancels multiple orders on the Ultrade platform. |
 | [deposit](#deposit) | Deposit a specified amont of tokens to the Token Manager Contract. |
 | [withdraw](#withdraw) | Withdraws a specified amount of tokens to a designated recipient. |
+| [get_positions](#get_positions) | Returns the user's open perp positions. |
+| [get_equity](#get_equity) | Returns spot/perp balance and margin equity for the logged user. |
+| [get_margin_assets](#get_margin_assets) | Returns the user's margin asset balances. |
+| [get_margin_assets_usd_value](#get_margin_assets_usd_value) | Returns the USD value of the user's margin assets portfolio. |
+| [mark_margin_assets_to_now](#mark_margin_assets_to_now) | Marks margin positions to the current price. |
+| [get_market_margin_assets](#get_market_margin_assets) | Returns the list of margin assets supported by the market. |
+| [deposit_margin_asset](#deposit_margin_asset) | Deposits collateral for perps trading. |
+| [withdraw_margin_asset](#withdraw_margin_asset) | Withdraws collateral from perps trading. |
+| [borrow_margin_asset](#borrow_margin_asset) | Borrows a margin asset against existing collateral. |
+| [repay_margin_asset](#repay_margin_asset) | Repays a borrowed margin asset. |
 | [subscribe](#subscribe) | Subscribes the client to various websocket streams. |
 | [unsubscribe](#unsubscribe) | Unsubscribes from a previously established websocket connection. |
 
@@ -765,90 +792,127 @@ except Exception as e:
 
 ### create_order
 
-The `create_order` method is used to create a new order on the Ultrade platform. This method allows you to specify various parameters for the order, including the type, side, amount, and price.
+The `create_order` method creates a new spot or perp order on the Ultrade platform. The set of parameters depends on `market_type`.
 
-| Parameter                  | Type  | Description                                                              |
-| -------------------------- | ----- | ------------------------------------------------------------------------ |
-| `pair_id`                  | `int` | The ID of the trading pair.                                              |
-| `order_side`               | `str` | The side of the order, 'B' (buy) or 'S' (sell).                          |
-| `order_type`               | `str` | The type of the order: 'M' (market), 'L' (limit), 'I' (IOC), 'P' (post). |
-| `amount`                   | `int` | The amount of tokens to buy or sell in atomic units.                     |
-| `price`                    | `int` | The price is in factored units, equals decimalPrice \* 10 ^ 18.          |
-| `seconds_until_expiration` | `int` | Seconds until the order expires, default=3600.                           |
+| Parameter                  | Type                       | Description                                                                  |
+| -------------------------- | -------------------------- | ---------------------------------------------------------------------------- |
+| `market_type`              | `'spot' \| 'perp'`         | Market type. Defaults to `'spot'`.                                            |
+| `pair_id`                  | `int`                      | The ID of the trading pair (both market types).                              |
+| `seconds_until_expiration` | `int`                      | Seconds until the order expires. Default `3660`.                              |
+
+**Spot-only parameters:**
+
+| Parameter     | Type  | Description                                                                                    |
+| ------------- | ----- | ---------------------------------------------------------------------------------------------- |
+| `order_side`  | `str` | `'B'` (buy) or `'S'` (sell).                                                                    |
+| `order_type`  | `str` | `'M'` (market), `'L'` (limit), `'I'` (IOC), `'P'` (post only).                                  |
+| `amount`      | `int` | Order size as **size8** = `humanAmount * 10^8`. Independent of pair decimals.                  |
+| `price`       | `int` | Limit price as **price10** = `humanPrice * 10^10`. Independent of pair decimals.               |
+| `max_total`   | `int` | _(Optional)_ Cap on total in size8 of the price asset. Defaults to `amount * price / 10^10`.   |
+| `order_flags` | `int` | _(Optional)_ Order flags bitmask. Defaults to `0`.                                              |
+
+**Perp-only parameters (keyword-only):**
+
+| Parameter         | Type  | Description                                                  |
+| ----------------- | ----- | ------------------------------------------------------------ |
+| `pyth_id`         | `str` | Pyth feed id for the perp pair.                              |
+| `order_side`      | `int` | Numeric perp order side.                                     |
+| `order_type`      | `int` | Numeric perp order type.                                     |
+| `time_in_force`   | `int` | Numeric time-in-force.                                       |
+| `flags`           | `int` | Order flags bitmask. Default `0`.                            |
+| `size_lots`       | `int` | Order size in lots.                                          |
+| `limit_price`     | `int` | Limit price (atomic).                                        |
+| `trigger_price`   | `int` | Trigger price for stop orders (atomic). Default `0`.         |
+| `twap_end_time`   | `int` | TWAP end timestamp in seconds. Default `0`.                  |
+| `target_leverage` | `int` | Target leverage for isolated positions.                      |
+
+For perp orders the SDK calls `POST /market/order/perp/message` to obtain the encoded message, signs it locally, and submits the signed payload to `POST /market/order` with `type: "perp"` in the body. Spot and perp share the same submit URL; the `type` field tells the server how to route.
 
 ```python
-pair = await client.get_pair_info("algo_moon")
-try:
-    await client.create_order(
-        pair_id=pair["id"],
-        order_side="B",
-        order_type="L",
-        amount=3000000,  # in atomic units
-        price=1500000000000000000  # in factored units
-    )
-except Exception as e:
-    print(f"Error creating order: {str(e)}")
+# Spot order: buy 1 AVAX at 10 USDC.
+# amount = 1 * 10^8 (size8); price = 10 * 10^10 (price10)
+pair = await client.get_pair_info("avax_usdc")
+await client.create_order(
+    pair_id=pair["id"],
+    order_side="B",
+    order_type="L",
+    amount=100_000_000,
+    price=100_000_000_000,
+)
+
+# Perp order
+perp_pair = await client.get_pair_info("btc_usdc_perp")
+await client.create_order(
+    market_type="perp",
+    pair_id=perp_pair["id"],
+    pyth_id=perp_pair["pyth_id"],
+    order_side=0,
+    order_type=0,
+    time_in_force=0,
+    size_lots=10,
+    limit_price=6500000000,
+    target_leverage=5,
+)
 ```
 
-This function does not return a value.  
-Raises:
-`ValueError: If the order amount is below the minimum order size.`
-`ValueError: If the price does not meet the minimum price increment.`
-`ValueError: If there are insufficient funds in the price currency balance to execute the buy order.`
-`ValueError: If there are insufficient funds in the base currency balance to execute the sell order.`
+Raises `ValueError` for invalid arguments and `Exception` for server-side errors.
 
 ---
 
 ### create_bulk_orders
 
-The `create_bulk_orders` method is used to create multiple orders in a single batch operation on the Ultrade platform. It takes a list of order objects and sends them one by one using the same logic as `create_order`.
+The `create_bulk_orders` method creates multiple orders in a single batch. All orders in the batch must share the same `market_type`.
 
-Each order in the list must include the same required parameters as `create_order`.
-
-| Parameter                     | Type         | Description                                                               |
-| ----------------------------- | ------------ | ------------------------------------------------------------------------- |
-| `orders`                      | `list[dict]` | A list of order dictionaries. Each dictionary must contain the following: |
-| ├─ `pair_id`                  | `int`        | The ID of the trading pair.                                               |
-| ├─ `order_side`               | `str`        | The side of the order: 'B' (buy) or 'S' (sell).                           |
-| ├─ `order_type`               | `str`        | The type of the order: 'M', 'L', 'I', or 'P'.                             |
-| ├─ `amount`                   | `int`        | The amount of tokens to buy or sell in atomic units.                      |
-| ├─ `price`                    | `int`        | The price in factored units (decimalPrice \* 10^18).                      |
-| └─ `seconds_until_expiration` | `int`        | _(Optional)_ Time in seconds until the order expires. Default is 3660.    |
+| Parameter     | Type                       | Description                                                                |
+| ------------- | -------------------------- | -------------------------------------------------------------------------- |
+| `orders`      | `list[dict]`               | List of order dicts. Keys per dict match `create_order`'s parameters for the chosen `market_type` (e.g. `amount` is size8, `price` is price10 for spot). |
+| `market_type` | `'spot' \| 'perp'`         | Market type. Defaults to `'spot'`.                                          |
 
 #### Example
 
 ```python
-pair = await client.get_pair_info("algo_moon")
-
+# Spot bulk: amount in size8, price in price10
 orders = [
-    {
-        "pair_id": pair["id"],
-        "order_side": "B",
-        "order_type": "L",
-        "amount": 1000000,
-        "price": 1500000000000000000
-    },
-    {
-        "pair_id": pair["id"],
-        "order_side": "S",
-        "order_type": "L",
-        "amount": 2000000,
-        "price": 1600000000000000000
-    }
+    {"pair_id": 19, "order_side": "B", "order_type": "L", "amount": 100_000_000, "price": 100_000_000_000},
+    {"pair_id": 19, "order_side": "S", "order_type": "L", "amount": 200_000_000, "price": 110_000_000_000},
 ]
+await client.create_bulk_orders(orders)
 
-try:
-    await client.create_bulk_orders(orders)
-except Exception as e:
-    print(f"Error creating bulk orders: {str(e)}")
+# Perp bulk
+perp_orders = [
+    {
+        "pair_id": 99, "pyth_id": "0xabc...", "order_side": 0, "order_type": 0,
+        "time_in_force": 0, "size_lots": 5, "limit_price": 6500000000, "target_leverage": 3,
+    },
+]
+await client.create_bulk_orders(perp_orders, market_type="perp")
 ```
 
-This function does not return a value.
+Raises `ValueError` for invalid arguments and `Exception` for server-side errors.
 
-**Raises:**
+---
 
-- `ValueError`: If any order has invalid parameters.
-- `Exception`: If there is an error in the response for any order.
+### replace_orders
+
+The `replace_orders` method atomically cancels one or more existing orders and submits replacements in a single call. Works for both spot and perps.
+
+| Parameter      | Type                       | Description                                                                            |
+| -------------- | -------------------------- | -------------------------------------------------------------------------------------- |
+| `replacements` | `list[dict]`               | List of replacement dicts. Each must contain `old_order_id` plus the same fields you would pass to `create_order` for the chosen `market_type`. |
+| `market_type`  | `'spot' \| 'perp'`         | Market type. Defaults to `'spot'`.                                                      |
+
+```python
+await client.replace_orders([
+    {
+        "old_order_id": 12345,
+        "pair_id": 19,
+        "order_side": "B",
+        "order_type": "L",
+        "amount": 100_000_000,    # size8
+        "price": 110_000_000_000, # price10
+    },
+])
+```
 
 ---
 
@@ -907,6 +971,139 @@ try:
     print(f"Successfully canceled orders with IDs: {', '.join(map(str, order_ids))}")
 except Exception as e:
     print(f"Error canceling orders with IDs {', '.join(map(str, order_ids))}: {str(e)}")
+```
+
+---
+
+## Perps
+
+Below are methods specific to perps trading. Read methods require login; margin asset actions require a logged-in `Signer` (trading keys are not allowed for these).
+
+### get_positions
+
+Returns the user's open perp positions.
+
+```python
+positions = await client.get_positions()
+```
+
+**Returns:** `List[Position]` from `ultrade.types`. Each position contains `accountAddress`, `positionSlot`, `marketSlot`, `direction`, `netSize`, `averageEntryPrice`, `lastFundingIndex`, `isolatedCollateral`, `isIsolated`, `targetLeverage`, `fundingPayment`, `margin`, `notional`, `liquidationPrice`, `markPrice`, `totalPnl`.
+
+---
+
+### get_equity
+
+Returns spot/perp balance and margin equity for the logged user.
+
+```python
+equity = await client.get_equity()
+```
+
+**Returns:** `Equity` dict with `accountAddress`, `spotBalance`, `perpBalance`, `maintenanceMargin`, `unrealizedPnl`, `crossMarginRatio`, `crossAccountLeverage`.
+
+---
+
+### get_margin_assets
+
+Returns the user's margin asset balances.
+
+```python
+assets = await client.get_margin_assets()
+```
+
+**Returns:** `List[MarginAsset]`. Each entry has `codexAssetId`, `assetId`, `assetChain`, `assetSlot`, `amount`, `borrowAmount`.
+
+---
+
+### get_margin_assets_usd_value
+
+Returns the USD value of the user's margin assets portfolio.
+
+```python
+usd_value = await client.get_margin_assets_usd_value()
+```
+
+---
+
+### mark_margin_assets_to_now
+
+Marks the user's margin positions to the current price (refreshes server-side P&L).
+
+```python
+await client.mark_margin_assets_to_now()
+```
+
+---
+
+### get_market_margin_assets
+
+Returns the list of margin assets supported by the market. Public; no login required.
+
+```python
+assets = await client.get_market_margin_assets()
+```
+
+---
+
+### deposit_margin_asset
+
+Deposits collateral for perps trading. Builds a transfer message via `/wallet/transfer/message`, signs it with the logged-in user's signer, and submits it to `/wallet/margin-asset/deposit`.
+
+| Parameter                  | Type  | Description                                                       |
+| -------------------------- | ----- | ----------------------------------------------------------------- |
+| `token_amount`             | `int` | Amount in atomic units.                                           |
+| `token_index`              | `str` | Token contract address / index.                                   |
+| `token_chain_id`           | `int` | Wormhole chain id of the token.                                   |
+| `seconds_until_expiration` | `int` | Optional expiration window in seconds. Default `3660`.            |
+
+```python
+await client.deposit_margin_asset(
+    token_amount=1_000_000,
+    token_index="157824770",
+    token_chain_id=8,
+)
+```
+
+---
+
+### withdraw_margin_asset
+
+Withdraws collateral from perps trading. Same arguments as `deposit_margin_asset`.
+
+```python
+await client.withdraw_margin_asset(
+    token_amount=1_000_000,
+    token_index="157824770",
+    token_chain_id=8,
+)
+```
+
+---
+
+### borrow_margin_asset
+
+Borrows a margin asset against existing collateral. Same arguments as `deposit_margin_asset`.
+
+```python
+await client.borrow_margin_asset(
+    token_amount=500_000,
+    token_index="157824770",
+    token_chain_id=8,
+)
+```
+
+---
+
+### repay_margin_asset
+
+Repays a borrowed margin asset. Same arguments as `deposit_margin_asset`.
+
+```python
+await client.repay_margin_asset(
+    token_amount=500_000,
+    token_index="157824770",
+    token_chain_id=8,
+)
 ```
 
 ---
