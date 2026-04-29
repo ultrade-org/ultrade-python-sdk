@@ -39,6 +39,22 @@ To install the `ultrade` package, you can use pip:
 pip install ultrade
 ```
 
+## Running tests against dev4
+
+`tests/dev4_test.py` runs an end-to-end suite against any testnet API URL (dev4 by default). It covers reads, margin-asset deposit, spot/perp create/replace/cancel, and bulks. All created orders are cancelled at teardown. Tests skip cleanly when env vars are unset.
+
+```bash
+export ULTRADE_DEV4_API_URL=https://api.dev4.ultradedev.net
+export ULTRADE_DEV4_EVM_KEY=<hex private key, no 0x>
+# Optional, default avax_usdc / btc_usd
+export ULTRADE_DEV4_SPOT_PAIR=avax_usdc
+export ULTRADE_DEV4_PERP_PAIR=btc_usd
+
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -p asyncio tests/dev4_test.py -v
+```
+
+The account needs USDC and the spot pair's base token in spot balance. To exercise perp creation, the account also needs perp margin (deposit USDC via `deposit_margin_asset` or run `TestMarginAsset::test_deposit_one_usdc`). If the deposit fails with `fee too small`, bump the dev4 Redis budget on the server: `redis-cli set depositCa:extraTxns 20`.
+
 ## Quick start
 
 ### Structure
