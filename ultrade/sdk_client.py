@@ -252,7 +252,7 @@ class Client:
         message_bytes = message.encode("utf-8")
         message_hex = message_bytes.hex()
         signature = signer.sign_data(message_bytes)
-        signature_hex = signature.hex() if isinstance(signature, bytes) else signature
+        signature_hex = ("0x" + signature.hex()) if isinstance(signature, bytes) else signature
         headers = {
             "CompanyId": str(self._company_id),
         }
@@ -346,7 +346,7 @@ class Client:
         message_bytes = make_spot_order_msg(data)
         message = message_bytes.hex()
         signature = signer.sign_data(message_bytes)
-        signature_hex = signature.hex() if isinstance(signature, bytes) else signature
+        signature_hex = ("0x" + signature.hex()) if isinstance(signature, bytes) else signature
 
         return {
             "message": message,
@@ -420,7 +420,7 @@ class Client:
 
         message_bytes = bytes.fromhex(message_hex)
         signature = signer.sign_data(message_bytes)
-        signature_hex = signature.hex() if isinstance(signature, bytes) else signature
+        signature_hex = ("0x" + signature.hex()) if isinstance(signature, bytes) else signature
 
         return {"message": message_hex, "signature": signature_hex}
 
@@ -581,7 +581,7 @@ class Client:
         message = toJson(data)
         message_bytes = message.encode("utf-8")
         signature = signer.sign_data(message_bytes)
-        signature_hex = signature.hex() if isinstance(signature, bytes) else signature
+        signature_hex = ("0x" + signature.hex()) if isinstance(signature, bytes) else signature
 
         return {"signature": signature_hex, "data": data}
 
@@ -793,7 +793,7 @@ class Client:
 
         message = message_bytes.hex()
         signature = signer.sign_data(message_bytes)
-        signature_hex = signature.hex() if isinstance(signature, bytes) else signature
+        signature_hex = ("0x" + signature.hex()) if isinstance(signature, bytes) else signature
         url = f"{self.__api_url}/wallet/withdraw"
         async with self._http().post(url,
                 json={
@@ -1244,7 +1244,7 @@ class Client:
         )
         message_hex = message_bytes.hex()
         signature = signer.sign_data(message_bytes)
-        signature_hex = signature.hex() if isinstance(signature, bytes) else signature
+        signature_hex = ("0x" + signature.hex()) if isinstance(signature, bytes) else signature
         return {"message": message_hex, "signature": signature_hex}
 
     async def _post_margin_asset_action(self, action: str, payload: Dict) -> Dict:
