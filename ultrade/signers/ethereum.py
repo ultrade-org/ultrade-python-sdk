@@ -2,8 +2,6 @@ from ultrade.utils.encode import determine_address_type, normalize_address
 from ultrade.types import Technology, WormholeChains
 from ultrade.constants import TMC_ABI as abi, ERC20_ABI
 from ultrade import Signer
-from web3 import Web3, HTTPProvider
-from web3.middleware import geth_poa_middleware
 from eth_account import Account
 from eth_keys import keys
 from coincurve import PrivateKey as _CoinPrivateKey
@@ -12,6 +10,17 @@ from eth_hash.auto import keccak as _keccak
 GAS_LIMIT = 1000000
 
 _EIP191_PREFIX = b"\x19Ethereum Signed Message:\n"
+
+
+def _load_web3_deposit_dependencies():
+    from web3 import Web3, HTTPProvider
+
+    try:
+        from web3.middleware import ExtraDataToPOAMiddleware as poa_middleware
+    except ImportError:
+        from web3.middleware import geth_poa_middleware as poa_middleware
+
+    return Web3, HTTPProvider, poa_middleware
 
 
 class EthereumSigner(Signer):
@@ -52,6 +61,8 @@ class EthereumSigner(Signer):
             amount (int): The amount of tokens to deposit.
             token_address (str | int): The id of the token to deposit.
         """
+        Web3, HTTPProvider, poa_middleware = _load_web3_deposit_dependencies()
+
         if not Web3.is_address(token_address):
             raise Exception("You must provide a valid EVM token address.")
 
@@ -72,7 +83,7 @@ class EthereumSigner(Signer):
             raise Exception("RPC URL is not set. Please provide a valid RPC URL.")
 
         web3 = Web3(HTTPProvider(rpc_url))
-        web3.middleware_onion.inject(geth_poa_middleware, layer=0)
+        web3.middleware_onion.inject(poa_middleware, layer=0)
 
         if not web3.is_connected():
             raise Exception(
