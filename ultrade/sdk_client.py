@@ -23,6 +23,7 @@ from .types import (
 from .signers.main import Signer
 from .utils.encode import (
     make_spot_order_msg,
+    make_perp_order_msg,
     make_withdraw_msg,
     make_transfer_msg,
     SPOT_TRANSFER_DOMAIN,
@@ -391,34 +392,20 @@ class Client:
             "orderType": order_type,
             "timeInForce": time_in_force,
             "flags": flags,
-            "sizeLots": str(size_lots),
-            "limitPrice": str(limit_price),
-            "triggerPrice": str(trigger_price),
+            "sizeLots": size_lots,
+            "limitPrice": limit_price,
+            "triggerPrice": trigger_price,
             "expiredTime": expiration_date_in_seconds,
             "twapEndTime": twap_end_time,
             "random": random_number,
             "targetLev": target_leverage,
-            "pairId": pair_id,
             "companyId": self._company_id,
         }
 
-        msg_url = f"{self.__api_url}/market/order/perp/message"
-        async with self._http().post(msg_url, json={"data": data}, headers=self.__auth_headers) as resp:
-                # The perp message endpoint returns the raw hex string with
-                # text/html content-type; the spot one wraps with {message: hex}.
-                body = (await resp.text()).strip()
-                if resp.status >= 400:
-                    raise Exception(body)
-                if body.startswith("{"):
-                    import json
-                    parsed = json.loads(body)
-                    message_hex = parsed["message"]
-                elif body.startswith('"') and body.endswith('"'):
-                    message_hex = body[1:-1]
-                else:
-                    message_hex = body
-
-        message_bytes = bytes.fromhex(message_hex)
+        # Build the 130-byte perp order message locally — verified byte-identical
+        # to /market/order/perp/message. Avoids one HTTP roundtrip per order.
+        message_bytes = make_perp_order_msg(data)
+        message_hex = message_bytes.hex()
         signature = signer.sign_data(message_bytes)
         signature_hex = ("0x" + signature.hex()) if isinstance(signature, bytes) else signature
 

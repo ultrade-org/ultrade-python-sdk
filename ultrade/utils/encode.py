@@ -193,6 +193,51 @@ def make_spot_order_msg(data: dict) -> bytes:
     return bytes(parts)
 
 
+PERP_ORDER_BYTES_LENGTH = 130
+
+
+def _derive_perp_market_id(pyth_id: str) -> bytes:
+    """First 4 bytes + last 4 bytes of the hex-decoded pyth feed id (8 bytes)."""
+    h = pyth_id[2:] if pyth_id.startswith("0x") else pyth_id
+    raw = bytes.fromhex(h)
+    return raw[:4] + raw[-4:]
+
+
+def make_perp_order_msg(data: dict) -> bytes:
+    """
+    Build the 130-byte perp CreateOrder message that matches the server's
+    `makeCreateOrderMsgBytes` in @ultrade/shared. Layout:
+      address(32) | chainId(2) | marketId(8) | orderSide(1) | orderType(1)
+      | timeInForce(1) | flags(2) | sizeLots(8) | limitPrice(8) | triggerPrice(8)
+      | expiredTime(8) | twapEndTime(8) | random(8) | targetLev(1) | companyId(2)
+      | trailing-zero(32)
+    """
+    parts = bytearray()
+    parts.extend(
+        normalize_address(data["address"], determine_address_type(data["chainId"], False))
+    )
+    parts.extend(int(data["chainId"]).to_bytes(2, "big"))
+    parts.extend(_derive_perp_market_id(data["pythId"]))
+    parts.extend(int(data["orderSide"]).to_bytes(1, "big"))
+    parts.extend(int(data["orderType"]).to_bytes(1, "big"))
+    parts.extend(int(data["timeInForce"]).to_bytes(1, "big"))
+    parts.extend(int(data["flags"]).to_bytes(2, "big"))
+    parts.extend(int(data["sizeLots"]).to_bytes(8, "big"))
+    parts.extend(int(data["limitPrice"]).to_bytes(8, "big"))
+    parts.extend(int(data.get("triggerPrice") or 0).to_bytes(8, "big"))
+    parts.extend(int(data.get("expiredTime") or 0).to_bytes(8, "big"))
+    parts.extend(int(data.get("twapEndTime") or 0).to_bytes(8, "big"))
+    parts.extend(int(data["random"]).to_bytes(8, "big"))
+    parts.extend(int(data["targetLev"]).to_bytes(1, "big"))
+    parts.extend(int(data["companyId"]).to_bytes(2, "big"))
+    parts.extend(b"\x00" * 32)
+    if len(parts) != PERP_ORDER_BYTES_LENGTH:
+        raise ValueError(
+            f"Perp order message must be {PERP_ORDER_BYTES_LENGTH} bytes, got {len(parts)}"
+        )
+    return bytes(parts)
+
+
 # Domain prefixes that match the on-chain contract verification for the
 # wallet/margin-asset action endpoints. Must stay byte-for-byte identical.
 SPOT_TRANSFER_DOMAIN = "SPOT_TRANSFER_V1"
