@@ -40,6 +40,18 @@ import random
 
 OPTIONS = socket_options
 
+# Server-enforced cap on bulk-array endpoints (create / replace / cancel).
+MAX_BULK_SIZE = 10
+
+
+def _validate_bulk_size(items, op: str) -> None:
+    if not isinstance(items, list) or not items:
+        raise ValueError(f"{op}: array must be a non-empty list")
+    if len(items) > MAX_BULK_SIZE:
+        raise ValueError(
+            f"{op}: at most {MAX_BULK_SIZE} items per bulk request, got {len(items)}"
+        )
+
 
 class CompanyNotEnabledException(Exception):
     pass
@@ -497,10 +509,11 @@ class Client:
     ) -> list[dict]:
         """
         Creates multiple orders in a single batch. All orders in the batch must
-        be the same market_type.
+        be the same market_type. Server caps batch size at MAX_BULK_SIZE.
 
         Args:
-            orders (list[dict]): List of order dicts. Keys depend on market_type:
+            orders (list[dict]): List of order dicts (max MAX_BULK_SIZE entries).
+                Keys depend on market_type:
                 spot: pair_id, order_side, order_type, amount, price, seconds_until_expiration (optional)
                 perp: pair_id, pyth_id, order_side, order_type, time_in_force, flags,
                       size_lots, limit_price, target_leverage, trigger_price (opt),
@@ -510,6 +523,7 @@ class Client:
         Returns:
             list[dict]: List of responses from the server.
         """
+        _validate_bulk_size(orders, "create_bulk_orders")
         if market_type == "perp":
             # Each perp order requires a roundtrip to /market/order/perp/message;
             # fan them out concurrently rather than serially awaiting each.
@@ -601,14 +615,15 @@ class Client:
 
     async def cancel_bulk_orders(self, order_ids: list[int], pair_id: str) -> list:
         """
-        Cancels multiple orders by their IDs.
+        Cancels multiple orders by their IDs. Server caps batch size at MAX_BULK_SIZE.
 
         Args:
-            order_ids (list[int]): A list of order IDs to cancel.
+            order_ids (list[int]): A list of order IDs to cancel (max MAX_BULK_SIZE).
 
         Returns:
             list: A list of results for each cancel attempt.
         """
+        _validate_bulk_size(order_ids, "cancel_bulk_orders")
         self.__check_is_logged_in()
         body = self._build_cancel_order_payload({ "orderIds": order_ids, "pairId": pair_id })
         url = f"{self.__api_url}/market/orders"
@@ -1305,10 +1320,12 @@ class Client:
     ) -> List[Dict]:
         """
         Replace (amend) one or more existing orders. Each replacement cancels
-        the old order and submits a new one atomically.
+        the old order and submits a new one atomically. Server caps batch size
+        at MAX_BULK_SIZE.
 
         Args:
-            replacements (list[dict]): List of replacement dicts. Each must contain:
+            replacements (list[dict]): List of replacement dicts (max MAX_BULK_SIZE).
+                Each must contain:
                 old_order_id (int): The id of the order to replace.
                 Plus order parameters matching the market_type, exactly as accepted by
                 create_order (spot: pair_id/order_side/order_type/amount/price/...,
@@ -1318,6 +1335,7 @@ class Client:
         Returns:
             list of dict: Results from the server.
         """
+        _validate_bulk_size(replacements, "replace_orders")
         if market_type not in ("spot", "perp"):
             raise ValueError("market_type must be 'spot' or 'perp'")
 
