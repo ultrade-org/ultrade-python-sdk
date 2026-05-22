@@ -935,6 +935,44 @@ await client.create_dark_order(
 
 Raises `ValueError` for fewer than 2 chunks or for equal spot chunk sizes. Raises `Exception` for server-side errors (gating, notional bounds, signature, etc.).
 
+#### Randomized chunk splits
+
+Manually choosing chunk sizes leaks intent — `[100k, 100k, 100k]` is recognizably "1 trader splitting 300k". Pass `total_amount=` + `num_chunks=` instead of an explicit `chunks=` list to have the SDK split via a Dirichlet-weighted distribution that varies chunk magnitudes naturally. The SDK respects the pair's `min_size_increment` and (for spot) makes sure all chunks are distinct.
+
+```python
+await client.create_dark_order(
+    pair_id=19,
+    total_amount=100_000_000_000_000,   # 1M AVAX in size8
+    num_chunks=7,
+    min_chunk=10_000_000_000_000,       # optional floor — 100k AVAX per chunk
+    market_type="spot",
+    order_side="B",
+    order_type="L",
+    price=10_000_000_000,
+)
+```
+
+The `min_chunk` floor is in size units, not USD. If the server enforces a per-chunk USD minimum, convert it yourself first (`min_chunk_usd / spot_oracle * 10**base_decimal`).
+
+For inspection / logging / re-rolling before signing, call the splitter directly:
+
+```python
+from ultrade import split_dark_chunks
+
+chunks = split_dark_chunks(
+    total=100_000_000_000_000,
+    num_chunks=7,
+    min_increment=10_000_000,   # pair's min_size_increment
+    min_chunk=10_000_000_000_000,
+    distinct=True,              # required for spot
+    seed=None,                  # set an int for reproducible tests
+)
+# chunks is a list[int] summing to total, varied, distinct, shuffled.
+await client.create_dark_order(chunks=chunks, ...)
+```
+
+Passing both `chunks=` and `total_amount=` raises `ValueError`.
+
 **Matching behavior** (verified end-to-end on dev4):
 
 - Dark orders are submitted to the matching engine and **do cross** with both other dark orders and lit orders that meet the parent price.

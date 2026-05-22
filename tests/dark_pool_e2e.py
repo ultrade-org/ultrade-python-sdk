@@ -472,3 +472,96 @@ class TestArgumentValidation:
                 order_type="L",
                 price=SPOT_PRICE,
             )
+
+    async def test_random_split_path(self, primary, spot_pair):
+        """The randomized-split path should produce a valid parent and a
+        distinct, sum-equal chunk set. Cancels immediately on success."""
+        res = await primary.create_dark_order(
+            pair_id=spot_pair["id"],
+            total_amount=10**14,
+            num_chunks=5,
+            min_chunk=10**13,
+            market_type="spot",
+            order_side="B",
+            order_type="L",
+            price=SPOT_PRICE,
+            rng_seed=42,
+        )
+        order_id = res.get("id") or res.get("orderId")
+        assert order_id, res
+        assert int(res["amount"]) == 10**14
+        try: await primary.cancel_order(order_id)
+        except Exception: pass
+
+    async def test_random_split_rejects_chunks_and_total_together(self, primary, spot_pair):
+        with pytest.raises(ValueError, match="not both"):
+            await primary.create_dark_order(
+                pair_id=spot_pair["id"],
+                chunks=[1, 2, 3],
+                total_amount=10**14,
+                num_chunks=5,
+                market_type="spot",
+                order_side="B",
+                order_type="L",
+                price=SPOT_PRICE,
+            )
+
+    async def test_random_split_requires_total_and_count(self, primary, spot_pair):
+        with pytest.raises(ValueError, match="either `chunks="):
+            await primary.create_dark_order(
+                pair_id=spot_pair["id"],
+                market_type="spot",
+                order_side="B",
+                order_type="L",
+                price=SPOT_PRICE,
+            )
+
+
+# ---------------------------------------------------------------------------
+# Unit-level tests for the splitter itself. No network, no fixtures.
+# ---------------------------------------------------------------------------
+
+
+class TestSplitDarkChunks:
+    async def test_basic_split_invariants(self):
+        from ultrade import split_dark_chunks
+        chunks = split_dark_chunks(
+            total=10**14, num_chunks=5,
+            min_increment=10**7, min_chunk=10**13,
+            distinct=True, seed=1,
+        )
+        assert sum(chunks) == 10**14
+        assert len(chunks) == 5
+        assert all(c % 10**7 == 0 for c in chunks)
+        assert all(c >= 10**13 for c in chunks)
+        assert len(set(chunks)) == 5
+
+    async def test_perp_allows_equal_chunks(self):
+        from ultrade import split_dark_chunks
+        chunks = split_dark_chunks(
+            total=1_400_000_000_0, num_chunks=10,
+            min_increment=1, distinct=False, concentration=50.0, seed=1,
+        )
+        assert sum(chunks) == 1_400_000_000_0
+
+    async def test_seed_reproducibility(self):
+        from ultrade import split_dark_chunks
+        a = split_dark_chunks(total=10**14, num_chunks=4,
+                              min_increment=10**7, min_chunk=10**13,
+                              distinct=True, seed=99)
+        b = split_dark_chunks(total=10**14, num_chunks=4,
+                              min_increment=10**7, min_chunk=10**13,
+                              distinct=True, seed=99)
+        assert a == b
+
+    async def test_rejects_total_not_multiple_of_increment(self):
+        from ultrade import split_dark_chunks
+        with pytest.raises(ValueError, match="multiple of"):
+            split_dark_chunks(total=10**14 + 1, num_chunks=3,
+                              min_increment=10**7)
+
+    async def test_rejects_floor_too_high(self):
+        from ultrade import split_dark_chunks
+        with pytest.raises(ValueError, match="exceeds total"):
+            split_dark_chunks(total=10, num_chunks=3,
+                              min_increment=1, min_chunk=5)

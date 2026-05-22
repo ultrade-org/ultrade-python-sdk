@@ -32,6 +32,7 @@ from .utils.encode import (
     MM_BORROW_DOMAIN,
     MM_REPAY_DOMAIN,
 )
+from .utils.dark_pool import split_dark_chunks
 from typing import Any, Literal, Optional, List, Dict, Tuple
 import asyncio
 import time
@@ -582,10 +583,15 @@ class Client:
     async def create_dark_order(
         self,
         pair_id: int,
-        chunks: list[int],
+        chunks: Optional[list[int]] = None,
         market_type: Literal["spot", "perp"] = "spot",
         seconds_until_expiration: int = 3660,
         *,
+        total_amount: Optional[int] = None,
+        num_chunks: Optional[int] = None,
+        min_chunk: Optional[int] = None,
+        rng_seed: Optional[int] = None,
+        concentration: float = 2.0,
         order_side=None,
         order_type=None,
         price: int = None,
@@ -609,12 +615,26 @@ class Client:
         have distinct sizes — there is no nonce in the spot message, so equal-
         sized chunks would produce identical signed messages and be rejected.
 
+        Pass either an explicit `chunks=[...]` list, or `total_amount=` and
+        `num_chunks=` to have the SDK split the parent into a Dirichlet-weighted
+        random distribution (defends against the round-number leak you get
+        with arithmetic splits like `[100k, 100k, 100k]`). See
+        :func:`ultrade.split_dark_chunks` for the algorithm.
+
         Args:
             pair_id: Trading pair id.
             chunks: Sizes per chunk — amounts for spot, size_lots for perp.
-                Must contain at least 2 entries.
+                When omitted, supply `total_amount=` and `num_chunks=` instead.
             market_type: "spot" or "perp".
             seconds_until_expiration: Single expiry shared by parent + chunks.
+
+        Randomized-split kwargs (used when `chunks` is None):
+            total_amount: Parent size to split (size8 for spot, size_lots for perp).
+            num_chunks: Number of chunks to produce; must be ≥ 2.
+            min_chunk: Optional per-chunk floor (size units). Use when you can
+                convert the server's per-chunk USD floor into size units.
+            rng_seed: If set, makes the split reproducible (tests only).
+            concentration: Dirichlet alpha — lower = more variance.
 
         Spot-only kwargs:
             order_side ('B' or 'S'), order_type ('M'|'L'|'I'|'P'),
@@ -627,6 +647,32 @@ class Client:
         Returns:
             dict: Server response — the created parent order DTO.
         """
+        if chunks is None:
+            if total_amount is None or num_chunks is None:
+                raise ValueError(
+                    "create_dark_order: pass either `chunks=[...]` or both "
+                    "`total_amount=` and `num_chunks=`"
+                )
+            if market_type == "spot":
+                pair = await self.get_pair_info(pair_id)
+                min_increment = int(pair.get("min_size_increment") or 1)
+            else:
+                min_increment = 1
+            chunks = split_dark_chunks(
+                total=int(total_amount),
+                num_chunks=int(num_chunks),
+                min_increment=min_increment,
+                min_chunk=min_chunk,
+                distinct=(market_type == "spot"),
+                concentration=concentration,
+                seed=rng_seed,
+            )
+        elif total_amount is not None or num_chunks is not None:
+            raise ValueError(
+                "create_dark_order: pass either `chunks=[...]` or "
+                "`total_amount=`+`num_chunks=`, not both"
+            )
+
         if not isinstance(chunks, list) or len(chunks) < 2:
             raise ValueError("create_dark_order: chunks must be a list of at least 2 sizes")
         if any(int(c) <= 0 for c in chunks):
