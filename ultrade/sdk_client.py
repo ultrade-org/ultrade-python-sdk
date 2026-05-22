@@ -306,6 +306,7 @@ class Client:
         seconds_until_expiration: int,
         max_total: Optional[int] = None,
         order_flags: int = 0,
+        expired_time: Optional[int] = None,
     ):
         self.__check_is_logged_in()
 
@@ -330,7 +331,10 @@ class Client:
             raise Exception(f"Pair with id {pair_id} not found")
 
         order_msg_version = 1
-        expiration_date_in_seconds = int(time.time()) + seconds_until_expiration
+        expiration_date_in_seconds = (
+            int(expired_time) if expired_time is not None
+            else int(time.time()) + seconds_until_expiration
+        )
 
         # `amount` is size8 (humanAmount * 10^8) and `price` is price10
         # (humanPrice * 10^10) for spot. maxTotal is humanTotal in size8 too,
@@ -380,6 +384,8 @@ class Client:
         trigger_price: int = 0,
         seconds_until_expiration: int = 3660,
         twap_end_time: int = 0,
+        expired_time: Optional[int] = None,
+        random_number: Optional[int] = None,
     ):
         self.__check_is_logged_in()
 
@@ -393,8 +399,12 @@ class Client:
             login_chain_id = self._login_user.wormhole_chain_id
             signer = self._login_user
 
-        random_number = random.randint(1, 2**53 - 1)
-        expiration_date_in_seconds = int(time.time()) + seconds_until_expiration
+        if random_number is None:
+            random_number = random.randint(1, 2**53 - 1)
+        expiration_date_in_seconds = (
+            int(expired_time) if expired_time is not None
+            else int(time.time()) + seconds_until_expiration
+        )
 
         data = {
             "address": login_address,
@@ -568,6 +578,149 @@ class Client:
                 if resp.status >= 400 or (isinstance(response, dict) and "error" in response):
                     raise Exception(response)
                 return response
+
+    async def create_dark_order(
+        self,
+        pair_id: int,
+        chunks: list[int],
+        market_type: Literal["spot", "perp"] = "spot",
+        seconds_until_expiration: int = 3660,
+        *,
+        order_side=None,
+        order_type=None,
+        price: int = None,
+        order_flags: int = 0,
+        pyth_id: str = None,
+        time_in_force: int = 0,
+        flags: int = 0,
+        limit_price: int = None,
+        trigger_price: int = 0,
+        twap_end_time: int = 0,
+        target_leverage: int = None,
+    ) -> dict:
+        """
+        Submits a dark-pool parent order with N pre-signed chunks. The server
+        gates the order on system + pair-scope settings and on USD notional
+        bounds. Chunk signatures are verified at chunk-pick time (settlement),
+        not on submit. POSTs to /market/order/dark.
+
+        The parent's size = sum(chunks). Every chunk shares parent's params
+        except size (`amount` for spot, `size_lots` for perp). Spot chunks must
+        have distinct sizes — there is no nonce in the spot message, so equal-
+        sized chunks would produce identical signed messages and be rejected.
+
+        Args:
+            pair_id: Trading pair id.
+            chunks: Sizes per chunk — amounts for spot, size_lots for perp.
+                Must contain at least 2 entries.
+            market_type: "spot" or "perp".
+            seconds_until_expiration: Single expiry shared by parent + chunks.
+
+        Spot-only kwargs:
+            order_side ('B' or 'S'), order_type ('M'|'L'|'I'|'P'),
+            price (price10), order_flags.
+
+        Perp-only kwargs:
+            pyth_id, order_side (int), order_type (int), time_in_force,
+            flags, limit_price, trigger_price, twap_end_time, target_leverage.
+
+        Returns:
+            dict: Server response — the created parent order DTO.
+        """
+        if not isinstance(chunks, list) or len(chunks) < 2:
+            raise ValueError("create_dark_order: chunks must be a list of at least 2 sizes")
+        if any(int(c) <= 0 for c in chunks):
+            raise ValueError("create_dark_order: each chunk size must be > 0")
+
+        # Single shared expiry — server asserts parent.expiredTime === chunk.expiredTime.
+        shared_expired_time = int(time.time()) + seconds_until_expiration
+        total_size = sum(int(c) for c in chunks)
+
+        if market_type == "spot":
+            if len(set(int(c) for c in chunks)) != len(chunks):
+                raise ValueError(
+                    "create_dark_order: spot chunks must have distinct sizes "
+                    "(spot order messages have no nonce; equal sizes hash identically)"
+                )
+            parent = await self._build_order_payload(
+                pair_id=pair_id,
+                order_side=order_side,
+                order_type=order_type,
+                amount=total_size,
+                price=price,
+                seconds_until_expiration=seconds_until_expiration,
+                order_flags=order_flags,
+                expired_time=shared_expired_time,
+            )
+            chunk_payloads = []
+            for amt in chunks:
+                chunk_payloads.append(await self._build_order_payload(
+                    pair_id=pair_id,
+                    order_side=order_side,
+                    order_type=order_type,
+                    amount=int(amt),
+                    price=price,
+                    seconds_until_expiration=seconds_until_expiration,
+                    order_flags=order_flags,
+                    expired_time=shared_expired_time,
+                ))
+            payload_type = "spot"
+        elif market_type == "perp":
+            # Parent + all chunks need distinct random nonces.
+            nonces = []
+            while len(nonces) < len(chunks) + 1:
+                n = random.randint(1, 2**53 - 1)
+                if n not in nonces:
+                    nonces.append(n)
+            parent = await self._build_perp_order_payload(
+                pair_id=pair_id,
+                pyth_id=pyth_id,
+                order_side=order_side,
+                order_type=order_type,
+                time_in_force=time_in_force,
+                flags=flags,
+                size_lots=total_size,
+                limit_price=limit_price,
+                target_leverage=target_leverage,
+                trigger_price=trigger_price,
+                twap_end_time=twap_end_time,
+                expired_time=shared_expired_time,
+                random_number=nonces[0],
+            )
+            chunk_payloads = list(await asyncio.gather(*[
+                self._build_perp_order_payload(
+                    pair_id=pair_id,
+                    pyth_id=pyth_id,
+                    order_side=order_side,
+                    order_type=order_type,
+                    time_in_force=time_in_force,
+                    flags=flags,
+                    size_lots=int(sz),
+                    limit_price=limit_price,
+                    target_leverage=target_leverage,
+                    trigger_price=trigger_price,
+                    twap_end_time=twap_end_time,
+                    expired_time=shared_expired_time,
+                    random_number=nonces[i + 1],
+                )
+                for i, sz in enumerate(chunks)
+            ]))
+            payload_type = "perp"
+        else:
+            raise ValueError("market_type must be 'spot' or 'perp'")
+
+        body = {
+            "message": parent["message"],
+            "signature": parent["signature"],
+            "type": payload_type,
+            "chunks": [{"message": c["message"], "signature": c["signature"]} for c in chunk_payloads],
+        }
+        url = f"{self.__api_url}/market/order/dark"
+        async with self._http().post(url, json=body, headers=self.__auth_headers) as resp:
+            response = await resp.json(content_type=None)
+            if resp.status >= 400 or (isinstance(response, dict) and "error" in response):
+                raise Exception(response)
+            return response
 
     def _build_cancel_order_payload(self, data):
         auth_method = self._check_auth_method()

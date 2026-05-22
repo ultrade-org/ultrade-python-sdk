@@ -540,6 +540,7 @@ Below are methods that require the [login function](#logging-in) to be executed
 | [get_wallet_transactions](#get_wallet_transactions) | Returns a list of wallet transactions and it statuses (deposits/withdrawals) for the logged-in user. |
 | [create_order](#create_order) | Creates a spot or perp order on the Ultrade platform. |
 | [create_bulk_orders](#create_bulk_orders) | Creates multiple orders in a single batch (spot or perp). |
+| [create_dark_order](#create_dark_order) | Submits a dark-pool parent order with N pre-signed chunks. |
 | [replace_orders](#replace_orders) | Atomically replaces (amends) one or more existing orders. |
 | [cancel_order](#cancel_order) | Cancels an existing order on the Ultrade platform. |
 | [cancel_bulk_orders](#cancel_bulk_orders) | Cancels multiple orders on the Ultrade platform. |
@@ -889,6 +890,57 @@ await client.create_bulk_orders(perp_orders, market_type="perp")
 ```
 
 Raises `ValueError` for invalid arguments and `Exception` for server-side errors.
+
+---
+
+### create_dark_order
+
+The `create_dark_order` method submits a dark-pool parent order with N pre-signed chunks (`POST /market/order/dark`). The parent's size is the sum of the chunk sizes; every chunk shares the parent's params except for size (and for perps, the random nonce). Chunks are verified at chunk-pick time, not at submit.
+
+The endpoint is gated by SuperAdmin at two levels: a global enable flag (and an optional whitelist of accounts) and a per-pair enable flag with USD notional bounds. If the feature isn't enabled for your account or the pair, the server returns a 4xx.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `pair_id` | `int` | Trading pair id. |
+| `chunks` | `list[int]` | Sizes per chunk. Spot: `amount` (size8). Perp: `size_lots`. Minimum 2 chunks. Spot chunks must be distinct (no nonce in the spot message — equal sizes hash identically). |
+| `market_type` | `'spot' \| 'perp'` | Defaults to `'spot'`. |
+| `seconds_until_expiration` | `int` | Single expiry applied to parent + every chunk (the server requires them equal). Defaults to `3660`. |
+| Spot kwargs | | `order_side` (`'B'` / `'S'`), `order_type` (`'M' \| 'L' \| 'I' \| 'P'`), `price` (price10), `order_flags`. |
+| Perp kwargs | | `pyth_id`, `order_side` (int), `order_type` (int), `time_in_force`, `flags`, `limit_price`, `trigger_price`, `twap_end_time`, `target_leverage`. |
+
+```python
+# Spot — distinct chunk amounts required
+await client.create_dark_order(
+    pair_id=19,
+    chunks=[100_000_000, 200_000_000, 300_000_000],
+    market_type="spot",
+    order_side="S",
+    order_type="L",
+    price=500_000_000_000,
+)
+
+# Perp — equal sizes allowed (chunks carry independent random nonces)
+await client.create_dark_order(
+    pair_id=42,
+    chunks=[20_000, 20_000],
+    market_type="perp",
+    pyth_id="0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace",
+    order_side=0,
+    order_type=0,
+    time_in_force=0,
+    limit_price=700_000_000_000,
+    target_leverage=2,
+)
+```
+
+Raises `ValueError` for fewer than 2 chunks or for equal spot chunk sizes. Raises `Exception` for server-side errors (gating, notional bounds, signature, etc.).
+
+**Matching behavior** (verified end-to-end on dev4):
+
+- Dark orders are submitted to the matching engine and **do cross** with both other dark orders and lit orders that meet the parent price.
+- They are filtered out of the public order book / depth so external takers don't see them, but the matching engine still honors them per price-time priority.
+- A dark order **cannot be replaced** — `replace_orders` returns `failedReplacements[*].reason = "Dark orders cannot be replaced; cancel and re-create"`. Cancel and re-create instead.
+- Self-match is rejected: a same-wallet opposing dark order ends up with `status=4` (SelfMatched) without touching the resting order.
 
 ---
 
