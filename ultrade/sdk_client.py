@@ -278,11 +278,18 @@ class Client:
             headers=headers,
             json={"data": data, "message": message_hex, "signature": signature_hex},
         ) as resp:
-            response = await resp.text()
-            if "error" in response:
-                raise Exception(response["error"])
-            if response:
-                self._token = response
+            text = await resp.text()
+            # On error the server returns JSON like
+            #   {"statusCode":503,"message":"Maintenance mode is active","error":"Service Unavailable"}
+            # On success it returns the raw bearer token string.
+            if resp.status >= 400 or text.startswith("{"):
+                try:
+                    import json as _json
+                    raise Exception(_json.loads(text))
+                except (ValueError, TypeError):
+                    raise Exception(text or f"signin failed with status {resp.status}")
+            if text:
+                self._token = text
                 self._login_user = signer
                 self.__disconnect_trading_key()
 

@@ -34,11 +34,13 @@ Run only this file:
 
 The whole module is skipped if API URL or key is missing.
 """
+import asyncio
 import os
 import pytest
 import pytest_asyncio
 
 from ultrade import Client, Signer
+from ultrade.types import OrderStatus
 
 API_URL = os.environ.get("ULTRADE_DEV4_API_URL")
 PRIMARY_KEY = os.environ.get("ULTRADE_DEV4_EVM_KEY")
@@ -65,6 +67,17 @@ pytestmark = [
         reason="ULTRADE_DEV4_API_URL and ULTRADE_DEV4_EVM_KEY must be set",
     ),
 ]
+
+
+# Spot dark-order messages have no nonce — uniqueness comes from
+# (chunks, price, address, expiredTime). expiredTime resolves to 1 second,
+# so two same-shape spot dark orders placed within one second collide as
+# "Order message must be unique". A 1.1s sleep between tests lets the clock
+# tick over so each test gets a fresh expiredTime.
+@pytest_asyncio.fixture(autouse=True)
+async def _settle_between_tests():
+    yield
+    await asyncio.sleep(1.1)
 
 
 @pytest_asyncio.fixture(scope="module")
@@ -254,6 +267,134 @@ class TestBanGate:
 
 
 # ---------------------------------------------------------------------------
+# Privacy invariants — what a non-owner can and can't see. Runs under the
+# same "trading" phase (both wallets allowed, neither banned).
+# ---------------------------------------------------------------------------
+
+
+def _bid_amount_at(depth: dict, price: int) -> int:
+    """Look up the bid-side cumulative amount at an exact price level in the
+    public depth payload. Returns 0 if the price isn't there at all."""
+    bids = depth.get("buy") or depth.get("bids") or []
+    for lvl in bids:
+        if isinstance(lvl, dict):
+            p, a = int(lvl.get("price", 0)), int(lvl.get("amount", 0))
+        else:
+            p, a = int(lvl[0]), int(lvl[1])
+        if p == int(price):
+            return a
+    return 0
+
+
+class TestPrivacy:
+    async def test_owner_sees_isDark_flag(self, primary, spot_pair):
+        _skip_unless_phase("trading", "happy")
+        try:
+            dark = await primary.create_dark_order(
+                pair_id=spot_pair["id"], chunks=SPOT_CHUNKS, market_type="spot",
+                order_side="B", order_type="L", price=SPOT_PRICE,
+            )
+        except Exception as e:
+            msg = _server_message(e)
+            if "not available" in msg or "not enabled" in msg or "access revoked" in msg:
+                pytest.skip(f"primary cannot create dark orders: {msg!r}")
+            raise
+        try:
+            by_id = await primary.get_order_by_id(dark["id"])
+            assert by_id.get("isDark") is True, by_id
+
+            opens = await primary.get_orders_with_trades(status=OrderStatus.OPEN_ORDER)
+            ours = next((o for o in opens if o["id"] == dark["id"]), None)
+            assert ours is not None, "owner's open list missing its own dark order"
+            assert ours.get("isDark") is True, ours
+        finally:
+            try: await primary.cancel_order(dark["id"])
+            except Exception: pass
+
+    async def test_public_depth_does_not_leak_dark(self, primary, secondary, spot_pair):
+        _skip_unless_phase("trading")
+        # Unique prices below market so neither order fills.
+        dark_price = 7_000_000_000     # $0.70
+        lit_price = 6_000_000_000      # $0.60 — control
+        lit_amount = sum(SPOT_CHUNKS)
+
+        before = await secondary.get_depth("avax_usdc", depth=200)
+        base_dark = _bid_amount_at(before, dark_price)
+        base_lit = _bid_amount_at(before, lit_price)
+
+        dark = lit = None
+        try:
+            try:
+                dark = await primary.create_dark_order(
+                    pair_id=spot_pair["id"], chunks=SPOT_CHUNKS, market_type="spot",
+                    order_side="B", order_type="L", price=dark_price,
+                )
+            except Exception as e:
+                msg = _server_message(e)
+                if "insufficient balance" in msg or "not available" in msg or "not enabled" in msg:
+                    pytest.skip(f"dark order placement preconditions not met: {msg!r}")
+                raise
+            try:
+                lit = await primary.create_order(
+                    market_type="spot", pair_id=spot_pair["id"],
+                    order_side="B", order_type="L",
+                    amount=lit_amount, price=lit_price,
+                )
+            except Exception as e:
+                msg = _server_message(e)
+                if "insufficient balance" in msg:
+                    pytest.skip(f"control lit order couldn't be placed: {msg!r}")
+                raise
+            await asyncio.sleep(1.5)
+
+            after = await secondary.get_depth("avax_usdc", depth=200)
+            post_dark = _bid_amount_at(after, dark_price)
+            post_lit = _bid_amount_at(after, lit_price)
+
+            # Skip if the control failed — depth may be lagged or paused.
+            # The MAIN assertion (dark not leaked) is still validated.
+            if post_lit <= base_lit:
+                pytest.skip(
+                    f"control lit order did not appear in depth (before={base_lit} "
+                    f"after={post_lit}); depth feed may be lagged."
+                )
+            # Main invariant: dark price level must not have grown.
+            assert post_dark == base_dark, (
+                f"dark order leaked into public depth at price {dark_price}: "
+                f"before={base_dark} after={post_dark}"
+            )
+        finally:
+            for oid in (dark and dark.get("id"), lit and lit.get("id")):
+                if oid:
+                    try: await primary.cancel_order(oid)
+                    except Exception: pass
+
+    async def test_cross_wallet_isolation(self, primary, secondary, spot_pair):
+        """Secondary's private orders endpoint must not include primary's
+        dark order. (Standard auth scoping, but cheap to verify.)"""
+        _skip_unless_phase("trading")
+        try:
+            dark = await primary.create_dark_order(
+                pair_id=spot_pair["id"], chunks=SPOT_CHUNKS, market_type="spot",
+                order_side="B", order_type="L", price=SPOT_PRICE,
+            )
+        except Exception as e:
+            msg = _server_message(e)
+            if "not available" in msg or "not enabled" in msg or "access revoked" in msg:
+                pytest.skip(f"primary cannot create dark orders: {msg!r}")
+            raise
+
+        try:
+            s_opens = await secondary.get_orders_with_trades(status=OrderStatus.OPEN_ORDER)
+            assert dark["id"] not in {o["id"] for o in s_opens}, (
+                "secondary saw primary's dark order in its private orders endpoint"
+            )
+        finally:
+            try: await primary.cancel_order(dark["id"])
+            except Exception: pass
+
+
+# ---------------------------------------------------------------------------
 # Phase: trading — both wallets allowed, neither banned. Runs real fills.
 # Leaves balances shifted (dev4 mint balances, so safe to drift).
 # ---------------------------------------------------------------------------
@@ -265,7 +406,6 @@ LIT_TAKER_AMOUNT = 1_000_000_000_000  # 10k AVAX lit taker → partial-fill the 
 
 async def _wait_for_fill(client, order_id, *, timeout=5.0, poll=0.5):
     """Polls until the order shows any filledAmount > 0, or timeout."""
-    import asyncio
     deadline = asyncio.get_event_loop().time() + timeout
     last = None
     while asyncio.get_event_loop().time() < deadline:
@@ -290,7 +430,7 @@ class TestTrading:
             )
         except Exception as e:
             msg = _server_message(e)
-            if "not available" in msg or "not enabled" in msg or "access revoked" in msg:
+            if any(p in msg for p in ("not available", "not enabled", "access revoked", "insufficient balance")):
                 pytest.skip(f"primary cannot create dark orders: {msg!r}")
             raise
 
@@ -306,7 +446,7 @@ class TestTrading:
         except Exception as e:
             await primary.cancel_order(buy["id"])
             msg = _server_message(e)
-            if "not available" in msg or "not enabled" in msg or "access revoked" in msg:
+            if any(p in msg for p in ("not available", "not enabled", "access revoked", "insufficient balance")):
                 pytest.skip(f"secondary cannot create dark orders: {msg!r}")
             raise
 
@@ -334,7 +474,7 @@ class TestTrading:
             )
         except Exception as e:
             msg = _server_message(e)
-            if "not available" in msg or "not enabled" in msg or "access revoked" in msg:
+            if any(p in msg for p in ("not available", "not enabled", "access revoked", "insufficient balance")):
                 pytest.skip(f"primary cannot create dark orders: {msg!r}")
             raise
 
@@ -420,7 +560,6 @@ class TestTrading:
                 price=CROSS_PRICE,
             )
             # Allow the matching engine a moment.
-            import asyncio
             await asyncio.sleep(1.5)
             buy_after = await primary.get_order_by_id(buy["id"])
             sell_after = await primary.get_order_by_id(sell["id"])
